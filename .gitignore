@@ -1,2 +1,3 @@
 out-experiments
 *egg-info
+*.tmp_*

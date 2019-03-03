@@ -25,5 +25,5 @@ Run using:
     
 ## Run
 
-    docker run -it rc
+    docker run -it -v $PWD/out-experiments:/out-experiments -w / rc
     
