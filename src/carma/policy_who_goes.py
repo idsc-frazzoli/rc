@@ -33,10 +33,12 @@ class RandomWhoGoes(WhoGoes):
     def __repr__(self):
         return 'RandomWhoGoes: choosing who goes randomly'
 
+
 class MaxMessageGoes(WhoGoes):
     """ The one with the highest message goes. """
 
-    def who_goes(self, karmas: Tuple[KarmaValue],
+    def who_goes(self,
+                 karmas: Tuple[KarmaValue],
                  costs: Tuple[CostValue],
                  messages: Tuple[MessageValue],
                  urgencies: Tuple[UrgencyValue],
@@ -77,7 +79,7 @@ class MaxCostGoes(WhoGoes):
         return int(np.argmax(costs))
 
     def __repr__(self):
-        return 'MaxUrgencyGoes: centralized chooses the one with max accumulated cost'
+        return 'MaxCostGoes: centralized chooses the one with max accumulated cost'
 
 
 def perturb(x, rng, epsilon=0.01):

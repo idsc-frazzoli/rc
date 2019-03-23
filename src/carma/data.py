@@ -19,11 +19,16 @@ constant = DiscreteDistribution(((UrgencyValue(4), Probability(1)),))
 
 highlow = DiscreteDistribution(((UrgencyValue(3), Probability(0.5)),
                                 (UrgencyValue(5), Probability(0.5))))
+
+highlowmean = DiscreteDistribution(((UrgencyValue(3), Probability(0.3)),
+                                    (UrgencyValue(4), Probability(0.4)),
+                                    (UrgencyValue(5), Probability(0.3))))
 experiments = {}
 num_agents = 10
 num_days = 10
 average_encounters_per_day_per_agent = 100
 
+initial_karma = RandomKarma(20.0, 20.0) # lower, upper
 desc = """
 
 Random choice of who goes.
@@ -36,10 +41,10 @@ experiments['baseline-random'] = Experiment(desc=desc, num_agents=num_agents,
                                             average_encounters_per_day_per_agent=average_encounters_per_day_per_agent,
                                             agent_policy_scenario=FixedPolicy(RandomAgentPolicy()),
                                             urgency_distribution_scenario=ConstantUrgencyDistribution(highlow),
-                                            initial_karma_scenario=RandomKarma(0.0, 0.0),
+                                            initial_karma_scenario=initial_karma,
                                             who_goes=RandomWhoGoes(),
-                                            cost_update_policy=SimpleCostUpdatePolicy(),
-                                            karma_update_policy=SimpleKarmaUpdatePolicy())
+                                            cost_update_policy=PayUrgency(),
+                                            karma_update_policy=SimpleKarmaUpdatePolicy_but_floor0())
 
 desc = """
 
@@ -53,10 +58,10 @@ experiments['centralized-urgency'] = Experiment(desc=desc, num_agents=num_agents
                                                 average_encounters_per_day_per_agent=average_encounters_per_day_per_agent,
                                                 agent_policy_scenario=FixedPolicy(RandomAgentPolicy()),
                                                 urgency_distribution_scenario=ConstantUrgencyDistribution(highlow),
-                                                initial_karma_scenario=RandomKarma(0.0, 0.0),
+                                                initial_karma_scenario=initial_karma,
                                                 who_goes=MaxUrgencyGoes(),
-                                                cost_update_policy=SimpleCostUpdatePolicy(),
-                                                karma_update_policy=SimpleKarmaUpdatePolicy())
+                                                cost_update_policy=PayUrgency(),
+                                                karma_update_policy=SimpleKarmaUpdatePolicy_but_floor0())
 
 desc = """
 
@@ -70,10 +75,10 @@ experiments['centralized-cost'] = Experiment(desc=desc, num_agents=num_agents,
                                              average_encounters_per_day_per_agent=average_encounters_per_day_per_agent,
                                              agent_policy_scenario=FixedPolicy(BidUrgency()),
                                              urgency_distribution_scenario=ConstantUrgencyDistribution(highlow),
-                                             initial_karma_scenario=RandomKarma(0.0, 0.0),
+                                             initial_karma_scenario=initial_karma,
                                              who_goes=MaxCostGoes(),
-                                             cost_update_policy=SimpleCostUpdatePolicy(),
-                                             karma_update_policy=SimpleKarmaUpdatePolicy())
+                                             cost_update_policy=PayUrgency(),
+                                             karma_update_policy=SimpleKarmaUpdatePolicy_but_floor0())
 
 desc = """
 
@@ -82,15 +87,26 @@ The agents can bid with karma (if they have it)
 Urgency: high/low.
 
 """
-experiments['karma-bid-floor'] = Experiment(desc=desc, num_agents=num_agents,
+experiments['karma-bid-floor-highlow'] = Experiment(desc=desc, num_agents=num_agents,
                                             num_days=num_days,
                                             average_encounters_per_day_per_agent=average_encounters_per_day_per_agent,
                                             agent_policy_scenario=FixedPolicy(BidUrgency()),
                                             urgency_distribution_scenario=ConstantUrgencyDistribution(highlow),
-                                            initial_karma_scenario=RandomKarma(0.0, 0.0),
+                                            initial_karma_scenario=initial_karma,
                                             who_goes=MaxGoesIfHasKarma(),
-                                            cost_update_policy=SimpleCostUpdatePolicy(),
-                                            karma_update_policy=SimpleKarmaUpdatePolicy())
+                                            cost_update_policy=PayUrgency(),
+                                            karma_update_policy=SimpleKarmaUpdatePolicy_but_floor0())
+
+
+experiments['karma-bid-floor-highlowmean'] = Experiment(desc=desc, num_agents=num_agents,
+                                            num_days=num_days,
+                                            average_encounters_per_day_per_agent=average_encounters_per_day_per_agent,
+                                            agent_policy_scenario=FixedPolicy(BidUrgency()),
+                                            urgency_distribution_scenario=ConstantUrgencyDistribution(highlowmean),
+                                            initial_karma_scenario=initial_karma,
+                                            who_goes=MaxGoesIfHasKarma(),
+                                            cost_update_policy=PayUrgency(),
+                                            karma_update_policy=SimpleKarmaUpdatePolicy_but_floor0())
 
 prec = 3
 

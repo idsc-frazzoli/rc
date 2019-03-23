@@ -42,6 +42,22 @@ class BidUrgency(AgentPolicy):
 
     def __repr__(self):
         return 'BidUrgency: bid the true urgency'
+#
+#
+# class BidAccordingToCurrent(AgentPolicy):
+#     """ Bids the current urgency (truthful) """
+#
+#     def generate_message(self,
+#                          current_carma: KarmaValue,
+#                          cost_accumulated: CostValue,
+#                          current_urgency: UrgencyValue,
+#                          urgency_distribution: DiscreteDistribution, rng: RNG) -> MessageValue:
+#
+#
+#         return current_urgency
+#
+#     def __repr__(self):
+#         return 'BidUrgency: bid the true urgency'
 
 #####
 
