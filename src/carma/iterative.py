@@ -1,4 +1,7 @@
+import itertools
 from dataclasses import dataclass
+from decimal import Decimal
+from enum import Enum
 from typing import *
 
 import numpy as np
@@ -8,51 +11,95 @@ from numpy.testing import assert_allclose
 from reprep import Report, posneg
 
 
+class Assignment(Enum):
+    FirstPrice = 1
+    SecondPrice = 2
+    HalfPrice = 3
+
+
+
+
 @dataclass
-class ItExperiment:
-    num_iterations: int
-    max_carma: int
+class Model:
+    description: str
+    max_karma: int
     prob_high: float
     alpha: float
     urgency0: float
-    inertia: float
-    valid_carma_values: Optional[np.ndarray] = None
-    distinct_karma_values: Optional[int] = None
+
+    assignment: Assignment
+
+    p_win_if_bid_more: float = 1.0
+    mix: float = 0.0
+    ties_won_by_higher: bool = False
+
     prob_low: Optional[float] = None
 
+    valid_karma_values: Optional[np.ndarray] = None
+    distinct_karma_values: Optional[int] = None
+
     def __post_init__(self):
-        self.valid_carma_values = list(range(0, self.max_carma + 1))
-        assert max(self.valid_carma_values) == self.max_carma
-        self.distinct_karma_values = self.max_carma + 1
+        self.distinct_karma_values = self.max_karma + 1
         self.prob_low = 1.0 - self.prob_high
+        self.valid_karma_values = list(range(0, self.max_karma + 1))
+        assert max(self.valid_karma_values) == self.max_karma
+
+        N = self.distinct_karma_values
+        self.probability_of_winning_ = np.zeros((N, N, N, N), dtype='float64')
+        self.next_karma_if_win = np.zeros((N, N, N, N), dtype='int')
+        self.next_karma_if_lose = np.zeros((N, N, N, N), dtype='int')
+
+        print('initializing caches')
+        for k_i, m_i, k_j, m_j in itertools.product(range(N), range(N), range(N), range(N)):
+            self.probability_of_winning_[k_i, m_i, k_j, m_j] = probability_of_winning(self, k_i, m_i, k_j, m_j)
+
+            w, l = delta_karma_if_i_wins_or_lose(self, k_i, m_i, k_j, m_j)
+            self.next_karma_if_win[k_i, m_i, k_j, m_j] = w
+            self.next_karma_if_lose[k_i, m_i, k_j, m_j] = l
+        print('done initializing caches')
+
+
+@dataclass
+class Optimization:
+    energy_factor: Optional[float]
+    energy_factor_delta: Optional[float]
+    energy_factor_max: Optional[float]
+    num_iterations: int
+    inertia: float
+    diff_threshold: float
+
+
+@dataclass
+class Simulation:
+    model: Model
+    opt: Optimization
+
+
+assertions = False
 
 
 def assert_pd(x):
+    if not assertions:
+        return
     assert np.all(x >= 0), x
     assert np.allclose(np.sum(x), 1), x
 
 
 def assert_good_transitions(M):
+    if not assertions:
+        return
+
     n1, n2 = M.shape
     assert n1 == n2
     for i in range(n1):
         cond = M[i, :]
         assert_allclose(np.sum(cond), 1.0)
-    #
-    # def expected_karma(p):
-    #     return np.dot(p, list(range(n1)))
-    #
-    # p0 = np.zeros(n1, 'float64')
-    # p0[3] = 1.0
-    #
-    # p1 = np.dot(M.T, p0)
-    # print(f'p0: {p0}')
-    # print(f'p1: {p1}')
-    # print(f'ex0: {expected_karma(p0)}')
-    # print(f'ex1: {expected_karma(p1)}')
 
 
 def assert_good_policy(p):
+    if not assertions:
+        return
+
     n1, n2 = p.shape
     assert n1 == n2
     for i in range(n1):
@@ -63,29 +110,29 @@ def assert_good_policy(p):
                 assert pol[j] == 0
 
 
-def assert_valid_karma_value(exp: ItExperiment, p):
-    assert 0 <= p <= exp.max_carma, p
+def assert_valid_karma_value(model: Model, p):
+    if not assertions:
+        return
+
+    assert 0 <= p <= model.max_karma, p
 
 
 @dataclass
 class Iteration:
     policy: np.ndarray
-    stationary_carma_pd: np.ndarray
-
+    stationary_karma_pd: np.ndarray
+    stationary_karma_pd_raw: np.ndarray
     utility: np.ndarray
-    stationary_carma_cdf: Optional[Any] = None
 
     debug_utilities: Optional[Any] = None
     transitions: Optional[Any] = None
 
     def __post_init__(self):
-        N = self.stationary_carma_pd.size
+        N = self.stationary_karma_pd.size
         assert self.policy.shape == (N, N)
         assert_good_policy(self.policy)
-        assert_pd(self.stationary_carma_pd)
+        assert_pd(self.stationary_karma_pd)
 
-        self.stationary_carma_cdf = np.cumsum(self.stationary_carma_pd)
-        # print(self.stationary_carma_cdf)
         if self.transitions is not None:
             n = self.transitions.shape[0]
             # print(np.sum(self.transitions, axis=1))
@@ -94,8 +141,65 @@ class Iteration:
                 assert np.allclose(tp, 1.0), tp
 
 
+from typing import *
 
-def consider_bidding(exp, stationary_carma_pd, utility, policy, k_i, m_i) -> Tuple[np.ndarray, np.ndarray]:
+
+def probability_of_winning(model: Model, k_i, m_i, k_j, m_j) -> float:
+    """ Returns the probability of agent i winning
+        and 1- that probability."""
+    if m_i == m_j:
+        if model.ties_won_by_higher:
+            if k_i > k_j:
+                pwin, plose = 1.0, 0.0
+            elif k_i < k_j:
+                pwin, plose = 0.0, 1.0
+            elif k_i == k_j:
+                pwin, plose = 0.5, 0.5
+            else:
+                assert False
+        else:
+            pwin, plose = 0.5, 0.5
+    elif m_i < m_j:
+        plose = model.p_win_if_bid_more
+        pwin = 1 - plose
+    elif m_i > m_j:
+        pwin = model.p_win_if_bid_more
+        plose = 1 - pwin
+    else:
+        assert False
+
+    assert_allclose(pwin + plose, 1.0)
+
+    return pwin
+
+
+def delta_karma_if_i_wins_or_lose(model: Model, k_i, m_i, k_j, m_j) -> Tuple[float, float]:
+    """ Returns delta karma for agent i if it wins or loses."""
+
+    if model.assignment == Assignment.FirstPrice:
+
+        # conservation of karma: I can only lose up to what the other can win
+        next_karma_if_wins = k_i - min(m_i, model.max_karma - k_j)
+        next_karma_if_loses = min(k_i + m_j, model.max_karma)
+    elif model.assignment == Assignment.SecondPrice:
+        # second price: I pay m_j
+        next_karma_if_wins = k_i - min(m_j, model.max_karma - k_j)
+        # I gain m_i
+        next_karma_if_loses = min(k_i + m_i, model.max_karma)
+    elif model.assignment == Assignment.HalfPrice:
+        # second price: I pay m_j
+        half_price = int(np.ceil(0.5 * m_i + 0.5 * m_j))
+        next_karma_if_wins = k_i - min(half_price, model.max_karma - k_j)
+        # I gain m_i
+        next_karma_if_loses = min(k_i + half_price, model.max_karma)
+    else:
+        assert False
+
+    return next_karma_if_wins, next_karma_if_loses
+
+
+def consider_bidding(model: Model, stationary_karma_pd, utility, policy, k_i, m_i) -> Tuple[
+    np.ndarray, np.ndarray]:
     """
         What would happen if we bid m_i when we are k_i and high?
 
@@ -107,34 +211,31 @@ def consider_bidding(exp, stationary_carma_pd, utility, policy, k_i, m_i) -> Tup
     assert 0 <= m_i <= k_i
 
     # for each karma of the other
-    for k_j in exp.valid_carma_values:
+    for k_j in model.valid_karma_values:
         # probability that they have this karma
-        p_k_j = stationary_carma_pd[k_j]
+        p_k_j = stationary_karma_pd[k_j]
         if p_k_j == 0:
             continue
 
         # first, account for type "low"
         # they bid 0
-        if m_i == 0:
-            pwin_if_low, plose_if_low = 0.5, 0.5
-        else:
-            pwin_if_low, plose_if_low = 1.0, 0.0
+        m_j = 0
+        pwin_if_low = model.probability_of_winning_[k_i, m_i, k_j, m_j]
+        plose_if_low = 1.0 - pwin_if_low
 
-        next_karma_if_low_and_lose = k_i
-        # conservation of karma: I can only lose up to what the other can win
-        karma_lost = min(m_i, exp.max_carma - k_j)
-        next_karma_if_low_and_win = k_i - karma_lost
-        utility_if_low_and_lose = exp.alpha*utility[next_karma_if_low_and_lose]
-        utility_if_low_and_win =  exp.alpha*utility[next_karma_if_low_and_win]
+        next_karma_if_low_and_win = model.next_karma_if_win[k_i, m_i, k_j, m_j]
+        next_karma_if_low_and_lose = model.next_karma_if_lose[k_i, m_i, k_j, m_j]
 
-        P =  p_k_j * exp.prob_low
-        expected_cost_today_of_m_i += P * plose_if_low * (-exp.urgency0)
+        utility_if_low_and_lose = model.alpha * utility[next_karma_if_low_and_lose]
+        utility_if_low_and_win = model.alpha * utility[next_karma_if_low_and_win]
+
+        P = p_k_j * model.prob_low
+        expected_cost_today_of_m_i += P * plose_if_low * (-model.urgency0)
 
         expected_utility_of_m_i += P * (
-                plose_if_low * (-exp.urgency0 + utility_if_low_and_lose) +
-                pwin_if_low * (0+ utility_if_low_and_win)
+                plose_if_low * (-model.urgency0 + utility_if_low_and_lose) +
+                pwin_if_low * (0 + utility_if_low_and_win)
         )
-
 
         # now account for type "high"
 
@@ -145,115 +246,268 @@ def consider_bidding(exp, stationary_carma_pd, utility, policy, k_i, m_i) -> Tup
             if p_m_j_given_k_j == 0:
                 continue
 
-            if m_i > m_j:
-                # we win
-                pwin, plose = 1.0, 0.0
-            elif m_i < m_j:
-                # we lose
-                pwin, plose = 0.0, 1.0
-            elif m_i == m_j:
-                # half half
-                pwin, plose = 0.5, 0.5
-            else:
-                assert False
+            pwin = model.probability_of_winning_[k_i, m_i, k_j, m_j]
+            plose = 1.0 - pwin
+            next_karma_if_high_and_win = model.next_karma_if_win[k_i, m_i, k_j, m_j]
+            next_karma_if_high_and_lose = model.next_karma_if_lose[k_i, m_i, k_j, m_j]
+            utility_if_high_and_win = model.alpha * utility[next_karma_if_high_and_win]
+            utility_if_high_and_lose = model.alpha * utility[next_karma_if_high_and_lose]
 
-            # I can gain up to max_carma
-            next_karma_if_high_and_lose = min(k_i + m_j, exp.max_carma)
-            # I can lose only up to what he can gain
-            karma_lost = min(m_i, exp.max_carma - k_j)
-            next_karma_if_high_and_win = k_i - karma_lost
-            utility_if_high_and_lose =  exp.alpha*utility[next_karma_if_high_and_lose]
-            utility_if_high_and_win =  exp.alpha*utility[next_karma_if_high_and_win]
-
-            expected_utility_of_m_i += p_k_j * exp.prob_high * p_m_j_given_k_j * \
-                                       ((utility_if_high_and_lose - exp.urgency0) * plose +
-                                        utility_if_high_and_win * pwin)
-            expected_cost_today_of_m_i += p_k_j * exp.prob_high * p_m_j_given_k_j * plose * (-exp.urgency0)
+            P = p_k_j * model.prob_high * p_m_j_given_k_j
+            expected_utility_of_m_i += P * \
+                                       (plose * (- model.urgency0 + utility_if_high_and_lose) +
+                                        pwin * (0 + utility_if_high_and_win))
+            expected_cost_today_of_m_i += P * (plose * (-model.urgency0) + pwin * 0)
 
     return expected_utility_of_m_i, expected_cost_today_of_m_i
 
 
-def iterate(exp: ItExperiment, it: Iteration) -> Iteration:
-    # need to find for each karma
-    N = exp.distinct_karma_values
-    policy2 = np.zeros((N, N), dtype='float64')
-    debug_utilities = []
+def find_best_action2(x):
+    cur = 0
+    for i, v in enumerate(x):
+        if v > x[cur]:
+            cur = i
+        if v < x[cur]:
+            break
+    return cur
 
-    expected_cost_per_karma = np.zeros(exp.distinct_karma_values, 'float64')
-    expected_cost_today_per_karma = np.zeros(exp.distinct_karma_values, 'float64')
-    for k_i in exp.valid_carma_values:
-        expected_utilities = np.zeros(k_i + 1, dtype='float64')
-        expected_cost_today = np.zeros(k_i + 1, dtype='float64')
+
+def policy_given_utilities(model: Model, expected_utilities, energy_factor: float) -> np.ndarray:
+    N = model.distinct_karma_values
+    U = np.copy(expected_utilities)
+    U[np.isnan(U)] = -np.inf
+
+    # if True:
+    #     best_action = np.argmax(U)
+    #     u_best = U[best_action]
+    #     U[best_action] = -np.inf
+    #     second_best = np.argmax(U)
+    #     u_second_best = U[second_best]
+    #     delta = (u_best - u_second_best) / np.abs(u_best)
+    #
+    #     p_best = 1.0
+    #     p_second = np.exp(-delta)
+    #     policy = np.zeros(N, dtype='float64')
+    #     policy[best_action] = p_best
+    #     policy[second_best] = p_second
+    #
+    # else:
+
+    np.seterr(under='ignore')
+
+    # best_action = np.argmax(U)
+    best_action = find_best_action2(U)
+    policy_sharp = np.zeros(N, dtype='float64')
+    policy_sharp[best_action] = 1.0
+
+    policy_sharp = policy_sharp / np.sum(policy_sharp)
+
+    policy_smooth = np.exp(expected_utilities)
+    policy_smooth[np.isnan(expected_utilities)] = 0.0
+
+    policy_smooth = policy_smooth / np.sum(policy_smooth)
+    policy_smooth = remove_underflow(policy_smooth)
+
+    q = float(energy_factor)
+    assert 0 <= q <= 1, q
+
+    policy = policy_smooth * (1 - q) + q * policy_sharp
+
+    #
+    # if energy_factor is None:
+    #
+    # else:
+    #     expected_utilities_norm = normalize_affine(expected_utilities)
+    #     f= energy_factor * expected_utilities_norm
+    #     f = np.maximum(f, -500)
+    #     try:
+    #         policy = np.exp(f)
+    #     except FloatingPointError:
+    #         print(expected_utilities)
+    #         print(expected_utilities_norm)
+    #         print(f)
+    #         raise
+    #     policy[np.isnan(expected_utilities)] = 0.0
+
+    policy = policy / np.sum(policy)
+
+    assert_pd(policy)
+    return policy
+
+
+def normalize_affine(x0):
+    # print(x)
+    x = x0 - np.nanmin(x0)
+    # print(x)
+    m = np.nanmax(x)
+    if m == 0:
+        return x0
+    # print(m)
+    return x / m
+
+
+def remove_underflow(dist, min_pd=0.001):
+    """ Removes the values of a p.d. that would create underflow later. """
+    dist = np.copy(dist)
+    dist[dist < min_pd] = 0
+    dist = dist / np.sum(dist)
+    return dist
+
+
+def compute_expectation(p, values):
+    N = p.size
+    assert N == values.size
+    for i in range(N):
+        if np.isnan(values[i]):
+            assert p[i] == 0
+    values = np.copy(values)
+    values[np.isnan(values)] = 0
+    return np.dot(p, values)
+
+
+def iterate(sim: Simulation, it: Iteration, energy_factor: float) -> Iteration:
+    # need to find for each karma
+    N = sim.model.distinct_karma_values
+    policy2 = np.zeros((N, N), dtype='float64')
+    debug_utilities = np.zeros((N, N), dtype='float64')
+    debug_utilities.fill(np.nan)
+    expected_cost_per_karma = np.zeros(sim.model.distinct_karma_values, 'float64')
+    expected_cost_today_per_karma = np.zeros(sim.model.distinct_karma_values, 'float64')
+
+    for k_i in sim.model.valid_karma_values:
+        expected_utilities = np.zeros(N, dtype='float64')
+        expected_utilities.fill(np.nan)
+        expected_cost_today = np.zeros(N, dtype='float64')
+        expected_cost_today.fill(np.nan)
         for m_i in range(0, k_i + 1):
-            eu, ec = consider_bidding(exp, stationary_carma_pd=it.stationary_carma_pd,
+            eu, ec = consider_bidding(sim.model, stationary_karma_pd=it.stationary_karma_pd,
                                       utility=it.utility, policy=it.policy, k_i=k_i, m_i=m_i)
             expected_cost_today[m_i] = ec
             expected_utilities[m_i] = eu
 
-        best_policy = np.argmax(expected_utilities)
+        # # FIXME: trying to find off-by-one error bu
+        # if k_i == sim.model.max_karma:
+        #     expected_cost_today[-1] = expected_cost_today[-2]
+        #     expected_utilities[-1] = expected_utilities[-2]
 
-        if k_i in [exp.max_carma, exp.max_carma-1]:
-            print(f'for {k_i} we have  best = {best_policy}\n  u: {expected_utilities}\n ct: {expected_cost_today};' )
+        policy_k_i = policy_given_utilities(model=sim.model, expected_utilities=expected_utilities,
+                                            energy_factor=energy_factor)
+        assert_pd(policy_k_i)
 
-        expected_cost_per_karma[k_i] = expected_utilities[best_policy]
-        expected_cost_today_per_karma[k_i] = expected_cost_today[best_policy]
+        expected_cost_per_karma[k_i] = compute_expectation(policy_k_i, expected_utilities)
+        expected_cost_today_per_karma[k_i] = compute_expectation(policy_k_i, expected_cost_today)
 
-        policy2[k_i, best_policy] = 1.0
-        debug_utilities.append(expected_utilities)
+        debug_utilities[k_i, :] = expected_utilities
 
+        policy2[k_i, :] = policy_k_i
+    # update randomly
+    # p_update = 1.0
+    # stay_constant = np.random.uniform(0, 1, sim.model.distinct_karma_values) > p_update
+    # policy2[stay_constant, :] = it.policy[stay_constant, :]
+    #
+    #
+    # if False:
+    #     policy0 = np.copy(policy2)
+    #     for i in exp.valid_karma_values:
+    #         if i > 0 and i < exp.max_karma:
+    #             policy2[i, :] = 0.2 * policy0[i - 1, :] + 0.6 * policy0[i, :] + 0.2 * policy0[i + 1, :]
+    #         elif i == exp.max_karma:
+    #             policy2[i, :] = 0.4 * policy0[i - 1, :] + 0.6 * policy0[i, :]
     # FIXME: fixing bug
-    # policy2[exp.max_carma, :] = policy2[exp.max_carma-1, :]
+    # policy2[exp.max_karma, :] = policy2[exp.max_karma-1, :]
 
-    transitions = compute_transitions(exp, policy2, it.stationary_carma_pd)
-    stationary_carma_pd2 = solveStationary(transitions)
-    # print(stationary_carma_pd2)
-    utility2 = solveStationaryUtility(exp, transitions, expected_cost_today_per_karma)
+    # with timeit('compute_transitions'):
+    transitions = compute_transitions(sim.model, policy2, it.stationary_karma_pd)
+
+    # with timeit('solveStationary'):
+    stationary_karma_pd2 = solveStationary(transitions)
+    # print(stationary_karma_pd2)
+
+    # for i in exp.valid_karma_values:
+    #     stationary_karma_pd2[i] = (exp.max_karma/2.0) - i
+    # stationary_karma_pd2.fill(1.0)
+    # stationary_karma_pd2 = stationary_karma_pd2 / np.sum(stationary_karma_pd2)
+
+    utility2 = solveStationaryUtility(sim.model, transitions, expected_cost_today_per_karma)
     # make a delta adjustment
 
-    q = exp.inertia
+    q = sim.opt.inertia
     policy2 = q * policy2 + (1 - q) * it.policy
+    utility2 = q * utility2 + (1 - q) * it.utility
+    stationary_karma_pd2_final = q * stationary_karma_pd2 + (1 - q) * it.stationary_karma_pd
 
     # r = 0
     # policy2 = get_random_policy(exp) * r + (1 - r) * policy2
-    return Iteration(policy2, stationary_carma_pd2, debug_utilities=debug_utilities, utility=utility2,
+    return Iteration(policy2, stationary_karma_pd=stationary_karma_pd2_final,
+                     stationary_karma_pd_raw=stationary_karma_pd2,
+                     debug_utilities=debug_utilities, utility=utility2,
                      transitions=transitions)
 
 
-def compute_transitions(exp: ItExperiment, policy, stationary_carma_pd):
-    assert_pd(stationary_carma_pd)
+def compute_transitions(model: Model, policy, stationary_karma_pd):
+    assert_pd(stationary_karma_pd)
 
     # print('high')
-    transitions_high = compute_transitions_high(exp, policy, stationary_carma_pd)
+    transitions_high = compute_transitions_high(model, policy, stationary_karma_pd)
     # print('low')
-    transitions_low = compute_transitions_low(exp, policy, stationary_carma_pd)
+    transitions_low = compute_transitions_low(model, policy, stationary_karma_pd)
 
-    transitions = exp.prob_high * transitions_high + exp.prob_low * transitions_low
+    r = 1 - model.mix
+    transitions = r * (model.prob_high * transitions_high + model.prob_low * transitions_low) + (
+            1 - r) * get_transitions_mix(model)
     assert_good_transitions(transitions)
+
+    for i in model.valid_karma_values:
+        transitions[i, :] = remove_underflow(transitions[i, :])
+
+    assert_good_transitions(transitions)
+
     return transitions
 
 
-def compute_transitions_low(exp: ItExperiment, policy, stationary_carma_pd):
-    assert_pd(stationary_carma_pd)
-    # print(stationary_carma_pd)
+def get_transitions_mix(exp):
     N = exp.distinct_karma_values
     transitions = np.zeros(shape=(N, N), dtype='float64')
+    for i in exp.valid_karma_values:
+        if i == 0:
+            transitions[i, i] = 0.5
+            transitions[i, i + 1] = 0.5
+        elif i == max(exp.valid_karma_values):
+            transitions[i, i] = 0.5
+            transitions[i, i - 1] = 0.5
+        else:
+            transitions[i, i + 1] = 0.2
+            transitions[i, i] = 0.6
+            transitions[i, i - 1] = 0.2
+    return transitions
 
-    for k_i in exp.valid_carma_values:
+
+def compute_transitions_low(model: Model, policy, stationary_karma_pd):
+    assert_pd(stationary_karma_pd)
+    # print(stationary_karma_pd)
+    N = model.distinct_karma_values
+    transitions = np.zeros(shape=(N, N), dtype='float64')
+
+    for k_i in model.valid_karma_values:
         assert_pd(policy[k_i, :])
         # when it's low, I always bid 0
-        # m_i = 0
+        m_i = 0
 
         # print('p_m_i', p_m_i)
-        for k_j in exp.valid_carma_values:
-            p_k_j = stationary_carma_pd[k_j]
+        for k_j in model.valid_karma_values:
+            p_k_j = stationary_karma_pd[k_j]
             if p_k_j == 0:
                 continue
 
             # first account for type low
-            # we don't change the karma as they bid 0
-            pwin, plose = 0.5, 0.5
-            B = exp.prob_low * p_k_j
-            k_if_win = k_if_lose = k_i
+            m_j = 0
+            pwin = model.probability_of_winning_[k_i, m_i, k_j, m_j]
+            plose = 1.0 - pwin
+
+            k_if_win = model.next_karma_if_win[k_i, m_i, k_j, m_j]
+            k_if_lose = model.next_karma_if_lose[k_i, m_i, k_j, m_j]
+
+            B = model.prob_low * p_k_j
             transitions[k_i, k_if_win] += B * pwin
             transitions[k_i, k_if_lose] += B * plose
 
@@ -265,19 +519,13 @@ def compute_transitions_low(exp: ItExperiment, policy, stationary_carma_pd):
                 if p_m_j_given_k_j == 0:
                     continue
 
-                if 0 == m_j:
-                    pwin, plose = 0.5, 0.5
-                elif 0 < m_j:
-                    pwin, plose = 0.0, 1.0
-                else:
-                    assert False
+                pwin = model.probability_of_winning_[k_i, m_i, k_j, m_j]
+                plose = 1.0 - pwin
 
-                # I didn't bid anything
-                k_if_win = k_i - 0
-                # I gain what they bid
-                k_if_lose = min(k_i + m_j, exp.max_carma)
+                k_if_win = model.next_karma_if_win[k_i, m_i, k_j, m_j]
+                k_if_lose = model.next_karma_if_lose[k_i, m_i, k_j, m_j]
 
-                C = exp.prob_high * p_k_j * p_m_j_given_k_j
+                C = model.prob_high * p_k_j * p_m_j_given_k_j
                 transitions[k_i, k_if_win] += C * pwin
                 transitions[k_i, k_if_lose] += C * plose
 
@@ -287,13 +535,13 @@ def compute_transitions_low(exp: ItExperiment, policy, stationary_carma_pd):
     return transitions
 
 
-def compute_transitions_high(exp: ItExperiment, policy, stationary_carma_pd):
-    assert_pd(stationary_carma_pd)
-    # print(stationary_carma_pd)
-    N = exp.distinct_karma_values
+def compute_transitions_high(model: Model, policy, stationary_karma_pd):
+    assert_pd(stationary_karma_pd)
+    # print(stationary_karma_pd)
+    N = model.distinct_karma_values
     transitions = np.zeros(shape=(N, N), dtype='float64')
 
-    for k_i in exp.valid_carma_values:
+    for k_i in model.valid_karma_values:
         assert_pd(policy[k_i, :])
 
         # print(f'policy k_i {k_i} = {policy[k_i, :]}')
@@ -302,23 +550,20 @@ def compute_transitions_high(exp: ItExperiment, policy, stationary_carma_pd):
             if p_m_i == 0:
                 continue
             # print('p_m_i', p_m_i)
-            for k_j in exp.valid_carma_values:
+            for k_j in model.valid_karma_values:
 
-                p_k_j = stationary_carma_pd[k_j]
+                p_k_j = stationary_karma_pd[k_j]
                 if p_k_j == 0:
                     continue
 
                 # first account if the other is type low
-                if m_i == 0:
-                    pwin, plose = 0.5, 0.5
-                else:
-                    pwin, plose = 1.0, 0.0
+                m_j = 0
+                pwin = model.probability_of_winning_[k_i, m_i, k_j, m_j]
+                plose = 1.0 - pwin
+                k_if_win = model.next_karma_if_win[k_i, m_i, k_j, m_j]
+                k_if_lose = model.next_karma_if_lose[k_i, m_i, k_j, m_j]
 
-                karma_lost = min(m_i, exp.max_carma - k_j)
-                k_if_win = k_i - karma_lost
-                k_if_lose = k_i + 0
-
-                B = p_m_i * p_k_j * exp.prob_low
+                B = p_m_i * p_k_j * model.prob_low
                 transitions[k_i, k_if_win] += B * pwin
                 transitions[k_i, k_if_lose] += B * plose
 
@@ -327,23 +572,13 @@ def compute_transitions_high(exp: ItExperiment, policy, stationary_carma_pd):
                 # all possible karmas
                 for m_j in range(0, k_j + 1):
                     p_m_j_given_k_j = policy[k_j, m_j]
+                    k_if_win = model.next_karma_if_win[k_i, m_i, k_j, m_j]
+                    k_if_lose = model.next_karma_if_lose[k_i, m_i, k_j, m_j]
 
-                    # karma_lost = min(m_i, exp.max_carma - k_j)
-                    # k_if_win = k_i - karma_lost
-                    k_if_lose = min(k_i + m_j, exp.max_carma)
+                    pwin = model.probability_of_winning_[k_i, m_i, k_j, m_j]
+                    plose = 1.0 - pwin
 
-                    if m_i == m_j:
-                        pwin, plose = 0.5, 0.5
-
-                    elif m_i > m_j:
-                        pwin, plose = 1.0, 0.0
-
-                    elif m_i < m_j:
-                        pwin, plose = 0.0, 1.0
-                    else:
-                        assert False
-
-                    C = p_m_i * p_k_j * exp.prob_high * p_m_j_given_k_j
+                    C = p_m_i * p_k_j * model.prob_high * p_m_j_given_k_j
                     transitions[k_i, k_if_win] += C * pwin
                     transitions[k_i, k_if_lose] += C * plose
 
@@ -352,75 +587,131 @@ def compute_transitions_high(exp: ItExperiment, policy, stationary_carma_pd):
     return transitions
 
 
-def solveStationaryUtility(exp: ItExperiment, transitions, expected_cost_today_per_karma):
-    u = np.zeros(exp.distinct_karma_values, 'float64')
+def solveStationaryUtility(model: Model, transitions, expected_cost_today_per_karma):
+    u = np.zeros(model.distinct_karma_values, 'float64')
     # print('expected: %s' % expected_cost_today_per_karma)
     for i in range(100):
         u_prev = np.copy(u)
-        for k_i in exp.valid_carma_values:
-            u[k_i] = expected_cost_today_per_karma[k_i] + exp.alpha * np.dot(transitions[k_i, :], u_prev)
+        for k_i in model.valid_karma_values:
+            u[k_i] = expected_cost_today_per_karma[k_i] + model.alpha * np.dot(transitions[k_i, :], u_prev)
 
-    if False:
+    if True:
         u = np.array(sorted(list(u)))
+        d = np.diff(u)
+        d2 = sorted(list(d), reverse=True)
+        u2 = np.cumsum([u[0]] + list(d2))
+
+        u = u2
     return u
 
 
-def get_random_policy(exp):
-    N = exp.distinct_karma_values
+def get_random_policy(model: Model):
+    N = model.distinct_karma_values
     policy = np.zeros((N, N), dtype='float64')
-    for i in exp.valid_carma_values:
+    for i in model.valid_karma_values:
         n_possible = i + 1
         for m_i in range(0, i + 1):
             policy[i, m_i] = 1.0 / n_possible
     return policy
 
 
-def initialize(exp: ItExperiment) -> Iteration:
-    policy = get_random_policy(exp)
+def get_max_policy(model: Model):
+    N = model.distinct_karma_values
+    policy = np.zeros((N, N), dtype='float64')
+    for i in model.valid_karma_values:
+        policy[i, i] = 1.0
+    return policy
+
+
+def initialize(model: Model) -> Iteration:
+    # policy = get_random_policy(exp)
+    policy = get_max_policy(model)
 
     # utility = np.ones(exp.distinct_karma_values, dtype='float64')
     # utility starts as identity
-    utility = np.array(exp.valid_carma_values)
-    stationary_carma = np.zeros(exp.distinct_karma_values, dtype='float64')
-    stationary_carma.fill(1.0 / exp.distinct_karma_values)
-    # stationary_carma[10] = 1.0
-    it = Iteration(policy, stationary_carma, utility)
+    utility = np.array(model.valid_karma_values, dtype='float64')
+    stationary_karma = np.zeros(model.distinct_karma_values, dtype='float64')
+    stationary_karma.fill(1.0 / model.distinct_karma_values)
+    # stationary_karma[10] = 1.0
+    it = Iteration(policy, stationary_karma_pd=stationary_karma,
+                   stationary_karma_pd_raw=stationary_karma,
+                   utility=utility)
     return it
 
 
 rcParams['backend'] = 'agg'
 
 
-def run_experiment(exp) -> List[Iteration]:
-    it = initialize(exp)
+def policy_diff(p1, p2):
+    return np.linalg.norm(p1 - p2)
 
+
+def run_experiment(exp_name, sim: Simulation, plot_incremental=False, plot_incremental_interval=100) -> List[Iteration]:
+    it = initialize(sim.model)
     its = [it]
+    done = False
+    energy_factor = sim.opt.energy_factor
+
+    def plot_last():
+        last = its[-1]
+        ef = '%.3f' % float(energy_factor)
+        name = f'{exp_name} it {len(its)} ef {ef}'
+        r = make_figures2(name, sim, history=[last])
+        # r = Report('%d' % i)
+        # f = r.figure('final', cols=2)
+        # with f.plot('policy_last') as pylab:
+        #     pylab.imshow(np.flipud(it.policy.T))
+        #     pylab.xlabel('karma')
+        #     pylab.ylabel('message')
+        fn = "incremental.html"
+        r.to_html(fn)
+        print(f'Report written to {fn}')
+
+    # def plot_thread():
+    #     while not done:
+    #         plot_last()
+
+    # threading.Thread(target=plot_thread).start()
     try:
-        for i in range(exp.num_iterations):
-            if i % 5 == 0:
-                r = make_figures2('it%s' % i, exp, history=[its[-1]])
-                # r = Report('%d' % i)
-                # f = r.figure('final', cols=2)
-                # with f.plot('policy_last') as pylab:
-                #     pylab.imshow(np.flipud(it.policy.T))
-                #     pylab.xlabel('carma')
-                #     pylab.ylabel('message')
-                fn = "incremental.html"
-                r.to_html(fn)
-                print(f'Report written to {fn}')
+        it_since_ef = 0
 
-            it_next = iterate(exp, its[-1])
+        for i in range(100000):
+            it_next = iterate(sim, its[-1], energy_factor=energy_factor)
+
+            diff = policy_diff(its[-1].policy, it_next.policy)
+
             its.append(it_next)
-            # from reprep.graphics.filter_posneg import posneg_hinton
-            # rgb = posneg_hinton(it.policy)
-            # new_im = Image.fromarray(rgb)
-            # new_im.save("policy.png")
 
+            print(f'iteration %3d ef %.3f delta policy %.4f' % (i, energy_factor, diff))
 
+            if plot_incremental:
+                if i > 0 and (i % plot_incremental_interval == 0):
+                    plot_last()
+
+            if it_since_ef > sim.opt.num_iterations:
+                msg = 'So many iterations since we last changed ef.'
+                print(msg)
+
+            it_since_ef += 1
+
+            go_next_ef = (it_since_ef > sim.opt.num_iterations) or (diff < sim.opt.diff_threshold)
+
+            if go_next_ef:
+
+                # if energy_factor is None:
+                #     break
+                if energy_factor + sim.opt.energy_factor_delta >= sim.opt.energy_factor_max:
+                    break
+
+                energy_factor += sim.opt.energy_factor_delta
+                it_since_ef = 0
+
+                #     energy_factor = None
 
     except KeyboardInterrupt:
         print('OK, now drawing.')
-        pass
+    finally:
+        plot_last()
 
     return its
 
@@ -443,16 +734,13 @@ def solveStationary(A):
         # print('diff %s' % diff)
         # print('x_new %s' % x_new)
         x = x_new
+
+    # k = [1, 2, 3, 2, 1]
+    # x = np.convolve(x, k, mode='same')
+    # x = np.convolve(x, k, mode='same')
+    # x = np.ones(x.size)
+    x = x / np.sum(x)
     return x
-    # """ x = xA where x is the answer
-    # x - xA = 0
-    # x( I - A ) = 0 and sum(x) = 1
-    # """
-    # n = A.shape[0]
-    # a = np.eye( n ) - A
-    # a = np.vstack( (a.T, np.ones( n )) )
-    # b = np.matrix( [0] * n + [ 1 ] ).T
-    # return np.linalg.lstsq( a, b )[0]
 
 
 def iterative_main():
@@ -464,15 +752,49 @@ def iterative_main():
     data = []
 
     experiments = {}
-    # experiments['one'] = ItExperiment(num_iterations=1000000, max_carma=50, alpha=0.8, urgency0=3.0, prob_high=0.25)
-    # experiments['one'] = ItExperiment(num_iterations=1000000, max_carma=16, alpha=0.8, urgency0=3.0, prob_high=0.5)
-    # experiments['one'] = ItExperiment(num_iterations=1000000, max_carma=32, alpha=0.4, urgency0=3.0, prob_high=0.5)
-    experiments['one'] = ItExperiment(num_iterations=1000000, max_carma=16, alpha=0.9, urgency0=3.0, prob_high=0.1, inertia=0.1)
+
+    models = {}
+    max_carma = 12
+
+    common = dict(max_karma=max_carma, assignment=Assignment.FirstPrice)
+    alpha_low, alpha_mid, alpha_high = 0.75, 0.8, 0.85
+    p_low, p_mid, p_high = 0.4, 0.5, 0.6
+    urgency_low, urgency_mid, urgency_high = 2.0, 3.0, 4.0
+
+    models['M-α°-p°-u⁻'] = Model(description="u smaller", urgency0=urgency_low, alpha=alpha_mid, prob_high=p_mid,
+                                 **common)
+    models['M-α°-p°-u⁺'] = Model(description="u larger", urgency0=urgency_high, alpha=alpha_mid, prob_high=p_mid,
+                                 **common)
+
+    models['M-α°-p°-u°'] = Model(description="baseline", urgency0=urgency_mid, alpha=alpha_mid, prob_high=p_mid,
+                                 **common)
+
+    models['M-α⁻-p°-u°'] = Model(description="α smaller", urgency0=urgency_mid, alpha=alpha_low, prob_high=p_mid, **common)
+
+    models['M-α⁺-p°-u°'] = Model(description="α larger", urgency0=urgency_mid, alpha=alpha_high, prob_high=p_mid, **common)
+
+    models['M-α°-p⁻-u°'] = Model(description="p(high) larger", urgency0=urgency_mid, alpha=alpha_mid, prob_high=p_low,
+                              **common)
+
+    models['M-α°-p⁺-u°'] = Model(description="p(high) smaller", urgency0=urgency_mid, alpha=alpha_mid, prob_high=p_high,
+                              **common)
+
+    opts = {}
+    opts['o1'] = Optimization(num_iterations=200,
+                              inertia=0.25,
+                              energy_factor=Decimal(0),
+                              energy_factor_delta=Decimal(0.15),
+                              energy_factor_max=0.9,
+                              diff_threshold=0.01)
+    for name, model in models.items():
+        for name_opt, opt in opts.items():
+            name_exp = f'{name}-{name_opt}'
+            experiments[name_exp] = Simulation(model=model, opt=opt)
 
     for exp_name, exp in experiments.items():
         rows.append(exp_name)
 
-        history = run_experiment(exp)
+        history = run_experiment(exp_name, exp, plot_incremental=True)
 
         dn = os.path.join(od, exp_name)
         if not os.path.exists(dn):
@@ -499,12 +821,12 @@ def iterative_main():
     r0.to_html(fn0)
 
 
-def make_figures2(name: str, exp: ItExperiment, history: List[Iteration]) -> Report:
-    r = Report(name)
+def make_figures2(name: str, sim: Simulation, history: List[Iteration]) -> Report:
+    r = Report('figures')
 
     data = ""
-    for k in exp.__annotations__:
-        v = getattr(exp, k)
+    for k in sim.__annotations__:
+        v = getattr(sim, k)
         if hasattr(v, '__desc__'):
             data += f'{k}:: {v.__desc__}'
         else:
@@ -521,56 +843,122 @@ def make_figures2(name: str, exp: ItExperiment, history: List[Iteration]) -> Rep
         M[M == 0] = np.nan
         return posneg(M)
 
-    f = r.figure('final', cols=2)
+    f = r.figure('final', cols=3)
+
     #
+
+    def make1d(s):
+        return s.reshape((1, s.size))
+
     last = history[-1]
-    caption = """ Policy """
+    caption = """ Policy visualized as intensity (more red: agent more likely to choose message)"""
+    # print('policy: %s' % last.policy)
     with f.plot('policy_last', caption=caption) as pylab:
-        # pylab.plot(exp.valid_carma_values, exp.valid_carma_values, '--')
+
         pylab.imshow(prepare_for_plot(last.policy.T))
-        pylab.xlabel('carma')
+        pylab.xlabel('karma')
         pylab.ylabel('message')
         pylab.gca().invert_yaxis()
+        pylab.title(f'Policy [{name}]')
+
+    caption = """ Utilities visualized in false colors. Yellow = better."""
+    if last.debug_utilities is not None:
+        with f.plot('utilities', caption=caption) as pylab:
+            # print(last.debug_utilities)
+            pylab.imshow(last.debug_utilities.T)
+            pylab.gca().invert_yaxis()
+            pylab.xlabel('karma')
+            pylab.ylabel('message')
+            pylab.title(f'Utilities [{name}]')
+
+    if last.debug_utilities is not None:
+        caption = 'Utility of sending a message for each type of agent'
+        with f.plot('utilities_single', caption=caption) as pylab:
+            for i in sim.model.valid_karma_values:
+                label = 'k=%d' % i if i in [0, sim.model.max_karma] else None
+                pylab.plot(last.debug_utilities[i, :], '*-', label=label)
+
+            pylab.ylabel('utility')
+            pylab.xlabel('message')
+            pylab.legend()
+            pylab.title(f'Utilities [{name}]')
+
+    caption = 'Policy visualized as plots; probability of sending each message for each type of agent.'
+    with f.plot('policy_as_plots', caption=caption) as pylab:
+
+        for i in sim.model.valid_karma_values:
+            label = 'k=%d' % i if i in [0, sim.model.max_karma] else None
+            pylab.plot(last.policy[i, :], '*-', label=label)
+        pylab.xlabel('message')
+        pylab.ylabel('p(message)')
+        pylab.legend()
+        pylab.title(f'Policy [{name}]')
 
     if last.transitions is not None:
-        with f.plot('transitions', caption="transitions") as pylab:
+        caption = 'Transition matrix'
+        with f.plot('transitions', caption=caption) as pylab:
             pylab.imshow(prepare_for_plot(last.transitions.T))
             pylab.gca().invert_yaxis()
+            pylab.xlabel('karma ')
+            pylab.ylabel('karma next')
+            pylab.title(f'Transitions [{name}]')
 
-    caption = """ Utility """
-    with f.plot('utility_last', caption=caption) as pylab:
-
-        pylab.plot(last.utility, '-')
-        pylab.xlabel('carma')
-        pylab.ylabel('utility')
-
-    caption = """ Karma stationary dist """
+    caption = """ Karma stationary distribution. Computed as the equilibrium given the transition matrix. """
     with f.plot('karma_dist_last', caption=caption) as pylab:
-        pylab.plot(last.stationary_carma_pd, '-')
-        pylab.xlabel('carma')
+        pylab.plot(last.stationary_karma_pd, '*-', label='moving average')
+        pylab.plot(last.stationary_karma_pd_raw, '*-', label='raw')
+        pylab.xlabel('karma')
         pylab.ylabel('probability')
+        pylab.legend()
+        pylab.title(f'Stationary karma [{name}]')
 
-    history = history[:10]
-    f = r.figure('history', cols=2)
+    # with f.plot('karma_dist', caption=caption) as pylab:
+    #     pylab.imshow(prepare_for_plot(make1d(last.stationary_karma_pd)))
+    #     pylab.xlabel('karma')
+    #     pylab.title('karma stationary distribution')
+    #     pylab.title(f'Stationary karma [{name}]')
+
+    caption = """ Expected utility as a function of karma possessed.  """
+    with f.plot('utility', caption=caption) as pylab:
+        pylab.plot(last.utility, '*-')
+        pylab.xlabel('karma possessed')
+        pylab.ylabel('expected utility')
+        pylab.title(f'Expected utility [{name}]')
+
+    # with f.plot('utility_bar', caption=caption) as pylab:
+    #     pylab.imshow((make1d(last.utility)))
+    #     pylab.xlabel('karma')
+    #     pylab.title(f'Utility [{name}]')
+
+    caption = """ Marginal value of having one more unit of karma. """
+    with f.plot('utility_marginal', caption=caption) as pylab:
+        marginal = np.diff(last.utility)
+        pylab.plot(marginal, '*-')
+        pylab.xlabel('karma possessed')
+        pylab.ylabel('marginal utility of one unit of karma')
+        pylab.title(f'Marginal utility of karma [{name}]')
+
+    # history = history[:10]
+    # f = r.figure('history', cols=2)
     #
     # caption = """ Policy """
     # with f.plot('policy_history', caption=caption) as pylab:
     #     for it in history:
     #         pylab.plot(it.policy, '-')
-    #     pylab.xlabel('carma')
+    #     pylab.xlabel('karma')
     #     pylab.ylabel('message')
-    caption = """ Utility """
-    with f.plot('utility_history', caption=caption) as pylab:
-        for it in history:
-            pylab.plot(it.utility, '-')
-        pylab.xlabel('carma')
-        pylab.ylabel('utility')
-    caption = """ Karma stationary dist """
-    with f.plot('karma_dist', caption=caption) as pylab:
-        for it in history:
-            pylab.plot(it.stationary_carma_pd, '*-')
-        pylab.xlabel('carma')
-        pylab.ylabel('probability')
+    # caption = """ Utility """
+    # with f.plot('utility_history', caption=caption) as pylab:
+    #     for it in history:
+    #         pylab.plot(it.utility, '-')
+    #     pylab.xlabel('karma')
+    #     pylab.ylabel('utility')
+    # caption = """ Karma stationary dist """
+    # with f.plot('karma_dist', caption=caption) as pylab:
+    #     for it in history:
+    #         pylab.plot(it.stationary_karma_pd, '*-')
+    #     pylab.xlabel('karma')
+    #     pylab.ylabel('probability')
 
     #     for i in range(nagents):
     #         cost_i = history[sub, i]['cost_average']
