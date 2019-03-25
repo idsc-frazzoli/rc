@@ -194,19 +194,22 @@ def compute_transitions_matrix_and_policy_for_urgency_nonzero(history):
     policy = np.zeros((NK, NK))
 
     ntimes, nagents = history['karma'].shape
-    for t in range(1, ntimes):
-        for i in range(nagents):
-            u = history[t, i]['urgency']
-            if u == 0:
-                continue
+    for i in range(nagents):
+        yes = np.logical_and( history[:, i]['urgency'] > 0,
+                                      history[:, i]['participated'])
+        yes = yes.flatten()
+        # print(yes)
+        # print (np.argwhere(yes).flatten())
+        interesting = np.argwhere(yes).flatten()
+        for t in interesting[1:]:
             k1 = history[t - 1, i]['karma']
             k2 = history[t, i]['karma']
-            part = history[t, i]['participated']
+            # part = history[t, i]['participated']
             message = history[t, i]['message']
-            if part:
-                assert 0 <= message <= NK, history[t, i]
-                P[k1, k2] += 1.0
-                policy[k1, message] += 1
+
+                # assert 0 <= message <= NK, history[t, i]
+            P[k1, k2] += 1.0
+            policy[k1, message] += 1
 
     for k in Globals.valid_karma_values:
         P[k, :] = normalize_dist(P[k, :])
