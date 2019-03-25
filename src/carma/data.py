@@ -37,7 +37,26 @@ common = dict(num_agents=num_agents,
               initial_karma_scenario=initial_karma, cost_update_policy=PayUrgency(),
               karma_update_policy=BoundedKarma(Globals.max_carma),
               urgency_distribution_scenario=ConstantUrgencyDistribution(highlow))
-
+experiments['equilibrium-0.00'] = Experiment(desc="Equilibrium for alpha = 0.00",
+                                             agent_policy_scenario=FixedPolicy(Equilibrium000()),
+                                             who_goes=MaxGoesIfHasKarma(),
+                                             **common
+                                             )
+experiments['equilibrium-0.30'] = Experiment(desc="Equilibrium for alpha = 0.30",
+                                             agent_policy_scenario=FixedPolicy(Equilibrium030()),
+                                             who_goes=MaxGoesIfHasKarma(),
+                                             **common
+                                             )
+experiments['equilibrium-0.50'] = Experiment(desc="Equilibrium for alpha = 0.50",
+                                             agent_policy_scenario=FixedPolicy(Equilibrium050()),
+                                             who_goes=MaxGoesIfHasKarma(),
+                                             **common
+                                             )
+experiments['equilibrium-0.70'] = Experiment(desc="Equilibrium for alpha = 0.70",
+                                             agent_policy_scenario=FixedPolicy(Equilibrium070()),
+                                             who_goes=MaxGoesIfHasKarma(),
+                                             **common
+                                             )
 experiments['equilibrium-0.75'] = Experiment(desc="Equilibrium for alpha = 0.75",
                                              agent_policy_scenario=FixedPolicy(Equilibrium075()),
                                              who_goes=MaxGoesIfHasKarma(),
@@ -50,6 +69,21 @@ experiments['equilibrium-0.80'] = Experiment(desc="Equilibrium for alpha = 0.8",
                                              )
 experiments['equilibrium-0.85'] = Experiment(desc="Equilibrium for alpha = 0.85",
                                              agent_policy_scenario=FixedPolicy(Equilibrium085()),
+                                             who_goes=MaxGoesIfHasKarma(),
+                                             **common
+                                             )
+experiments['equilibrium-0.90'] = Experiment(desc="Equilibrium for alpha = 0.90",
+                                             agent_policy_scenario=FixedPolicy(Equilibrium090()),
+                                             who_goes=MaxGoesIfHasKarma(),
+                                             **common
+                                             )
+experiments['equilibrium-0.95'] = Experiment(desc="Equilibrium for alpha = 0.95",
+                                             agent_policy_scenario=FixedPolicy(Equilibrium095()),
+                                             who_goes=MaxGoesIfHasKarma(),
+                                             **common
+                                             )
+experiments['equilibrium-0.98'] = Experiment(desc="Equilibrium for alpha = 0.98",
+                                             agent_policy_scenario=FixedPolicy(Equilibrium098()),
                                              who_goes=MaxGoesIfHasKarma(),
                                              **common
                                              )
@@ -75,7 +109,6 @@ experiments['bid-urgency'] = Experiment(desc="The agents bid their urgency",
                                         agent_policy_scenario=FixedPolicy(BidUrgency()),
                                         who_goes=MaxGoesIfHasKarma(), **common)
 
-
 experiments['centralized-cost'] = Experiment(
         desc="Centralized controller chooses the agent with the highest accumulated cost.",
         agent_policy_scenario=FixedPolicy(BidUrgency()),
@@ -95,6 +128,7 @@ def stats_avg_cum_cost(exp, history):
     last = history[-1, :]['cost']
     return Decimal(np.mean(last)).__round__(prec)
 
+
 def stats_avg_cum_cost_avg(exp, history):
     """ Final cost / number of encounters each """
     last = history[-1, :]['cost_average']
@@ -105,6 +139,7 @@ def stats_avg_cum_cost_std(exp, history):
     """ stddev """
     last = history[-1, :]['cost_average']
     return Decimal(np.std(last)).__round__(prec)
+
 
 #
 # def stats_avg_cum_cost_avg(exp, history):
@@ -181,7 +216,6 @@ def carma1_main():
         fn = os.path.join(dn, 'index.html')
         r.to_html(fn)
         print(f'Report written to {fn}')
-
 
     r0.table('stats', data=data, cols=cols, rows=rows)
     print(f'Complete report written to {fn0}')
@@ -305,9 +339,8 @@ def make_figures(name: str, exp: Experiment, history) -> Report:
         plot_transitions(pylab, transitions)
 
     with f.plot('num_encounters', caption='Number of encounters') as pylab:
-        pylab.hist(history[-1,:]['encounters'], density='True')
+        pylab.hist(history[-1, :]['encounters'], density='True')
         pylab.xlabel('num encounters')
-
 
     print(cdf.shape)
     with f.plot('karma') as pylab:

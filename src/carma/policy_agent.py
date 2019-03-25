@@ -96,6 +96,33 @@ class PureStrategy(AgentPolicy):
     def __repr__(self):
         return f'{type(self).__name__}: bid according to policy {self.policy}'
 
+
+
+
+class Equilibrium000(PureStrategy):
+    def __init__(self):
+        policy = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+        PureStrategy.__init__(self, policy)
+
+
+class Equilibrium030(PureStrategy):
+    def __init__(self):
+        # policy =[0, 1, 2, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12]
+        policy = [0, 1, 2, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+        PureStrategy.__init__(self, policy)
+
+class Equilibrium050(PureStrategy):
+    def __init__(self):
+        # policy = [0, 1, 1, 2, 3, 4, 4, 5, 6, 7, 8, 9, 12]
+        policy = [0, 1, 1, 2, 3, 4, 4, 5, 6, 7, 8, 9, 10]
+        PureStrategy.__init__(self, policy)
+
+class Equilibrium070(PureStrategy):
+    def __init__(self):
+        policy = [0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 10]
+        PureStrategy.__init__(self, policy)
+
+
 class Equilibrium075(PureStrategy):
     def __init__(self):
         policy = [0, 1, 1, 2, 2, 3, 3, 3, 4, 4, 4, 5, 6]
@@ -111,7 +138,28 @@ class Equilibrium080(PureStrategy):
 class Equilibrium085(PureStrategy):
     def __init__(self):
         policy = [0, 1, 1, 1, 1, 2, 2, 2, 3, 3, 3, 3, 4]
+
         PureStrategy.__init__(self, policy)
+
+
+class Equilibrium090(PureStrategy):
+    def __init__(self):
+        policy = [0, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 3, 3]
+
+        PureStrategy.__init__(self, policy)
+
+class Equilibrium095(PureStrategy):
+    def __init__(self):
+        policy = [0, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 3]
+
+        PureStrategy.__init__(self, policy)
+
+class Equilibrium098(PureStrategy):
+    def __init__(self):
+        policy = [0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2]
+
+        PureStrategy.__init__(self, policy)
+
 
 
 #

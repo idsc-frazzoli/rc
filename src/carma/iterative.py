@@ -825,7 +825,7 @@ def iterative_main():
     opts['o2'] = Optimization(num_iterations=200,
                               # inertia=0.25, # if 1 then it is faster
                               inertia=0.05,  # if 1 then it is faster
-                              energy_factor_schedule=(0, 0.15, 0.30, 0.45, 0.60, 0.9, 0.95, 1),
+                              energy_factor_schedule=(0.30, 0.45, 0.60, 0.65, 0.7, 0.8, 0.9, 0.95, 1),
                               # energy_factor=Decimal(0),
                               # energy_factor_delta=Decimal(0.15),
                               # energy_factor_max=0.9,
