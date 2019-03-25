@@ -4,8 +4,9 @@ build:
 	docker build -t rc .
 
 carma1: build
-	docker run --rm -it -v $(PWD)/out-experiments:/out-experiments -w / rc carma1
+	mkdir -p experiments
+	docker run --rm --user $$(id -u) -it -v $(PWD)/experiments:$(PWD)/experiments -w $(PWD)/experiments  rc carma1
 
 carma-compute-equilibria: build
-	docker run --rm -it -v $(PWD)/out-iterative:/out-iterative -w / rc carma-compute-equilibria
-
+	mkdir -p experiments
+	docker run --rm --user $$(id -u) -it -v $(PWD)/experiments:$(PWD)/experiments -w $(PWD)/experiments  rc carma-compute-equilibria
