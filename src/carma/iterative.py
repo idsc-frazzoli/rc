@@ -122,6 +122,7 @@ class Iteration:
     stationary_karma_pd: np.ndarray
     stationary_karma_pd_raw: np.ndarray
     utility: np.ndarray
+    energy_factor: float
 
     debug_utilities: Optional[Any] = None
     transitions: Optional[Any] = None
@@ -432,15 +433,15 @@ def iterate(sim: Simulation, it: Iteration, energy_factor: float) -> Iteration:
 
     q = sim.opt.inertia
     policy2 = q * policy2 + (1 - q) * it.policy
-    utility2 = q * utility2 + (1 - q) * it.utility
-    stationary_karma_pd2_final = q * stationary_karma_pd2 + (1 - q) * it.stationary_karma_pd
+    # utility2 = q * utility2 + (1 - q) * it.utility
+    # stationary_karma_pd2_final = q * stationary_karma_pd2 + (1 - q) * it.stationary_karma_pd
 
     # r = 0
     # policy2 = get_random_policy(exp) * r + (1 - r) * policy2
-    return Iteration(policy2, stationary_karma_pd=stationary_karma_pd2_final,
+    return Iteration(policy2, stationary_karma_pd=stationary_karma_pd2,
                      stationary_karma_pd_raw=stationary_karma_pd2,
                      debug_utilities=debug_utilities, utility=utility2,
-                     transitions=transitions)
+                     transitions=transitions, energy_factor=energy_factor)
 
 
 def compute_transitions(model: Model, policy, stationary_karma_pd):
@@ -596,11 +597,12 @@ def solveStationaryUtility(model: Model, transitions, expected_cost_today_per_ka
 
     if True:
         u = np.array(sorted(list(u)))
-        d = np.diff(u)
-        d2 = sorted(list(d), reverse=True)
-        u2 = np.cumsum([u[0]] + list(d2))
 
-        u = u2
+        if False:
+            d = np.diff(u)
+            d2 = sorted(list(d), reverse=True)
+            u2 = np.cumsum([u[0]] + list(d2))
+            u = u2
     return u
 
 
@@ -622,7 +624,7 @@ def get_max_policy(model: Model):
     return policy
 
 
-def initialize(model: Model) -> Iteration:
+def initialize(model: Model, energy_factor) -> Iteration:
     # policy = get_random_policy(exp)
     policy = get_max_policy(model)
 
@@ -634,7 +636,7 @@ def initialize(model: Model) -> Iteration:
     # stationary_karma[10] = 1.0
     it = Iteration(policy, stationary_karma_pd=stationary_karma,
                    stationary_karma_pd_raw=stationary_karma,
-                   utility=utility)
+                   utility=utility, energy_factor=energy_factor)
     return it
 
 
@@ -646,17 +648,16 @@ def policy_diff(p1, p2):
 
 
 def run_experiment(exp_name, sim: Simulation, plot_incremental=False, plot_incremental_interval=100) -> List[Iteration]:
-    it = initialize(sim.model)
+    it = initialize(sim.model, sim.opt.energy_factor_schedule[0])
     its = [it]
     done = False
     sim.model.initialize_caches()
-
 
     def plot_last():
         last = its[-1]
         ef = '%.3f' % float(energy_factor)
         name = f'{exp_name} it {len(its)} ef {ef}'
-        r = make_figures2(name, sim, history=[last])
+        r = make_figures2(name, sim, history=its)
         # r = Report('%d' % i)
         # f = r.figure('final', cols=2)
         # with f.plot('policy_last') as pylab:
@@ -694,16 +695,16 @@ def run_experiment(exp_name, sim: Simulation, plot_incremental=False, plot_incre
                 if go_next_ef:
                     break
 
-                it+=1
-                    # # if energy_factor is None:
-                    # #     break
-                    # if energy_factor + sim.opt.energy_factor_delta >= sim.opt.energy_factor_max:
-                    #     break
-                    #
-                    # energy_factor += sim.opt.energy_factor_delta
-                    # it_since_ef = 0
+                it += 1
+                # # if energy_factor is None:
+                # #     break
+                # if energy_factor + sim.opt.energy_factor_delta >= sim.opt.energy_factor_max:
+                #     break
+                #
+                # energy_factor += sim.opt.energy_factor_delta
+                # it_since_ef = 0
 
-                    #     energy_factor = None
+                #     energy_factor = None
 
     except KeyboardInterrupt:
         print('OK, now drawing.')
@@ -816,7 +817,8 @@ def iterative_main():
 
     opts = {}
     opts['o2'] = Optimization(num_iterations=200,
-                              inertia=0.25,
+                              # inertia=0.25, # if 1 then it is faster
+                              inertia=0.05,  # if 1 then it is faster
                               energy_factor_schedule=(0, 0.15, 0.30, 0.45, 0.60, 0.9, 0.95, 1),
                               # energy_factor=Decimal(0),
                               # energy_factor_delta=Decimal(0.15),
@@ -924,10 +926,6 @@ def make_figures2(name: str, sim: Simulation, history: List[Iteration]) -> Repor
         caption = 'Transition matrix'
         with f.plot('transitions', caption=caption) as pylab:
             plot_transitions(pylab, last.transitions)
-            # pylab.imshow(prepare_for_plot(last.transitions.T))
-            # pylab.gca().invert_yaxis()
-            # pylab.xlabel('karma ')
-            # pylab.ylabel('karma next')
             pylab.title(f'Transitions [{name}]')
 
     caption = """ Karma stationary distribution. Computed as the equilibrium given the transition matrix. """
@@ -965,6 +963,37 @@ def make_figures2(name: str, sim: Simulation, history: List[Iteration]) -> Repor
         pylab.xlabel('karma possessed')
         pylab.ylabel('marginal utility of one unit of karma')
         pylab.title(f'Marginal utility of karma [{name}]')
+
+
+    crucial = []
+    for i in range(len(history) - 1):
+        if history[i + 1].energy_factor != history[i].energy_factor:
+            crucial.append(i)
+
+    f = r.figure('snapshots', cols=len(crucial))
+    for i in crucial:
+        it = history[i]
+        name = 'it%04d' % i
+
+        with f.plot(name+'-p', caption='ef = %.2f' % it.energy_factor) as pylab:
+            pylab.imshow(prepare_for_plot( it.policy.T))
+            pylab.xlabel('karma')
+            pylab.ylabel('message')
+            pylab.gca().invert_yaxis()
+            pylab.title(f'policy at it = {i} ef = {it.energy_factor}')
+
+    for i in crucial:
+        it = history[i]
+        name = 'it%04d' % i
+
+        with f.plot(name+'-u', caption='ef = %.2f' % it.energy_factor) as pylab:
+            for i in sim.model.valid_karma_values:
+                pylab.plot(it.debug_utilities[i, :], '*-', )
+
+        pylab.ylabel('utility')
+        pylab.xlabel('message')
+
+        pylab.title(f'utilities at it = {i} ef = {it.energy_factor}')
 
     # history = history[:10]
     # f = r.figure('history', cols=2)
