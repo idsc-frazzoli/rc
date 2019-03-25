@@ -757,7 +757,7 @@ def iterative_main():
     max_carma_low, max_carma_mid, max_carma_high = 8, 12, 16
 
     common = dict(assignment=Assignment.FirstPrice)
-    alpha_low, alpha_mid, alpha_high = 0.75, 0.8, 0.85
+    alpha_low3, alpha_low2, alpha_low, alpha_mid, alpha_high, alpha_high2, alpha_high3 = 0.5, 0.7, 0.75, 0.8, 0.85, 0.90, 0.95
     p_low, p_mid, p_high = 0.4, 0.5, 0.6
     urgency_low, urgency_mid, urgency_high = 2.0, 3.0, 4.0
 
@@ -774,12 +774,25 @@ def iterative_main():
                                     **common)
 
     models['M-α⁻-p°-u°-k°'] = Model(description="α smaller", max_karma=max_carma_mid, urgency0=urgency_mid,
-                                 alpha=alpha_low, prob_high=p_mid,
-                                 **common)
+                                    alpha=alpha_low, prob_high=p_mid,
+                                    **common)
+    models['M-α⁻⁻-p°-u°-k°'] = Model(description="α small small", max_karma=max_carma_mid, urgency0=urgency_mid,
+                                    alpha=alpha_low2, prob_high=p_mid,
+                                    **common)
+
+    models['M-α⁻⁻⁻-p°-u°-k°'] = Model(description="α small small small", max_karma=max_carma_mid, urgency0=urgency_mid,
+                                    alpha=alpha_low3, prob_high=p_mid,
+                                    **common)
 
     models['M-α⁺-p°-u°-k°'] = Model(description="α larger", max_karma=max_carma_mid, urgency0=urgency_mid,
-                                 alpha=alpha_high, prob_high=p_mid,
-                                 **common)
+                                    alpha=alpha_high, prob_high=p_mid,
+                                    **common)
+    models['M-α⁺⁺-p°-u°-k°'] = Model(description="α large large", max_karma=max_carma_mid, urgency0=urgency_mid,
+                                    alpha=alpha_high2, prob_high=p_mid,
+                                    **common)
+    models['M-α⁺⁺⁺-p°-u°-k°'] = Model(description="α large large", max_karma=max_carma_mid, urgency0=urgency_mid,
+                                    alpha=alpha_high3, prob_high=p_mid,
+                                    **common)
 
     models['M-α°-p⁻-u°-k°'] = Model(description="p(high) larger", max_karma=max_carma_mid, urgency0=urgency_mid,
                                  alpha=alpha_mid, prob_high=p_low,
