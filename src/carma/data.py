@@ -100,6 +100,12 @@ def stats_avg_cum_cost_avg(exp, history):
     last = history[-1, :]['cost_average']
     return Decimal(np.mean(last)).__round__(prec)
 
+
+def stats_avg_cum_cost_std(exp, history):
+    """ stddev """
+    last = history[-1, :]['cost_average']
+    return Decimal(np.std(last)).__round__(prec)
+
 #
 # def stats_avg_cum_cost_avg(exp, history):
 #     """ Final cost / number of encounters each """
@@ -136,6 +142,7 @@ statistics = [
     # stats_avg_cost,
     stats_avg_cum_cost,
     stats_avg_cum_cost_avg,
+    stats_avg_cum_cost_std,
     # stats_std_final_cost_avg,
     stats_std_final_karma
 ]
