@@ -598,7 +598,7 @@ def solveStationaryUtility(model: Model, transitions, expected_cost_today_per_ka
     if True:
         u = np.array(sorted(list(u)))
 
-        if False:
+        if True:
             d = np.diff(u)
             d2 = sorted(list(d), reverse=True)
             u2 = np.cumsum([u[0]] + list(d2))
@@ -817,7 +817,7 @@ def iterative_main():
 
     opts = {}
     opts['o2'] = Optimization(num_iterations=200,
-                              # inertia=0.25, # if 1 then it is faster
+                              #inertia=0.25, # if 1 then it is faster
                               inertia=0.05,  # if 1 then it is faster
                               energy_factor_schedule=(0, 0.15, 0.30, 0.45, 0.60, 0.9, 0.95, 1),
                               # energy_factor=Decimal(0),
