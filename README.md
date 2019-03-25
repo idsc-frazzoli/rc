@@ -16,9 +16,9 @@ Run using:
 
     carma1
     
-**new**: Run the Nash equilibria finder using:
+Run the Nash equilibria finder using:
 
-    python3 -m carma.iterative    
+    carma-compute-equilibria 
     
     
 # Docker
