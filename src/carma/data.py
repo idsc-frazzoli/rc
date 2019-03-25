@@ -25,8 +25,8 @@ highlow = DiscreteDistribution(((UrgencyValue(0), Probability(0.5)),
 #                                     (UrgencyValue(1.5), Probability(0.4)),
 #                                     (UrgencyValue(3), Probability(0.3))))
 experiments = {}
-num_agents = 100
-num_days = 1000
+num_agents = 200
+num_days = 2000
 average_encounters_per_day_per_agent = 0.1
 
 initial_karma = RandomKarma(0, Globals.max_carma)  # lower, upper
@@ -38,35 +38,49 @@ common = dict(num_agents=num_agents,
               karma_update_policy=BoundedKarma(Globals.max_carma),
               urgency_distribution_scenario=ConstantUrgencyDistribution(highlow))
 
-experiments['bid-gt1'] = Experiment(desc="Karma game policy",
-                                    agent_policy_scenario=FixedPolicy(BidEquilibrium1()),
-                                    who_goes=MaxGoesIfHasKarma(),
-                                    **common
-                                    )
-
-experiments['baseline-random'] = Experiment(desc="Random choice of who goes",
-                                            agent_policy_scenario=FixedPolicy(RandomAgentPolicy()),
-                                            who_goes=RandomWhoGoes(), **common)
-
-experiments['bid1'] = Experiment(desc="The agents always bid 1",
-                                 agent_policy_scenario=FixedPolicy(Bid1()),
-                                 who_goes=MaxGoesIfHasKarma(),
-                                 **common)
-
-experiments['bid-urgency'] = Experiment(desc="The agents bid their urgency",
-                                        agent_policy_scenario=FixedPolicy(BidUrgency()),
-                                        who_goes=MaxGoesIfHasKarma(), **common)
+experiments['equilibrium-0.75'] = Experiment(desc="Equilibrium for alpha = 0.75",
+                                             agent_policy_scenario=FixedPolicy(Equilibrium075()),
+                                             who_goes=MaxGoesIfHasKarma(),
+                                             **common
+                                             )
+experiments['equilibrium-0.80'] = Experiment(desc="Equilibrium for alpha = 0.8",
+                                             agent_policy_scenario=FixedPolicy(Equilibrium080()),
+                                             who_goes=MaxGoesIfHasKarma(),
+                                             **common
+                                             )
+experiments['equilibrium-0.85'] = Experiment(desc="Equilibrium for alpha = 0.85",
+                                             agent_policy_scenario=FixedPolicy(Equilibrium085()),
+                                             who_goes=MaxGoesIfHasKarma(),
+                                             **common
+                                             )
 
 experiments['centralized-urgency'] = Experiment(desc="Centralized controller chooses the one with highest urgency.",
                                                 agent_policy_scenario=FixedPolicy(RandomAgentPolicy()),
                                                 who_goes=MaxUrgencyGoes(),
                                                 **common)
 
-experiments['centralized-cost'] = Experiment(
-        desc="Centralized controller chooses the agent with the highest accumulated cost.",
-        agent_policy_scenario=FixedPolicy(BidUrgency()),
-        who_goes=MaxCostGoes(),
-        **common)
+# experiments['baseline-random'] = Experiment(desc="Random choice of who goes",
+#                                             agent_policy_scenario=FixedPolicy(RandomAgentPolicy()),
+#                                             who_goes=RandomWhoGoes(), **common)
+#
+# experiments['bid1-always'] = Experiment(desc="The agents always bid 1",
+#                                         agent_policy_scenario=FixedPolicy(Bid1()),
+#                                         who_goes=MaxGoesIfHasKarma(),
+#                                         **common)
+# experiments['bid1-if-urgent'] = Experiment(desc="The agents bid 1 if they are urgent",
+#                                            agent_policy_scenario=FixedPolicy(Bid1IfUrgent()),
+#                                            who_goes=MaxGoesIfHasKarma(),
+#                                            **common)
+# experiments['bid-urgency'] = Experiment(desc="The agents bid their urgency",
+#                                         agent_policy_scenario=FixedPolicy(BidUrgency()),
+#                                         who_goes=MaxGoesIfHasKarma(), **common)
+
+#
+# experiments['centralized-cost'] = Experiment(
+#         desc="Centralized controller chooses the agent with the highest accumulated cost.",
+#         agent_policy_scenario=FixedPolicy(BidUrgency()),
+#         who_goes=MaxCostGoes(),
+#         **common)
 
 prec = 3
 
@@ -140,7 +154,6 @@ def compute_transitions_matrix_and_policy_for_urgency_nonzero(history):
     urgencies = set(history['urgency'].flatten())
     print(urgencies)
 
-
     P = np.zeros((NK, NK))
     policy = np.zeros((NK, NK))
 
@@ -150,7 +163,7 @@ def compute_transitions_matrix_and_policy_for_urgency_nonzero(history):
             u = history[t, i]['urgency']
             if u == 0:
                 continue
-            k1 = history[t-1, i]['karma']
+            k1 = history[t - 1, i]['karma']
             k2 = history[t, i]['karma']
             part = history[t, i]['participated']
             message = history[t, i]['message']
@@ -167,9 +180,11 @@ def compute_transitions_matrix_and_policy_for_urgency_nonzero(history):
 
     return P, policy
 
+
 def normalize_dist(p):
     s = np.sum(p)
     return p / s if s > 0 else p
+
 
 def compute_karma_distribution(karma: np.ndarray):
     """

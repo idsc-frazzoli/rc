@@ -46,6 +46,22 @@ class Bid1(AgentPolicy):
     def __repr__(self):
         return f'{type(self).__name__}: bid 1 '
 
+class Bid1IfUrgent(AgentPolicy):
+    """ Random agent policy """
+
+    def generate_message(self,
+                         current_carma: KarmaValue,
+                         cost_accumulated: CostValue,
+                         current_urgency: UrgencyValue,
+                         urgency_distribution: DiscreteDistribution, rng: RNG) -> DiscreteDistribution[MessageValue]:
+        if current_urgency > 0:
+            return DiscreteDistribution[MessageValue].dirac(1)
+        else:
+            return DiscreteDistribution[MessageValue].dirac(0)
+
+    def __repr__(self):
+        return f'{type(self).__name__}: bid 1 '
+
 class BidUrgency(AgentPolicy):
     """ Bids the current urgency (truthful) """
 
@@ -60,26 +76,44 @@ class BidUrgency(AgentPolicy):
     def __repr__(self):
         return f'{type(self).__name__}: bid the true urgency'
 
-class BidEquilibrium1(AgentPolicy):
-    """ Bids the current urgency (truthful) """
 
+
+class PureStrategy(AgentPolicy):
+    """ Equilibrium for alpha - 0.8 """
+    def __init__(self, policy):
+        self.policy = policy
     def generate_message(self,
                          current_carma: KarmaValue,
                          cost_accumulated: CostValue,
                          current_urgency: UrgencyValue,
                          urgency_distribution: DiscreteDistribution, rng: RNG) -> DiscreteDistribution[MessageValue]:
 
-        policy = [
-            0, 1, 1, 1, 2, 2,2,
-            3,3,3, 4,4,5
-        ]
         if current_urgency > 0:
-            return DiscreteDistribution[MessageValue].dirac(policy[current_carma])
+            return DiscreteDistribution[MessageValue].dirac(self.policy[current_carma])
         else:
             return DiscreteDistribution[MessageValue].dirac(0)
 
     def __repr__(self):
-        return f'{type(self).__name__}: bid the true urgency'
+        return f'{type(self).__name__}: bid according to policy {self.policy}'
+
+class Equilibrium075(PureStrategy):
+    def __init__(self):
+        policy = [0, 1, 1, 2, 2, 3, 3, 3, 4, 4, 4, 5, 6]
+        PureStrategy.__init__(self, policy)
+
+
+class Equilibrium080(PureStrategy):
+    def __init__(self):
+        policy = [0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 5]
+        PureStrategy.__init__(self, policy)
+
+
+class Equilibrium085(PureStrategy):
+    def __init__(self):
+        policy = [0, 1, 1, 1, 1, 2, 2, 2, 3, 3, 3, 3, 4]
+        PureStrategy.__init__(self, policy)
+
+
 #
 #
 # class BidAccordingToCurrent(AgentPolicy):

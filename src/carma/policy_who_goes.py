@@ -33,7 +33,7 @@ class RandomWhoGoes(WhoGoes):
         return int(np.argmax(r))
 
     def __repr__(self):
-        return 'RandomWhoGoes: choosing who goes randomly'
+        return f'{type(self).__name__}: choosing who goes randomly'
 
 
 class MaxMessageGoes(WhoGoes):
@@ -50,7 +50,7 @@ class MaxMessageGoes(WhoGoes):
         return int(np.argmax(messages))
 
     def __repr__(self):
-        return 'MaxMessageGoes: who bid the max goes'
+        return f'{type(self).__name__}: who bid the max goes'
 
 class MaxUrgencyGoes(WhoGoes):
     """ The one with the highest message goes. """
@@ -61,11 +61,11 @@ class MaxUrgencyGoes(WhoGoes):
                  urgencies: Tuple[UrgencyValue],
                  rng: RNG) -> int:
         # add small epsilon to avoid ties / bias
-        urgencies = perturb(urgencies, rng=rng)
+        # urgencies = perturb(urgencies, rng=rng)
         return int(np.argmax(urgencies))
 
     def __repr__(self):
-        return 'MaxUrgencyGoes: centralized chooses the one with max urgency'
+        return f'{type(self).__name__}: centralized chooses the one with max urgency'
 
 
 class MaxCostGoes(WhoGoes):
