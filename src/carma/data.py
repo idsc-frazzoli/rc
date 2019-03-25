@@ -159,6 +159,7 @@ def carma1_main():
         if not os.path.exists(dn):
             os.makedirs(dn)
 
+        print('Creating reports...')
         r = make_figures(exp_name, exp, history)
 
         r.nid = exp_name

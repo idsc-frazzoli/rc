@@ -64,9 +64,11 @@ class Optimization:
     # energy_factor_delta: Optional[float]
     # energy_factor_max: Optional[float]
     energy_factor_schedule: Tuple[float, ...]
+
     num_iterations: int
     inertia: float
     diff_threshold: float
+    consider_self_effect: bool
 
 
 @dataclass
@@ -199,7 +201,8 @@ def delta_karma_if_i_wins_or_lose(model: Model, k_i, m_i, k_j, m_j) -> Tuple[flo
     return next_karma_if_wins, next_karma_if_loses
 
 
-def consider_bidding(model: Model, stationary_karma_pd, utility, policy, k_i, m_i) -> Tuple[
+def consider_bidding(model: Model, stationary_karma_pd, utility, policy, k_i, m_i,
+                     consider_self_effect) -> Tuple[
     np.ndarray, np.ndarray]:
     """
         What would happen if we bid m_i when we are k_i and high?
@@ -245,7 +248,7 @@ def consider_bidding(model: Model, stationary_karma_pd, utility, policy, k_i, m_
         # all possible karmas
         for m_j in range(0, k_j + 1):
 
-            if k_j == k_i:
+            if k_j == k_i and consider_self_effect:
                 p_m_j_given_k_j = 1 if m_j == m_i else 0
             else:
                 # with this probability
@@ -372,7 +375,7 @@ def compute_expectation(p, values):
     return np.dot(p, values)
 
 
-def iterate(sim: Simulation, it: Iteration, energy_factor: float, it_ef: int) -> Iteration:
+def iterate(sim: Simulation, it: Iteration, energy_factor: float, it_ef: int, consider_self_effect: bool) -> Iteration:
     # need to find for each karma
     N = sim.model.distinct_karma_values
     policy2 = np.zeros((N, N), dtype='float64')
@@ -388,7 +391,8 @@ def iterate(sim: Simulation, it: Iteration, energy_factor: float, it_ef: int) ->
         expected_cost_today.fill(np.nan)
         for m_i in range(0, k_i + 1):
             eu, ec = consider_bidding(sim.model, stationary_karma_pd=it.stationary_karma_pd,
-                                      utility=it.utility, policy=it.policy, k_i=k_i, m_i=m_i)
+                                      utility=it.utility, policy=it.policy, k_i=k_i, m_i=m_i,
+                                      consider_self_effect=consider_self_effect)
             expected_cost_today[m_i] = ec
             expected_utilities[m_i] = eu
 
@@ -697,7 +701,8 @@ def run_experiment(exp_name, sim: Simulation, plot_incremental=False, plot_incre
         for energy_factor in sim.opt.energy_factor_schedule:
 
             for it_ef in range(sim.opt.num_iterations):
-                it_next = iterate(sim, its[-1], energy_factor=energy_factor, it_ef=it_ef)
+                it_next = iterate(sim, its[-1], energy_factor=energy_factor, it_ef=it_ef,
+                                  consider_self_effect=sim.opt.consider_self_effect)
 
                 diff = policy_diff(its[-1].policy, it_next.policy)
 
@@ -843,7 +848,8 @@ def iterative_main():
                               # energy_factor=Decimal(0),
                               # energy_factor_delta=Decimal(0.15),
                               # energy_factor_max=0.9,
-                              diff_threshold=0.01)
+                              diff_threshold=0.01,
+                              consider_self_effect=False)
     for name, model in models.items():
         for name_opt, opt in opts.items():
             name_exp = f'{name}-{name_opt}'
