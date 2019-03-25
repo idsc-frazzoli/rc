@@ -26,7 +26,7 @@ highlow = DiscreteDistribution(((UrgencyValue(0), Probability(0.5)),
 #                                     (UrgencyValue(3), Probability(0.3))))
 experiments = {}
 num_agents = 200
-num_days = 2000
+num_days = 100
 average_encounters_per_day_per_agent = 0.1
 
 initial_karma = RandomKarma(0, Globals.max_carma)  # lower, upper
@@ -82,18 +82,48 @@ experiments['centralized-cost'] = Experiment(
         who_goes=MaxCostGoes(),
         **common)
 
-prec = 3
+prec = 5
 
 
-def stats_avg_cost(exp, history):
-    """ Mean average cost. """
-    return Decimal(np.mean(np.mean(history[:, :]['cost']))).__round__(prec)
+# def stats_avg_cost(exp, history):
+#     """ Mean average cost. """
+#     return Decimal(np.mean(np.mean(history[:, :]['cost']))).__round__(prec)
 
 
-def stats_std_final_cost_avg(exp, history):
-    """ STD of final average cost distribution. """
+def stats_avg_cum_cost(exp, history):
+    """ Final cumulative cost. """
+    last = history[-1, :]['cost']
+    return Decimal(np.mean(last)).__round__(prec)
+
+def stats_avg_cum_cost_avg(exp, history):
+    """ Final cost / number of encounters each """
     last = history[-1, :]['cost_average']
-    return Decimal(np.std(last)).__round__(prec)
+    return Decimal(np.mean(last)).__round__(prec)
+
+#
+# def stats_avg_cum_cost_avg(exp, history):
+#     """ Final cost / number of encounters each """
+#     each = []
+#     num_encounters = []
+#     total = []
+#
+#     for i in range(history.shape[1]):
+#         n = np.sum(history[:, i]['participated'].astype('int'))
+#         final_cost = history[-1, i]['cost']
+#         total.append(final_cost)
+#         average = final_cost / max(n, 1)
+#         each.append(average)
+#         num_encounters.append(n)
+#
+#     print('encounters: %s' % num_encounters)
+#     print('total cost: %s' % total)
+#     print('cost: %s' % each)
+#     return Decimal(np.mean(each)).__round__(prec)
+#
+# def stats_std_final_cost_avg(exp, history):
+#     """ STD of final average cost distribution. """
+#     last = history[-1, :]['cost_average']
+#     return Decimal(np.std(last)).__round__(prec)
 
 
 def stats_std_final_karma(exp, history):
@@ -103,8 +133,10 @@ def stats_std_final_karma(exp, history):
 
 
 statistics = [
-    stats_avg_cost,
-    stats_std_final_cost_avg,
+    # stats_avg_cost,
+    stats_avg_cum_cost,
+    stats_avg_cum_cost_avg,
+    # stats_std_final_cost_avg,
     stats_std_final_karma
 ]
 
@@ -115,20 +147,18 @@ def carma1_main():
     r0 = Report('all-experiments')
     rows = []
     data = []
+    cols = [x.__doc__ for x in statistics]
 
     for exp_name, exp in experiments.items():
         rows.append(exp_name)
 
-        history = run_experiment(exp)
+        history = run_experiment(exp, seed=42)
 
         dn = os.path.join(od, exp_name)
         if not os.path.exists(dn):
             os.makedirs(dn)
 
         r = make_figures(exp_name, exp, history)
-        fn = os.path.join(dn, 'index.html')
-        r.to_html(fn)
-        print(f'Report written to {fn}')
 
         r.nid = exp_name
         r0.add_child(r)
@@ -140,7 +170,12 @@ def carma1_main():
             datae.append(val)
         data.append(datae)
 
-    cols = [x.__doc__ for x in statistics]
+        r.table('stats', data=data, cols=cols, rows=rows)
+        fn = os.path.join(dn, 'index.html')
+        r.to_html(fn)
+        print(f'Report written to {fn}')
+
+
     r0.table('stats', data=data, cols=cols, rows=rows)
     print(f'Complete report written to {fn0}')
     r0.to_html(fn0)
@@ -261,6 +296,11 @@ def make_figures(name: str, exp: Experiment, history) -> Report:
 
     with f.plot('transitions', caption='Transitions for high urgency') as pylab:
         plot_transitions(pylab, transitions)
+
+    with f.plot('num_encounters', caption='Number of encounters') as pylab:
+        pylab.hist(history[-1,:]['encounters'], density='True')
+        pylab.xlabel('num encounters')
+
 
     print(cdf.shape)
     with f.plot('karma') as pylab:

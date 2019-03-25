@@ -1,4 +1,5 @@
 import itertools
+import sys
 from dataclasses import dataclass
 from enum import Enum
 from typing import *
@@ -822,7 +823,7 @@ def iterative_main():
 
     opts = {}
     opts['o2'] = Optimization(num_iterations=200,
-                              #inertia=0.25, # if 1 then it is faster
+                              # inertia=0.25, # if 1 then it is faster
                               inertia=0.05,  # if 1 then it is faster
                               energy_factor_schedule=(0, 0.15, 0.30, 0.45, 0.60, 0.9, 0.95, 1),
                               # energy_factor=Decimal(0),
@@ -834,7 +835,14 @@ def iterative_main():
             name_exp = f'{name}-{name_opt}'
             experiments[name_exp] = Simulation(model=model, opt=opt)
 
-    for exp_name, exp in experiments.items():
+    todo = list(models)
+    args = sys.argv[1:]
+    if args:
+        todo = args
+
+    for exp_name in todo:
+        print('Experiment %s' % exp_name)
+        exp = experiments[exp_name]
         rows.append(exp_name)
 
         history = run_experiment(exp_name, exp, plot_incremental=True)
@@ -864,6 +872,15 @@ def iterative_main():
     r0.to_html(fn0)
 
 
+def policy_as_string(policy):
+    bests = []
+    for k in range(policy.shape[0]):
+        best = np.argmax(policy[k, :])
+        bests.append(best)
+
+    return "policy=%s" % bests
+
+
 def make_figures2(name: str, sim: Simulation, history: List[Iteration]) -> Report:
     r = Report('figures')
 
@@ -884,7 +901,8 @@ def make_figures2(name: str, sim: Simulation, history: List[Iteration]) -> Repor
     f = r.figure('final', cols=3)
 
     last = history[-1]
-    caption = """ Policy visualized as intensity (more red: agent more likely to choose message)"""
+    caption = """ Policy visualized as intensity (more red: agent more likely to choose message)
+%s """ % policy_as_string(last.policy)
     # print('policy: %s' % last.policy)
     with f.plot('policy_last', caption=caption) as pylab:
 
@@ -969,7 +987,6 @@ def make_figures2(name: str, sim: Simulation, history: List[Iteration]) -> Repor
         pylab.ylabel('marginal utility of one unit of karma')
         pylab.title(f'Marginal utility of karma [{name}]')
 
-
     crucial = []
     for i in range(len(history) - 1):
         if history[i + 1].energy_factor != history[i].energy_factor:
@@ -979,9 +996,9 @@ def make_figures2(name: str, sim: Simulation, history: List[Iteration]) -> Repor
     for i in crucial:
         it = history[i]
         name = 'it%04d' % i
-
-        with f.plot(name+'-p', caption='ef = %.2f' % it.energy_factor) as pylab:
-            pylab.imshow(prepare_for_plot( it.policy.T))
+        s = policy_as_string(it.policy)
+        with f.plot(name + '-p', caption='ef = %.2f; %s' % (it.energy_factor, s)) as pylab:
+            pylab.imshow(prepare_for_plot(it.policy.T))
             pylab.xlabel('karma')
             pylab.ylabel('message')
             pylab.gca().invert_yaxis()
@@ -991,7 +1008,7 @@ def make_figures2(name: str, sim: Simulation, history: List[Iteration]) -> Repor
         it = history[i]
         name = 'it%04d' % i
 
-        with f.plot(name+'-u', caption='ef = %.2f' % it.energy_factor) as pylab:
+        with f.plot(name + '-u', caption='ef = %.2f' % it.energy_factor) as pylab:
             for i in sim.model.valid_karma_values:
                 pylab.plot(it.debug_utilities[i, :], '*-', )
 

@@ -45,9 +45,9 @@ class DiscreteDistribution(Generic[X]):
         return DiscreteDistribution(p2v)
 
 
-def choose_pair(n) -> Tuple[int, int]:
-    i = np.random.randint(0, n)
+def choose_pair(n, rng: RNG) -> Tuple[int, int]:
+    i = rng.randint(0, n)
     j = i
     while j == i:
-        j = np.random.randint(0, n)
+        j = rng.randint(0, n)
     return i, j

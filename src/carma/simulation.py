@@ -9,18 +9,19 @@ from .types import RNG, KarmaValue, CostValue, MessageValue
 
 
 def run_experiment(exp: Experiment, seed: Optional[int] = None):
-    rng = RNG(seed=seed)
+    rng_policy = RNG(seed=seed)
+    rng_sim = RNG(seed=seed)
     n = exp.num_agents
     # select urgency distributions for each agent
-    urgency_distribution = tuple(exp.urgency_distribution_scenario.choose_distribution_for_agent(i=i, n=n, rng=rng)
+    urgency_distribution = tuple(exp.urgency_distribution_scenario.choose_distribution_for_agent(i=i, n=n, rng=rng_sim)
                                  for i in range(n))
 
-    # select policy for each agent
-    initial_karma = tuple(exp.initial_karma_scenario.choose_initial_karma_for_agent(i=i, n=n, rng=rng)
+    # select initial karma
+    initial_karma = tuple(exp.initial_karma_scenario.choose_initial_karma_for_agent(i=i, n=n, rng=rng_sim)
                           for i in range(n))
 
-    # select initial karma
-    agent_policy: Tuple[AgentPolicy] = tuple(exp.agent_policy_scenario.choose_policy_for_agent(i=i, n=n, rng=rng)
+    # select policy for each agent
+    agent_policy: Tuple[AgentPolicy] = tuple(exp.agent_policy_scenario.choose_policy_for_agent(i=i, n=n, rng=rng_policy)
                                              for i in range(n))
 
     current_karma: List[KarmaValue] = list(initial_karma)
@@ -51,7 +52,7 @@ def run_experiment(exp: Experiment, seed: Optional[int] = None):
         for i in range(n):
             history[h, i]['karma'] = current_karma[i]
             history[h, i]['cost'] = accumulated_cost[i]
-            history[h, i]['cost_average'] = accumulated_cost[i] / (run_experiment.h + 1)
+            history[h, i]['cost_average'] = accumulated_cost[i] / max(encounters[i], 1)
             history[h, i]['urgency'] = urgency[i]
             history[h, i]['encounters'] = encounters[i]
             history[h, i]['encounters_first'] = encounters_first[i]
@@ -61,14 +62,19 @@ def run_experiment(exp: Experiment, seed: Optional[int] = None):
     # iterate over days
     for day in range(exp.num_days):
         # choose urgency for each agent for today
-        urgency = [urgency_distribution[i].sample(rng=rng) for i in range(n)]
+        urgency = [urgency_distribution[i].sample(rng=rng_sim) for i in range(n)]
 
         # iterate over encounters during the day
         for encounter in range(encounters_per_day):
             # choose pair of agents who meet
-            i1, i2 = choose_pair(n)
+            i1, i2 = choose_pair(n, rng_sim)
+
 
             agents = (i1, i2)
+
+            if day in [0, exp.num_days] and encounter == 0:
+                print(f'state {rng_sim.get_state()} encounter {encounter} chose {agents}')
+
 
             # ask each to generate a message
             messages_dist: Tuple[DiscreteDistribution[MessageValue]] = tuple(
@@ -76,25 +82,25 @@ def run_experiment(exp: Experiment, seed: Optional[int] = None):
                                                      current_urgency=urgency[i],
                                                      cost_accumulated=accumulated_cost[i],
                                                      urgency_distribution=urgency_distribution[i],
-                                                     rng=rng)
+                                                     rng=rng_policy)
                     for i in agents)
-            messages: Tuple[MessageValue] = [_.sample(rng) for _ in messages_dist]
+            messages: Tuple[MessageValue] = [_.sample(rng_policy) for _ in messages_dist]
 
             karmas = tuple(current_karma[i] for i in agents)
             costs = tuple(accumulated_cost[i] for i in agents)
             urgencies = tuple(urgency[i] for i in agents)
 
             who_goes = exp.who_goes.who_goes(messages=messages, karmas=karmas, costs=costs, urgencies=urgencies,
-                                             rng=rng)
+                                             rng=rng_policy)
 
-            new_karmas = exp.karma_update_policy.update(karmas, messages=messages, who_goes=who_goes, rng=rng)
+            new_karmas = exp.karma_update_policy.update(karmas, messages=messages, who_goes=who_goes, rng=rng_policy)
 
 
             # now update each of them
             for a in range(len(agents)):
                 new_cost_i = exp.cost_update_policy.update(costs[a], urgency=urgencies, messages=messages,
                                                            who_goes=who_goes,
-                                                           a=a, rng=rng)
+                                                           a=a, rng=rng_policy)
 
                 # print('karma %s bid %s' % (karmas[a], messages[a]))
                 assert new_cost_i >= costs[a]
