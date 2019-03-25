@@ -37,56 +37,15 @@ common = dict(num_agents=num_agents,
               initial_karma_scenario=initial_karma, cost_update_policy=PayUrgency(),
               karma_update_policy=BoundedKarma(Globals.max_carma),
               urgency_distribution_scenario=ConstantUrgencyDistribution(highlow))
-experiments['equilibrium-0.00'] = Experiment(desc="Equilibrium for alpha = 0.00",
-                                             agent_policy_scenario=FixedPolicy(Equilibrium000()),
+
+for alpha in equilibria:
+    name = 'equilibrium%.2f' % alpha
+    experiments[name] = Experiment(desc="Computed equilibrium for alpha = %.2f" % alpha,
+                                             agent_policy_scenario=FixedPolicy(ComputedEquilibrium(alpha)),
                                              who_goes=MaxGoesIfHasKarma(),
                                              **common
                                              )
-experiments['equilibrium-0.30'] = Experiment(desc="Equilibrium for alpha = 0.30",
-                                             agent_policy_scenario=FixedPolicy(Equilibrium030()),
-                                             who_goes=MaxGoesIfHasKarma(),
-                                             **common
-                                             )
-experiments['equilibrium-0.50'] = Experiment(desc="Equilibrium for alpha = 0.50",
-                                             agent_policy_scenario=FixedPolicy(Equilibrium050()),
-                                             who_goes=MaxGoesIfHasKarma(),
-                                             **common
-                                             )
-experiments['equilibrium-0.70'] = Experiment(desc="Equilibrium for alpha = 0.70",
-                                             agent_policy_scenario=FixedPolicy(Equilibrium070()),
-                                             who_goes=MaxGoesIfHasKarma(),
-                                             **common
-                                             )
-experiments['equilibrium-0.75'] = Experiment(desc="Equilibrium for alpha = 0.75",
-                                             agent_policy_scenario=FixedPolicy(Equilibrium075()),
-                                             who_goes=MaxGoesIfHasKarma(),
-                                             **common
-                                             )
-experiments['equilibrium-0.80'] = Experiment(desc="Equilibrium for alpha = 0.8",
-                                             agent_policy_scenario=FixedPolicy(Equilibrium080()),
-                                             who_goes=MaxGoesIfHasKarma(),
-                                             **common
-                                             )
-experiments['equilibrium-0.85'] = Experiment(desc="Equilibrium for alpha = 0.85",
-                                             agent_policy_scenario=FixedPolicy(Equilibrium085()),
-                                             who_goes=MaxGoesIfHasKarma(),
-                                             **common
-                                             )
-experiments['equilibrium-0.90'] = Experiment(desc="Equilibrium for alpha = 0.90",
-                                             agent_policy_scenario=FixedPolicy(Equilibrium090()),
-                                             who_goes=MaxGoesIfHasKarma(),
-                                             **common
-                                             )
-experiments['equilibrium-0.95'] = Experiment(desc="Equilibrium for alpha = 0.95",
-                                             agent_policy_scenario=FixedPolicy(Equilibrium095()),
-                                             who_goes=MaxGoesIfHasKarma(),
-                                             **common
-                                             )
-experiments['equilibrium-0.98'] = Experiment(desc="Equilibrium for alpha = 0.98",
-                                             agent_policy_scenario=FixedPolicy(Equilibrium098()),
-                                             who_goes=MaxGoesIfHasKarma(),
-                                             **common
-                                             )
+
 
 experiments['centralized-urgency'] = Experiment(desc="Centralized controller chooses the one with highest urgency.",
                                                 agent_policy_scenario=FixedPolicy(RandomAgentPolicy()),
@@ -185,7 +144,7 @@ statistics = [
 
 def carma1_main():
     od = './out-experiments'
-    fn0 = os.path.join(od, 'index.html')
+    fn0 = os.path.join(od, 'summary.html')
     r0 = Report('all-experiments')
     rows = []
     data = []
@@ -213,7 +172,7 @@ def carma1_main():
         data.append(datae)
 
         r.table('stats', data=data, cols=cols, rows=rows)
-        fn = os.path.join(dn, 'index.html')
+        fn = os.path.join(dn, 'summary.html')
         r.to_html(fn)
         print(f'Report written to {fn}')
 

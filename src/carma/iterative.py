@@ -763,7 +763,7 @@ def solveStationary(A):
 def iterative_main():
     statistics = []
     od = './out-iterative'
-    fn0 = os.path.join(od, 'index.html')
+    fn0 = os.path.join(od, 'summary.html')
     r0 = Report('all-experiments')
     rows = []
     data = []
@@ -839,6 +839,7 @@ def iterative_main():
                               # inertia=0.25, # if 1 then it is faster
                               inertia=0.05,  # if 1 then it is faster
                               energy_factor_schedule=(0.30, 0.45, 0.60, 0.65, 0.7, 0.8, 0.9, 0.95, 1),
+                              # energy_factor_schedule=( 0.9, 0.95, 1),
                               # energy_factor=Decimal(0),
                               # energy_factor_delta=Decimal(0.15),
                               # energy_factor_max=0.9,
@@ -865,7 +866,7 @@ def iterative_main():
             os.makedirs(dn)
 
         r = make_figures2(exp_name, exp, history)
-        fn = os.path.join(dn, 'index.html')
+        fn = os.path.join(dn, 'summary.html')
         r.to_html(fn)
         print(f'Report written to {fn}')
 
