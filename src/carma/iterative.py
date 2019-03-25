@@ -1,6 +1,5 @@
 import itertools
 from dataclasses import dataclass
-from decimal import Decimal
 from enum import Enum
 from typing import *
 
@@ -60,9 +59,10 @@ class Model:
 
 @dataclass
 class Optimization:
-    energy_factor: Optional[float]
-    energy_factor_delta: Optional[float]
-    energy_factor_max: Optional[float]
+    # energy_factor: Optional[float]
+    # energy_factor_delta: Optional[float]
+    # energy_factor_max: Optional[float]
+    energy_factor_schedule: Tuple[float, ...]
     num_iterations: int
     inertia: float
     diff_threshold: float
@@ -650,7 +650,7 @@ def run_experiment(exp_name, sim: Simulation, plot_incremental=False, plot_incre
     its = [it]
     done = False
     sim.model.initialize_caches()
-    energy_factor = sim.opt.energy_factor
+
 
     def plot_last():
         last = its[-1]
@@ -673,40 +673,37 @@ def run_experiment(exp_name, sim: Simulation, plot_incremental=False, plot_incre
 
     # threading.Thread(target=plot_thread).start()
     try:
-        it_since_ef = 0
+        it = 0
+        for energy_factor in sim.opt.energy_factor_schedule:
 
-        for i in range(100000):
-            it_next = iterate(sim, its[-1], energy_factor=energy_factor)
+            for it_ef in range(sim.opt.num_iterations):
+                it_next = iterate(sim, its[-1], energy_factor=energy_factor)
 
-            diff = policy_diff(its[-1].policy, it_next.policy)
+                diff = policy_diff(its[-1].policy, it_next.policy)
 
-            its.append(it_next)
+                its.append(it_next)
 
-            print(f'iteration %3d ef %.3f delta policy %.4f' % (i, energy_factor, diff))
+                print(f'iteration %4d %5d ef %.3f delta policy %.4f' % (it, it_ef, energy_factor, diff))
 
-            if plot_incremental:
-                if i > 0 and (i % plot_incremental_interval == 0):
-                    plot_last()
+                if plot_incremental:
+                    if it > 0 and (it % plot_incremental_interval == 0):
+                        plot_last()
 
-            if it_since_ef > sim.opt.num_iterations:
-                msg = 'So many iterations since we last changed ef.'
-                print(msg)
+                go_next_ef = diff < sim.opt.diff_threshold
 
-            it_since_ef += 1
-
-            go_next_ef = (it_since_ef > sim.opt.num_iterations) or (diff < sim.opt.diff_threshold)
-
-            if go_next_ef:
-
-                # if energy_factor is None:
-                #     break
-                if energy_factor + sim.opt.energy_factor_delta >= sim.opt.energy_factor_max:
+                if go_next_ef:
                     break
 
-                energy_factor += sim.opt.energy_factor_delta
-                it_since_ef = 0
+                it+=1
+                    # # if energy_factor is None:
+                    # #     break
+                    # if energy_factor + sim.opt.energy_factor_delta >= sim.opt.energy_factor_max:
+                    #     break
+                    #
+                    # energy_factor += sim.opt.energy_factor_delta
+                    # it_since_ef = 0
 
-                #     energy_factor = None
+                    #     energy_factor = None
 
     except KeyboardInterrupt:
         print('OK, now drawing.')
@@ -757,10 +754,16 @@ def iterative_main():
     max_carma_low, max_carma_mid, max_carma_high = 8, 12, 16
 
     common = dict(assignment=Assignment.FirstPrice)
-    alpha_low3, alpha_low2, alpha_low, alpha_mid, alpha_high, alpha_high2, alpha_high3 = 0.5, 0.7, 0.75, 0.8, 0.85, 0.90, 0.95
+    alpha_low4, alpha_low3, alpha_low2, alpha_low, alpha_mid, alpha_high, alpha_high2, alpha_high3, alpha_high4 = 0.3, 0.5, 0.7, 0.75, 0.8, 0.85, 0.90, 0.95, 0.98
     p_low, p_mid, p_high = 0.4, 0.5, 0.6
     urgency_low, urgency_mid, urgency_high = 2.0, 3.0, 4.0
 
+    models['M-α⁻⁻⁻⁻-p°-u°-k°'] = Model(description="α small 4", max_karma=max_carma_mid, urgency0=urgency_mid,
+                                       alpha=alpha_low4, prob_high=p_mid,
+                                       **common)
+    models['M-α0-p°-u°-k°'] = Model(description="α zero", max_karma=max_carma_mid, urgency0=urgency_mid,
+                                    alpha=0, prob_high=p_mid,
+                                    **common)
     models['M-α°-p°-u°-k⁻'] = Model(description="fewer karma levels", max_karma=max_carma_low, urgency0=urgency_mid,
                                     alpha=alpha_mid, prob_high=p_mid,
                                     **common)
@@ -777,43 +780,47 @@ def iterative_main():
                                     alpha=alpha_low, prob_high=p_mid,
                                     **common)
     models['M-α⁻⁻-p°-u°-k°'] = Model(description="α small small", max_karma=max_carma_mid, urgency0=urgency_mid,
-                                    alpha=alpha_low2, prob_high=p_mid,
-                                    **common)
+                                     alpha=alpha_low2, prob_high=p_mid,
+                                     **common)
 
     models['M-α⁻⁻⁻-p°-u°-k°'] = Model(description="α small small small", max_karma=max_carma_mid, urgency0=urgency_mid,
-                                    alpha=alpha_low3, prob_high=p_mid,
-                                    **common)
+                                      alpha=alpha_low3, prob_high=p_mid,
+                                      **common)
 
     models['M-α⁺-p°-u°-k°'] = Model(description="α larger", max_karma=max_carma_mid, urgency0=urgency_mid,
                                     alpha=alpha_high, prob_high=p_mid,
                                     **common)
-    models['M-α⁺⁺-p°-u°-k°'] = Model(description="α large large", max_karma=max_carma_mid, urgency0=urgency_mid,
-                                    alpha=alpha_high2, prob_high=p_mid,
-                                    **common)
-    models['M-α⁺⁺⁺-p°-u°-k°'] = Model(description="α large large", max_karma=max_carma_mid, urgency0=urgency_mid,
-                                    alpha=alpha_high3, prob_high=p_mid,
-                                    **common)
+    models['M-α⁺⁺-p°-u°-k°'] = Model(description="α large 2", max_karma=max_carma_mid, urgency0=urgency_mid,
+                                     alpha=alpha_high2, prob_high=p_mid,
+                                     **common)
+    models['M-α⁺⁺⁺-p°-u°-k°'] = Model(description="α large 3", max_karma=max_carma_mid, urgency0=urgency_mid,
+                                      alpha=alpha_high3, prob_high=p_mid,
+                                      **common)
+    models['M-α⁺⁺⁺⁺-p°-u°-k°'] = Model(description="α large 4", max_karma=max_carma_mid, urgency0=urgency_mid,
+                                       alpha=alpha_high4, prob_high=p_mid,
+                                       **common)
 
     models['M-α°-p⁻-u°-k°'] = Model(description="p(high) larger", max_karma=max_carma_mid, urgency0=urgency_mid,
-                                 alpha=alpha_mid, prob_high=p_low,
-                                 **common)
+                                    alpha=alpha_mid, prob_high=p_low,
+                                    **common)
 
     models['M-α°-p⁺-u°-k°'] = Model(description="p(high) smaller", max_karma=max_carma_mid, urgency0=urgency_mid,
-                                 alpha=alpha_mid, prob_high=p_high,
-                                 **common)
+                                    alpha=alpha_mid, prob_high=p_high,
+                                    **common)
     models['M-α°-p°-u⁻-k°'] = Model(description="u smaller", max_karma=max_carma_mid, urgency0=urgency_low,
-                                 alpha=alpha_mid, prob_high=p_mid,
-                                 **common)
+                                    alpha=alpha_mid, prob_high=p_mid,
+                                    **common)
     models['M-α°-p°-u⁺-k°'] = Model(description="u larger", max_karma=max_carma_mid, urgency0=urgency_high,
-                                 alpha=alpha_mid, prob_high=p_mid,
-                                 **common)
+                                    alpha=alpha_mid, prob_high=p_mid,
+                                    **common)
 
     opts = {}
-    opts['o1'] = Optimization(num_iterations=200,
+    opts['o2'] = Optimization(num_iterations=200,
                               inertia=0.25,
-                              energy_factor=Decimal(0),
-                              energy_factor_delta=Decimal(0.15),
-                              energy_factor_max=0.9,
+                              energy_factor_schedule=(0, 0.15, 0.30, 0.45, 0.60, 0.9, 0.95, 1),
+                              # energy_factor=Decimal(0),
+                              # energy_factor_delta=Decimal(0.15),
+                              # energy_factor_max=0.9,
                               diff_threshold=0.01)
     for name, model in models.items():
         for name_opt, opt in opts.items():
