@@ -365,7 +365,7 @@ def compute_expectation(p, values):
     return np.dot(p, values)
 
 
-def iterate(sim: Simulation, it: Iteration, energy_factor: float) -> Iteration:
+def iterate(sim: Simulation, it: Iteration, energy_factor: float, it_ef: int) -> Iteration:
     # need to find for each karma
     N = sim.model.distinct_karma_values
     policy2 = np.zeros((N, N), dtype='float64')
@@ -432,6 +432,11 @@ def iterate(sim: Simulation, it: Iteration, energy_factor: float) -> Iteration:
     # make a delta adjustment
 
     q = sim.opt.inertia
+
+    # if this is the first iteration of a new ef, do not use inertia
+    if it_ef == 0:
+        q = 1
+
     policy2 = q * policy2 + (1 - q) * it.policy
     # utility2 = q * utility2 + (1 - q) * it.utility
     # stationary_karma_pd2_final = q * stationary_karma_pd2 + (1 - q) * it.stationary_karma_pd
@@ -678,7 +683,7 @@ def run_experiment(exp_name, sim: Simulation, plot_incremental=False, plot_incre
         for energy_factor in sim.opt.energy_factor_schedule:
 
             for it_ef in range(sim.opt.num_iterations):
-                it_next = iterate(sim, its[-1], energy_factor=energy_factor)
+                it_next = iterate(sim, its[-1], energy_factor=energy_factor, it_ef=it_ef)
 
                 diff = policy_diff(its[-1].policy, it_next.policy)
 
