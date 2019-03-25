@@ -4,6 +4,9 @@ from dataclasses import dataclass
 from .distribution import DiscreteDistribution
 from .types import KarmaValue, CostValue, UrgencyValue, MessageValue, RNG
 
+class Globals:
+    max_carma = 12
+    valid_karma_values = list(range(max_carma+1))
 
 class AgentPolicy(metaclass=ABCMeta):
 
@@ -12,7 +15,7 @@ class AgentPolicy(metaclass=ABCMeta):
                          current_carma: KarmaValue,
                          cost_accumulated: CostValue,
                          current_urgency: UrgencyValue,
-                         urgency_distribution: DiscreteDistribution, rng: RNG) -> MessageValue:
+                         urgency_distribution: DiscreteDistribution, rng: RNG) -> DiscreteDistribution[MessageValue]:
         pass
 
 class RandomAgentPolicy(AgentPolicy):
@@ -22,13 +25,26 @@ class RandomAgentPolicy(AgentPolicy):
                          current_carma: KarmaValue,
                          cost_accumulated: CostValue,
                          current_urgency: UrgencyValue,
-                         urgency_distribution: DiscreteDistribution, rng: RNG) -> MessageValue:
+                         urgency_distribution: DiscreteDistribution, rng: RNG) -> DiscreteDistribution[MessageValue]:
         # random message
-        return rng.uniform(0, 1)
+        return DiscreteDistribution[MessageValue].uniform(Globals.valid_karma_values)
 
     def __repr__(self):
-        return 'RandomAgentPolicy: bid a random number'
+        return f'{type(self).__name__}: bid a random number'
 
+class Bid1(AgentPolicy):
+    """ Random agent policy """
+
+    def generate_message(self,
+                         current_carma: KarmaValue,
+                         cost_accumulated: CostValue,
+                         current_urgency: UrgencyValue,
+                         urgency_distribution: DiscreteDistribution, rng: RNG) -> DiscreteDistribution[MessageValue]:
+        # random message
+        return DiscreteDistribution[MessageValue].dirac(1)
+
+    def __repr__(self):
+        return f'{type(self).__name__}: bid 1 '
 
 class BidUrgency(AgentPolicy):
     """ Bids the current urgency (truthful) """
@@ -37,11 +53,33 @@ class BidUrgency(AgentPolicy):
                          current_carma: KarmaValue,
                          cost_accumulated: CostValue,
                          current_urgency: UrgencyValue,
-                         urgency_distribution: DiscreteDistribution, rng: RNG) -> MessageValue:
-        return current_urgency
+                         urgency_distribution: DiscreteDistribution, rng: RNG) -> DiscreteDistribution[MessageValue]:
+
+        return DiscreteDistribution[MessageValue].dirac(current_urgency)
 
     def __repr__(self):
-        return 'BidUrgency: bid the true urgency'
+        return f'{type(self).__name__}: bid the true urgency'
+
+class BidEquilibrium1(AgentPolicy):
+    """ Bids the current urgency (truthful) """
+
+    def generate_message(self,
+                         current_carma: KarmaValue,
+                         cost_accumulated: CostValue,
+                         current_urgency: UrgencyValue,
+                         urgency_distribution: DiscreteDistribution, rng: RNG) -> DiscreteDistribution[MessageValue]:
+
+        policy = [
+            0, 1, 1, 1, 2, 2,2,
+            3,3,3, 4,4,5
+        ]
+        if current_urgency > 0:
+            return DiscreteDistribution[MessageValue].dirac(policy[current_carma])
+        else:
+            return DiscreteDistribution[MessageValue].dirac(0)
+
+    def __repr__(self):
+        return f'{type(self).__name__}: bid the true urgency'
 #
 #
 # class BidAccordingToCurrent(AgentPolicy):
@@ -79,5 +117,5 @@ class FixedPolicy(AgentPolicyScenario):
 
 
     def __repr__(self):
-        return 'FixedPolicy: all agents have the same policy, which is:\n%r' % self.policy
+        return f'{type(self).__name__}: all agents have the same policy, which is:\n%r' % self.policy
 

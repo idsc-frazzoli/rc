@@ -8,7 +8,7 @@ setup(name='carma',
       entry_points={
             'console_scripts': [
                   'carma1 = carma:carma1_main',
-                  # 'carma2 = carma:carma2_main',
+                  'carma-compute-equilibria = carma.iterative:iterative_main',
             ]
       },
       install_requires=[

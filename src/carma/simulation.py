@@ -2,12 +2,10 @@ from typing import *
 
 import numpy as np
 
-from .distribution import choose_pair
+from .distribution import choose_pair, DiscreteDistribution
 from .experiment import Experiment
-from .types import RNG
-
-
-# Real = Decimal
+from .policy_agent import AgentPolicy
+from .types import RNG, KarmaValue, CostValue, MessageValue
 
 
 def run_experiment(exp: Experiment, seed: Optional[int] = None):
@@ -22,11 +20,11 @@ def run_experiment(exp: Experiment, seed: Optional[int] = None):
                           for i in range(n))
 
     # select initial karma
-    agent_policy = tuple(exp.agent_policy_scenario.choose_policy_for_agent(i=i, n=n, rng=rng)
-                         for i in range(n))
+    agent_policy: Tuple[AgentPolicy] = tuple(exp.agent_policy_scenario.choose_policy_for_agent(i=i, n=n, rng=rng)
+                                             for i in range(n))
 
-    current_karma = list(initial_karma)
-    accumulated_cost = [0 for _ in range(n)]
+    current_karma: List[KarmaValue] = list(initial_karma)
+    accumulated_cost: List[CostValue] = [0 for _ in range(n)]
     encounters = [0 for _ in range(n)]
     encounters_first = [0 for _ in range(n)]
     encounters_notfirst = [0 for _ in range(n)]
@@ -35,13 +33,17 @@ def run_experiment(exp: Experiment, seed: Optional[int] = None):
     total_encounters = encounters_per_day * exp.num_days
     urgency = None
 
-    history = np.zeros((total_encounters, n), dtype=[('karma', float),
+    history = np.zeros((total_encounters, n), dtype=[('karma', int),
                                                      ('cost', float),
                                                      ('urgency', float),
                                                      ('cost_average', float),
+                                                     ('message', int),
+                                                     ('participated', bool),
                                                      ('encounters', int),
                                                      ('encounters_first', int),
                                                      ('encounters_notfirst', int)])
+    history['message'].fill(-100)
+    history['participated'].fill(False)
     run_experiment.h = 0  # current moment in history
 
     def save():
@@ -69,12 +71,14 @@ def run_experiment(exp: Experiment, seed: Optional[int] = None):
             agents = (i1, i2)
 
             # ask each to generate a message
-            messages = tuple(agent_policy[i].generate_message(current_carma=current_karma[i],
-                                                              current_urgency=urgency[i],
-                                                              cost_accumulated=accumulated_cost[i],
-                                                              urgency_distribution=urgency_distribution[i],
-                                                              rng=rng)
-                             for i in agents)
+            messages_dist: Tuple[DiscreteDistribution[MessageValue]] = tuple(
+                    agent_policy[i].generate_message(current_carma=current_karma[i],
+                                                     current_urgency=urgency[i],
+                                                     cost_accumulated=accumulated_cost[i],
+                                                     urgency_distribution=urgency_distribution[i],
+                                                     rng=rng)
+                    for i in agents)
+            messages: Tuple[MessageValue] = [_.sample(rng) for _ in messages_dist]
 
             karmas = tuple(current_karma[i] for i in agents)
             costs = tuple(accumulated_cost[i] for i in agents)
@@ -82,20 +86,27 @@ def run_experiment(exp: Experiment, seed: Optional[int] = None):
 
             who_goes = exp.who_goes.who_goes(messages=messages, karmas=karmas, costs=costs, urgencies=urgencies,
                                              rng=rng)
+
+            new_karmas = exp.karma_update_policy.update(karmas, messages=messages, who_goes=who_goes, rng=rng)
+
+
             # now update each of them
             for a in range(len(agents)):
-
-                new_karma_i = exp.karma_update_policy.update(karmas[a], messages=messages, who_goes=who_goes,
-                                                             a=a, rng=rng)
                 new_cost_i = exp.cost_update_policy.update(costs[a], urgency=urgencies, messages=messages,
                                                            who_goes=who_goes,
                                                            a=a, rng=rng)
 
+                # print('karma %s bid %s' % (karmas[a], messages[a]))
                 assert new_cost_i >= costs[a]
                 i = agents[a]
-                current_karma[i] = new_karma_i
+
+                current_karma[i] = new_karmas[a]
                 accumulated_cost[i] = new_cost_i
                 encounters[i] += 1
+
+
+                history[run_experiment.h, i]['message'] = messages[a]
+                history[run_experiment.h, i]['participated'] = True
 
                 if a == who_goes:
                     encounters_first[i] += 1
@@ -103,5 +114,7 @@ def run_experiment(exp: Experiment, seed: Optional[int] = None):
                     encounters_notfirst[i] += 1
 
             save()
+
+
 
     return history

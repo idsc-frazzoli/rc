@@ -3,6 +3,7 @@ from decimal import Decimal
 
 from matplotlib import rcParams
 
+from carma.iterative import plot_transitions
 from reprep import Report
 from reprep.plot_utils import y_axis_set
 from .experiment import Experiment
@@ -15,100 +16,60 @@ from .policy_who_goes import *
 from .simulation import run_experiment
 from .types import Probability
 
-constant = DiscreteDistribution(((UrgencyValue(4), Probability(1)),))
+# constant = DiscreteDistribution(((UrgencyValue(4), Probability(1)),))
 
-highlow = DiscreteDistribution(((UrgencyValue(3), Probability(0.5)),
-                                (UrgencyValue(5), Probability(0.5))))
+highlow = DiscreteDistribution(((UrgencyValue(0), Probability(0.5)),
+                                (UrgencyValue(3), Probability(0.5))))
 
-highlowmean = DiscreteDistribution(((UrgencyValue(3), Probability(0.3)),
-                                    (UrgencyValue(4), Probability(0.4)),
-                                    (UrgencyValue(5), Probability(0.3))))
+# highlowmean = DiscreteDistribution(((UrgencyValue(0), Probability(0.3)),
+#                                     (UrgencyValue(1.5), Probability(0.4)),
+#                                     (UrgencyValue(3), Probability(0.3))))
 experiments = {}
-num_agents = 10
-num_days = 10
-average_encounters_per_day_per_agent = 100
+num_agents = 100
+num_days = 1000
+average_encounters_per_day_per_agent = 0.1
 
-initial_karma = RandomKarma(20.0, 20.0) # lower, upper
-desc = """
+initial_karma = RandomKarma(0, Globals.max_carma)  # lower, upper
 
-Random choice of who goes.
+common = dict(num_agents=num_agents,
+              num_days=num_days,
+              average_encounters_per_day_per_agent=average_encounters_per_day_per_agent,
+              initial_karma_scenario=initial_karma, cost_update_policy=PayUrgency(),
+              karma_update_policy=BoundedKarma(Globals.max_carma),
+              urgency_distribution_scenario=ConstantUrgencyDistribution(highlow))
 
-Urgency: high/low.
+experiments['bid-gt1'] = Experiment(desc="Karma game policy",
+                                    agent_policy_scenario=FixedPolicy(BidEquilibrium1()),
+                                    who_goes=MaxGoesIfHasKarma(),
+                                    **common
+                                    )
 
-"""
-experiments['baseline-random'] = Experiment(desc=desc, num_agents=num_agents,
-                                            num_days=num_days,
-                                            average_encounters_per_day_per_agent=average_encounters_per_day_per_agent,
+experiments['baseline-random'] = Experiment(desc="Random choice of who goes",
                                             agent_policy_scenario=FixedPolicy(RandomAgentPolicy()),
-                                            urgency_distribution_scenario=ConstantUrgencyDistribution(highlow),
-                                            initial_karma_scenario=initial_karma,
-                                            who_goes=RandomWhoGoes(),
-                                            cost_update_policy=PayUrgency(),
-                                            karma_update_policy=SimpleKarmaUpdatePolicy_but_floor0())
+                                            who_goes=RandomWhoGoes(), **common)
 
-desc = """
+experiments['bid1'] = Experiment(desc="The agents always bid 1",
+                                 agent_policy_scenario=FixedPolicy(Bid1()),
+                                 who_goes=MaxGoesIfHasKarma(),
+                                 **common)
 
-Centralized controller chooses the one with highest urgency.
+experiments['bid-urgency'] = Experiment(desc="The agents bid their urgency",
+                                        agent_policy_scenario=FixedPolicy(BidUrgency()),
+                                        who_goes=MaxGoesIfHasKarma(), **common)
 
-Urgency: high/low.
-
-"""
-experiments['centralized-urgency'] = Experiment(desc=desc, num_agents=num_agents,
-                                                num_days=num_days,
-                                                average_encounters_per_day_per_agent=average_encounters_per_day_per_agent,
+experiments['centralized-urgency'] = Experiment(desc="Centralized controller chooses the one with highest urgency.",
                                                 agent_policy_scenario=FixedPolicy(RandomAgentPolicy()),
-                                                urgency_distribution_scenario=ConstantUrgencyDistribution(highlow),
-                                                initial_karma_scenario=initial_karma,
                                                 who_goes=MaxUrgencyGoes(),
-                                                cost_update_policy=PayUrgency(),
-                                                karma_update_policy=SimpleKarmaUpdatePolicy_but_floor0())
+                                                **common)
 
-desc = """
-
-Centralized controller chooses the agent with the highest accumulated cost.
-
-Urgency: high/low.
-
-"""
-experiments['centralized-cost'] = Experiment(desc=desc, num_agents=num_agents,
-                                             num_days=num_days,
-                                             average_encounters_per_day_per_agent=average_encounters_per_day_per_agent,
-                                             agent_policy_scenario=FixedPolicy(BidUrgency()),
-                                             urgency_distribution_scenario=ConstantUrgencyDistribution(highlow),
-                                             initial_karma_scenario=initial_karma,
-                                             who_goes=MaxCostGoes(),
-                                             cost_update_policy=PayUrgency(),
-                                             karma_update_policy=SimpleKarmaUpdatePolicy_but_floor0())
-
-desc = """
-
-The agents can bid with karma (if they have it)
-
-Urgency: high/low.
-
-"""
-experiments['karma-bid-floor-highlow'] = Experiment(desc=desc, num_agents=num_agents,
-                                            num_days=num_days,
-                                            average_encounters_per_day_per_agent=average_encounters_per_day_per_agent,
-                                            agent_policy_scenario=FixedPolicy(BidUrgency()),
-                                            urgency_distribution_scenario=ConstantUrgencyDistribution(highlow),
-                                            initial_karma_scenario=initial_karma,
-                                            who_goes=MaxGoesIfHasKarma(),
-                                            cost_update_policy=PayUrgency(),
-                                            karma_update_policy=SimpleKarmaUpdatePolicy_but_floor0())
-
-
-experiments['karma-bid-floor-highlowmean'] = Experiment(desc=desc, num_agents=num_agents,
-                                            num_days=num_days,
-                                            average_encounters_per_day_per_agent=average_encounters_per_day_per_agent,
-                                            agent_policy_scenario=FixedPolicy(BidUrgency()),
-                                            urgency_distribution_scenario=ConstantUrgencyDistribution(highlowmean),
-                                            initial_karma_scenario=initial_karma,
-                                            who_goes=MaxGoesIfHasKarma(),
-                                            cost_update_policy=PayUrgency(),
-                                            karma_update_policy=SimpleKarmaUpdatePolicy_but_floor0())
+experiments['centralized-cost'] = Experiment(
+        desc="Centralized controller chooses the agent with the highest accumulated cost.",
+        agent_policy_scenario=FixedPolicy(BidUrgency()),
+        who_goes=MaxCostGoes(),
+        **common)
 
 prec = 3
+
 
 def stats_avg_cost(exp, history):
     """ Mean average cost. """
@@ -174,6 +135,61 @@ def carma1_main():
 import os
 
 
+def compute_transitions_matrix_and_policy_for_urgency_nonzero(history):
+    NK = Globals.max_carma + 1
+    urgencies = set(history['urgency'].flatten())
+    print(urgencies)
+
+
+    P = np.zeros((NK, NK))
+    policy = np.zeros((NK, NK))
+
+    ntimes, nagents = history['karma'].shape
+    for t in range(1, ntimes):
+        for i in range(nagents):
+            u = history[t, i]['urgency']
+            if u == 0:
+                continue
+            k1 = history[t-1, i]['karma']
+            k2 = history[t, i]['karma']
+            part = history[t, i]['participated']
+            message = history[t, i]['message']
+            if part:
+                assert 0 <= message <= NK, history[t, i]
+                P[k1, k2] += 1.0
+                policy[k1, message] += 1
+
+    for k in Globals.valid_karma_values:
+        P[k, :] = normalize_dist(P[k, :])
+
+    for k in Globals.valid_karma_values:
+        policy[k, :] = normalize_dist(policy[k, :])
+
+    return P, policy
+
+def normalize_dist(p):
+    s = np.sum(p)
+    return p / s if s > 0 else p
+
+def compute_karma_distribution(karma: np.ndarray):
+    """
+
+    :param karma[times, agents]:
+    :return:
+    """
+    ntimes, nagents = karma.shape
+    max_karma = Globals.max_carma
+    NK = max_karma + 1
+    cdf = np.zeros((ntimes, NK))
+
+    for i in range(ntimes):
+        karma_day = karma[i, :]
+        h, bin_edges = np.histogram(karma_day, bins=NK, density=True)
+        # h = h / (1.0 / np.sum(h))
+        cdf[i, :] = h
+    return cdf
+
+
 def make_figures(name: str, exp: Experiment, history) -> Report:
     r = Report(name)
 
@@ -186,15 +202,6 @@ def make_figures(name: str, exp: Experiment, history) -> Report:
             data += f'\n{k}: {v}\n'
 
     r.text('description', str(data))
-    # Experiment(num_agents=num_agents,
-    #            num_days=num_days,
-    #            average_encounters_per_day_per_agent=average_encounters_per_day_per_agent,
-    #            agent_policy_scenario=FixedPolicy(BidUrgency()),
-    #            urgency_distribution_scenario=ConstantUrgencyDistribution(highlow),
-    #            initial_karma_scenario=RandomKarma(0.0, 0.0),
-    #            who_goes=MaxGoesIfHasKarma(),
-    #            cost_update_policy=SimpleCostUpdatePolicy(),
-    #            karma_update_policy=SimpleKarmaUpdatePolicy())
 
     rcParams['backend'] = 'agg'
 
@@ -203,7 +210,7 @@ def make_figures(name: str, exp: Experiment, history) -> Report:
     time = np.array(range(K))
     sub = time[::1]
 
-    f = r.figure(cols=2)
+    f = r.figure(cols=4)
     caption = 'Cumulative cost'
     with f.plot('cost_cumulative', caption=caption) as pylab:
         cost = history[sub, :]['cost']
@@ -228,12 +235,40 @@ def make_figures(name: str, exp: Experiment, history) -> Report:
         pylab.ylabel('average cost')
         pylab.xlabel('time')
 
+    cdf = compute_karma_distribution(history[:, :]['karma'])
+    INTERVAL_STAT = 200
+    karma_stationary = np.mean(cdf[-INTERVAL_STAT:, :], axis=0)
+
+    transitions, policy = compute_transitions_matrix_and_policy_for_urgency_nonzero(history)
+
+    with f.plot('policy', caption='Policy for high urgency') as pylab:
+        plot_transitions(pylab, policy)
+
+    with f.plot('transitions', caption='Transitions for high urgency') as pylab:
+        plot_transitions(pylab, transitions)
+
+    print(cdf.shape)
     with f.plot('karma') as pylab:
-        karma = history[sub, :]['karma']
-        pylab.plot(time[sub], karma, **style)
+
+        cdf_plot = np.kron(cdf, np.ones((1, 40)))
+
+        pylab.imshow(cdf_plot.T)
+
+        # pylab.plot(time[sub], karma, '.', **style)
         pylab.title('karma')
         pylab.xlabel('time')
         pylab.ylabel('karma')
+        pylab.gca().invert_yaxis()
+        # TODO: turn off y axis
+
+    with f.plot('karma_last') as pylab:
+        # n = 10
+        # for t in range(-n, -1):
+        #     k = cdf[t, :]
+        pylab.bar(Globals.valid_karma_values, karma_stationary)
+        pylab.title('karma stationary')
+        pylab.xlabel('karma')
+        pylab.ylabel('p(karma)')
 
     sub = time > (len(time) / 4)
 
@@ -242,7 +277,7 @@ def make_figures(name: str, exp: Experiment, history) -> Report:
         for i in range(nagents):
             cost_i = history[sub, i]['cost']
             karma_i = history[sub, i]['karma']
-            pylab.plot(cost_i, karma_i, **style)
+            pylab.plot(cost_i, karma_i, '.', **style)
 
         pylab.title('cost/karma')
 
@@ -254,7 +289,7 @@ def make_figures(name: str, exp: Experiment, history) -> Report:
         for i in range(nagents):
             cost_i = history[sub, i]['cost_average']
             karma_i = history[sub, i]['karma']
-            pylab.plot(cost_i, karma_i, **style)
+            pylab.plot(cost_i, karma_i, '.', **style)
 
         pylab.title('cost_average/karma')
 

@@ -17,8 +17,6 @@ class Assignment(Enum):
     HalfPrice = 3
 
 
-
-
 @dataclass
 class Model:
     description: str
@@ -44,6 +42,7 @@ class Model:
         self.valid_karma_values = list(range(0, self.max_karma + 1))
         assert max(self.valid_karma_values) == self.max_karma
 
+    def initialize_caches(self):
         N = self.distinct_karma_values
         self.probability_of_winning_ = np.zeros((N, N, N, N), dtype='float64')
         self.next_karma_if_win = np.zeros((N, N, N, N), dtype='int')
@@ -650,6 +649,7 @@ def run_experiment(exp_name, sim: Simulation, plot_incremental=False, plot_incre
     it = initialize(sim.model)
     its = [it]
     done = False
+    sim.model.initialize_caches()
     energy_factor = sim.opt.energy_factor
 
     def plot_last():
@@ -754,30 +754,46 @@ def iterative_main():
     experiments = {}
 
     models = {}
-    max_carma = 12
+    max_carma_low, max_carma_mid, max_carma_high = 8, 12, 16
 
-    common = dict(max_karma=max_carma, assignment=Assignment.FirstPrice)
+    common = dict(assignment=Assignment.FirstPrice)
     alpha_low, alpha_mid, alpha_high = 0.75, 0.8, 0.85
     p_low, p_mid, p_high = 0.4, 0.5, 0.6
     urgency_low, urgency_mid, urgency_high = 2.0, 3.0, 4.0
 
-    models['M-α°-p°-u⁻'] = Model(description="u smaller", urgency0=urgency_low, alpha=alpha_mid, prob_high=p_mid,
+    models['M-α°-p°-u°-k⁻'] = Model(description="fewer karma levels", max_karma=max_carma_low, urgency0=urgency_mid,
+                                    alpha=alpha_mid, prob_high=p_mid,
+                                    **common)
+    models['M-α°-p°-u°-k⁺'] = Model(description="more karma levels", max_karma=max_carma_high, urgency0=urgency_mid,
+                                    alpha=alpha_mid, prob_high=p_mid,
+                                    **common)
+
+    models['M-α°-p°-u°-k°'] = Model(description="baseline", max_karma=max_carma_mid, urgency0=urgency_mid,
+                                    alpha=alpha_mid,
+                                    prob_high=p_mid,
+                                    **common)
+
+    models['M-α⁻-p°-u°-k°'] = Model(description="α smaller", max_karma=max_carma_mid, urgency0=urgency_mid,
+                                 alpha=alpha_low, prob_high=p_mid,
                                  **common)
-    models['M-α°-p°-u⁺'] = Model(description="u larger", urgency0=urgency_high, alpha=alpha_mid, prob_high=p_mid,
+
+    models['M-α⁺-p°-u°-k°'] = Model(description="α larger", max_karma=max_carma_mid, urgency0=urgency_mid,
+                                 alpha=alpha_high, prob_high=p_mid,
                                  **common)
 
-    models['M-α°-p°-u°'] = Model(description="baseline", urgency0=urgency_mid, alpha=alpha_mid, prob_high=p_mid,
+    models['M-α°-p⁻-u°-k°'] = Model(description="p(high) larger", max_karma=max_carma_mid, urgency0=urgency_mid,
+                                 alpha=alpha_mid, prob_high=p_low,
                                  **common)
 
-    models['M-α⁻-p°-u°'] = Model(description="α smaller", urgency0=urgency_mid, alpha=alpha_low, prob_high=p_mid, **common)
-
-    models['M-α⁺-p°-u°'] = Model(description="α larger", urgency0=urgency_mid, alpha=alpha_high, prob_high=p_mid, **common)
-
-    models['M-α°-p⁻-u°'] = Model(description="p(high) larger", urgency0=urgency_mid, alpha=alpha_mid, prob_high=p_low,
-                              **common)
-
-    models['M-α°-p⁺-u°'] = Model(description="p(high) smaller", urgency0=urgency_mid, alpha=alpha_mid, prob_high=p_high,
-                              **common)
+    models['M-α°-p⁺-u°-k°'] = Model(description="p(high) smaller", max_karma=max_carma_mid, urgency0=urgency_mid,
+                                 alpha=alpha_mid, prob_high=p_high,
+                                 **common)
+    models['M-α°-p°-u⁻-k°'] = Model(description="u smaller", max_karma=max_carma_mid, urgency0=urgency_low,
+                                 alpha=alpha_mid, prob_high=p_mid,
+                                 **common)
+    models['M-α°-p°-u⁺-k°'] = Model(description="u larger", max_karma=max_carma_mid, urgency0=urgency_high,
+                                 alpha=alpha_mid, prob_high=p_mid,
+                                 **common)
 
     opts = {}
     opts['o1'] = Optimization(num_iterations=200,
@@ -838,17 +854,7 @@ def make_figures2(name: str, sim: Simulation, history: List[Iteration]) -> Repor
 
     # style = dict(alpha=0.5, linewidth=0.3)
 
-    def prepare_for_plot(M):
-        M = M.copy()
-        M[M == 0] = np.nan
-        return posneg(M)
-
     f = r.figure('final', cols=3)
-
-    #
-
-    def make1d(s):
-        return s.reshape((1, s.size))
 
     last = history[-1]
     caption = """ Policy visualized as intensity (more red: agent more likely to choose message)"""
@@ -897,16 +903,18 @@ def make_figures2(name: str, sim: Simulation, history: List[Iteration]) -> Repor
     if last.transitions is not None:
         caption = 'Transition matrix'
         with f.plot('transitions', caption=caption) as pylab:
-            pylab.imshow(prepare_for_plot(last.transitions.T))
-            pylab.gca().invert_yaxis()
-            pylab.xlabel('karma ')
-            pylab.ylabel('karma next')
+            plot_transitions(pylab, last.transitions)
+            # pylab.imshow(prepare_for_plot(last.transitions.T))
+            # pylab.gca().invert_yaxis()
+            # pylab.xlabel('karma ')
+            # pylab.ylabel('karma next')
             pylab.title(f'Transitions [{name}]')
 
     caption = """ Karma stationary distribution. Computed as the equilibrium given the transition matrix. """
     with f.plot('karma_dist_last', caption=caption) as pylab:
-        pylab.plot(last.stationary_karma_pd, '*-', label='moving average')
-        pylab.plot(last.stationary_karma_pd_raw, '*-', label='raw')
+        pylab.bar(sim.model.valid_karma_values, last.stationary_karma_pd)
+        # pylab.plot(last.stationary_karma_pd, '*-', label='moving average')
+        # pylab.plot(last.stationary_karma_pd_raw, '*-', label='raw')
         pylab.xlabel('karma')
         pylab.ylabel('probability')
         pylab.legend()
@@ -971,6 +979,19 @@ def make_figures2(name: str, sim: Simulation, history: List[Iteration]) -> Repor
     #     pylab.ylabel('karma')
 
     return r
+
+
+def plot_transitions(pylab, transitions):
+    pylab.imshow(prepare_for_plot(transitions.T))
+    pylab.gca().invert_yaxis()
+    pylab.xlabel('karma ')
+    pylab.ylabel('karma next')
+
+
+def prepare_for_plot(M):
+    M = M.copy()
+    M[M == 0] = np.nan
+    return posneg(M)
 
 
 if __name__ == '__main__':

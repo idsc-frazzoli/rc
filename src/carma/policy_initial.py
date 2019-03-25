@@ -30,7 +30,7 @@ class RandomKarma(InitialKarmaScenario):
     l: KarmaValue
 
     def choose_initial_karma_for_agent(self, i: int, n: int, rng: RNG) -> KarmaValue:
-        return rng.uniform(self.h, self.l)
+        return int(rng.uniform(self.h, self.l))
 
     def __repr__(self):
         return f"RandomKarma: Random Karma between {self.l} and {self.h}."

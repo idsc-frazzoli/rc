@@ -28,7 +28,22 @@ class DiscreteDistribution(Generic[X]):
         return np.average(self.values, weights=self.probabilities)
 
     def __repr__(self):
-        return '{' +', '.join(f'{x} with probability {p}' for x, p in zip(self.values, self.probabilities)) +'}'
+        return '{' + ', '.join(f'{x} with probability {p}' for x, p in zip(self.values, self.probabilities)) + '}'
+
+    @staticmethod
+    def uniform(values):
+        n = len(values)
+        p = 1.0 / n
+        p2v = []
+        for v in values:
+            p2v.append((v, p))
+        return DiscreteDistribution(tuple(p2v))
+
+    @staticmethod
+    def dirac(value):
+        p2v = ((value, 1.0),)
+        return DiscreteDistribution(p2v)
+
 
 def choose_pair(n) -> Tuple[int, int]:
     i = np.random.randint(0, n)

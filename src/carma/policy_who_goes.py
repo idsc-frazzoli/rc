@@ -22,7 +22,9 @@ class RandomWhoGoes(WhoGoes):
     """ Random choice of who goes. """
 
     def who_goes(self, karmas: Tuple[KarmaValue],
-                 costs: Tuple[CostValue], messages: Tuple[MessageValue], urgencies: Tuple[UrgencyValue],
+                 costs: Tuple[CostValue],
+                 messages: Tuple[MessageValue],
+                 urgencies: Tuple[UrgencyValue],
                  rng: RNG) -> int:
         # sample random numbers
         n = len(messages)
@@ -107,4 +109,4 @@ class MaxGoesIfHasKarma(WhoGoes):
         return int(np.argmax(actual_messages))
 
     def __repr__(self):
-        return 'MaxGoesIfHasKarma: you can bid only the karma you have. Who bid the max goes.'
+        return f'{type(self).__name__}: you can bid only the karma you have. Who bid the max goes.'
