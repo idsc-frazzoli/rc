@@ -59,28 +59,28 @@ experiments['centralized-urgency'] = Experiment(desc="Centralized controller cho
                                                 who_goes=MaxUrgencyGoes(),
                                                 **common)
 
-# experiments['baseline-random'] = Experiment(desc="Random choice of who goes",
-#                                             agent_policy_scenario=FixedPolicy(RandomAgentPolicy()),
-#                                             who_goes=RandomWhoGoes(), **common)
-#
-# experiments['bid1-always'] = Experiment(desc="The agents always bid 1",
-#                                         agent_policy_scenario=FixedPolicy(Bid1()),
-#                                         who_goes=MaxGoesIfHasKarma(),
-#                                         **common)
-# experiments['bid1-if-urgent'] = Experiment(desc="The agents bid 1 if they are urgent",
-#                                            agent_policy_scenario=FixedPolicy(Bid1IfUrgent()),
-#                                            who_goes=MaxGoesIfHasKarma(),
-#                                            **common)
-# experiments['bid-urgency'] = Experiment(desc="The agents bid their urgency",
-#                                         agent_policy_scenario=FixedPolicy(BidUrgency()),
-#                                         who_goes=MaxGoesIfHasKarma(), **common)
+experiments['baseline-random'] = Experiment(desc="Random choice of who goes",
+                                            agent_policy_scenario=FixedPolicy(RandomAgentPolicy()),
+                                            who_goes=RandomWhoGoes(), **common)
 
-#
-# experiments['centralized-cost'] = Experiment(
-#         desc="Centralized controller chooses the agent with the highest accumulated cost.",
-#         agent_policy_scenario=FixedPolicy(BidUrgency()),
-#         who_goes=MaxCostGoes(),
-#         **common)
+experiments['bid1-always'] = Experiment(desc="The agents always bid 1",
+                                        agent_policy_scenario=FixedPolicy(Bid1()),
+                                        who_goes=MaxGoesIfHasKarma(),
+                                        **common)
+experiments['bid1-if-urgent'] = Experiment(desc="The agents bid 1 if they are urgent",
+                                           agent_policy_scenario=FixedPolicy(Bid1IfUrgent()),
+                                           who_goes=MaxGoesIfHasKarma(),
+                                           **common)
+experiments['bid-urgency'] = Experiment(desc="The agents bid their urgency",
+                                        agent_policy_scenario=FixedPolicy(BidUrgency()),
+                                        who_goes=MaxGoesIfHasKarma(), **common)
+
+
+experiments['centralized-cost'] = Experiment(
+        desc="Centralized controller chooses the agent with the highest accumulated cost.",
+        agent_policy_scenario=FixedPolicy(BidUrgency()),
+        who_goes=MaxCostGoes(),
+        **common)
 
 prec = 3
 
