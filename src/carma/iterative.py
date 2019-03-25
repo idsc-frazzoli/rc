@@ -211,10 +211,12 @@ def consider_bidding(model: Model, stationary_karma_pd, utility, policy, k_i, m_
     # I can bid up to m_i
     assert 0 <= m_i <= k_i
 
+
     # for each karma of the other
     for k_j in model.valid_karma_values:
         # probability that they have this karma
         p_k_j = stationary_karma_pd[k_j]
+
         if p_k_j == 0:
             continue
 
@@ -242,8 +244,12 @@ def consider_bidding(model: Model, stationary_karma_pd, utility, policy, k_i, m_
 
         # all possible karmas
         for m_j in range(0, k_j + 1):
-            # with this probability
-            p_m_j_given_k_j = policy[k_j, m_j]
+
+            if k_j == k_i:
+                p_m_j_given_k_j = 1 if m_j == m_i else 0
+            else:
+                # with this probability
+                p_m_j_given_k_j = policy[k_j, m_j]
             if p_m_j_given_k_j == 0:
                 continue
 
@@ -629,10 +635,17 @@ def get_max_policy(model: Model):
         policy[i, i] = 1.0
     return policy
 
+def get_policy_0(model: Model):
+    N = model.distinct_karma_values
+    policy = np.zeros((N, N), dtype='float64')
+    policy[:, 0] = 1.0
+    return policy
+
 
 def initialize(model: Model, energy_factor) -> Iteration:
     # policy = get_random_policy(exp)
-    policy = get_max_policy(model)
+    # policy = get_max_policy(model)
+    policy = get_policy_0(model)
 
     # utility = np.ones(exp.distinct_karma_values, dtype='float64')
     # utility starts as identity
@@ -987,10 +1000,11 @@ def make_figures2(name: str, sim: Simulation, history: List[Iteration]) -> Repor
         pylab.ylabel('marginal utility of one unit of karma')
         pylab.title(f'Marginal utility of karma [{name}]')
 
-    crucial = []
+    crucial = [0]
     for i in range(len(history) - 1):
         if history[i + 1].energy_factor != history[i].energy_factor:
             crucial.append(i)
+    crucial.append(len(history) - 1)
 
     f = r.figure('snapshots', cols=len(crucial))
     for i in crucial:
@@ -1004,13 +1018,18 @@ def make_figures2(name: str, sim: Simulation, history: List[Iteration]) -> Repor
             pylab.gca().invert_yaxis()
             pylab.title(f'policy at it = {i} ef = {it.energy_factor}')
 
+
+
     for i in crucial:
         it = history[i]
         name = 'it%04d' % i
 
         with f.plot(name + '-u', caption='ef = %.2f' % it.energy_factor) as pylab:
-            for i in sim.model.valid_karma_values:
-                pylab.plot(it.debug_utilities[i, :], '*-', )
+            if it.debug_utilities is not None:
+                for i in sim.model.valid_karma_values:
+                    pylab.plot(it.debug_utilities[i, :], '*-', )
+            else:
+                pylab.plot(0,0)
 
         pylab.ylabel('utility')
         pylab.xlabel('message')

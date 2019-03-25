@@ -1,5 +1,6 @@
 from abc import ABCMeta, abstractmethod
 from dataclasses import dataclass
+from decimal import Decimal
 
 from .distribution import DiscreteDistribution
 from .types import KarmaValue, CostValue, UrgencyValue, MessageValue, RNG
@@ -96,7 +97,11 @@ class PureStrategy(AgentPolicy):
     def __repr__(self):
         return f'{type(self).__name__}: bid according to policy {self.policy}'
 
-
+equilibria = {
+    0.3:[0, 1, 1, 2, 3, 3, 4, 4, 5, 5, 5, 6, 6],
+    Decimal(0.50): [0, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3],
+    # Decimal(0.70):
+}
 
 
 class Equilibrium000(PureStrategy):
@@ -108,7 +113,7 @@ class Equilibrium000(PureStrategy):
 class Equilibrium030(PureStrategy):
     def __init__(self):
         # policy =[0, 1, 2, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12]
-        policy = [0, 1, 2, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+        policy = [0, 1, 1, 2, 3, 3, 4, 4, 5, 5, 5, 6, 6]
         PureStrategy.__init__(self, policy)
 
 class Equilibrium050(PureStrategy):
@@ -119,13 +124,17 @@ class Equilibrium050(PureStrategy):
 
 class Equilibrium070(PureStrategy):
     def __init__(self):
-        policy = [0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 10]
+        # policy = [0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 10]
+        # ???
+        policy = [0, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2]
+
         PureStrategy.__init__(self, policy)
 
 
 class Equilibrium075(PureStrategy):
     def __init__(self):
-        policy = [0, 1, 1, 2, 2, 3, 3, 3, 4, 4, 4, 5, 6]
+        # policy = [0, 1, 1, 2, 2, 3, 3, 3, 4, 4, 4, 5, 6]
+        policy = [0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4]
         PureStrategy.__init__(self, policy)
 
 
