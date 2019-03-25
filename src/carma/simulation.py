@@ -73,7 +73,7 @@ def run_experiment(exp: Experiment, seed: Optional[int] = None):
             agents = (i1, i2)
 
             if day in [0, exp.num_days] and encounter == 0:
-                print(f'state {rng_sim.get_state()} encounter {encounter} chose {agents}')
+                print(f'rng check: encounter {encounter} chose {agents}')
 
 
             # ask each to generate a message

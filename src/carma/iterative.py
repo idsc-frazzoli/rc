@@ -835,7 +835,7 @@ def iterative_main():
             name_exp = f'{name}-{name_opt}'
             experiments[name_exp] = Simulation(model=model, opt=opt)
 
-    todo = list(models)
+    todo = list(experiments)
     args = sys.argv[1:]
     if args:
         todo = args
