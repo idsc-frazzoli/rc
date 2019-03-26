@@ -979,7 +979,7 @@ def iterative_main():
         rows.append(exp_name)
 
         animate = 'DISPLAY' in os.environ
-        history = run_experiment(exp_name, exp, plot_incremental=True,
+        history = run_experiment(exp_name, exp, plot_incremental=False,
                                  animate=animate)
 
         dn = os.path.join(od, exp_name)
