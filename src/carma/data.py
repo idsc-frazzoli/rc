@@ -167,8 +167,13 @@ def carma1_main():
 
         print('Creating reports...')
         r = make_figures(exp_name, exp, history)
+        r.table('stats', data=data, cols=cols, rows=rows)
 
         r.nid = exp_name
+        fn = os.path.join(dn, 'partial.html')
+        r.to_html(fn)
+        print(f'Report written to {fn}')
+
         r0.add_child(r)
         r0.to_html(fn0)
 
@@ -178,10 +183,6 @@ def carma1_main():
             datae.append(val)
         data.append(datae)
 
-        r.table('stats', data=data, cols=cols, rows=rows)
-        fn = os.path.join(dn, 'summary.html')
-        r.to_html(fn)
-        print(f'Report written to {fn}')
 
     r0.table('stats', data=data, cols=cols, rows=rows)
     print(f'Complete report written to {fn0}')
