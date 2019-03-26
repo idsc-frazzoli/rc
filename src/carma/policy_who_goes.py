@@ -53,7 +53,6 @@ class MaxMessageGoes(WhoGoes):
         return f'{type(self).__name__}: who bid the max goes'
 
 class MaxUrgencyGoes(WhoGoes):
-    """ The one with the highest message goes. """
 
     def who_goes(self, karmas: Tuple[KarmaValue],
                  costs: Tuple[CostValue],
@@ -61,15 +60,34 @@ class MaxUrgencyGoes(WhoGoes):
                  urgencies: Tuple[UrgencyValue],
                  rng: RNG) -> int:
         # add small epsilon to avoid ties / bias
-        # urgencies = perturb(urgencies, rng=rng)
+        urgencies = perturb(urgencies, rng=rng)
         return int(np.argmax(urgencies))
 
     def __repr__(self):
         return f'{type(self).__name__}: centralized chooses the one with max urgency'
 
 
+class MaxUrgencyThenCost(WhoGoes):
+
+    def who_goes(self, karmas: Tuple[KarmaValue],
+                 costs: Tuple[CostValue],
+                 messages: Tuple[MessageValue],
+                 urgencies: Tuple[UrgencyValue],
+                 rng: RNG) -> int:
+
+        # if there is no tie in urgencies
+        if np.min(urgencies) < np.max(urgencies):
+        # add small epsilon to avoid ties / bias
+        # urgencies = perturb(urgencies, rng=rng)
+            return int(np.argmax(urgencies))
+        else:
+            return int(np.argmax(costs))
+
+    def __repr__(self):
+        return f'{type(self).__name__}: centralized chooses the one with max urgency'
+
+
 class MaxCostGoes(WhoGoes):
-    """ The one with the highest message goes. """
 
     def who_goes(self, karmas: Tuple[KarmaValue],
                  costs: Tuple[CostValue],
@@ -81,7 +99,7 @@ class MaxCostGoes(WhoGoes):
         return int(np.argmax(costs))
 
     def __repr__(self):
-        return 'MaxCostGoes: centralized chooses the one with max accumulated cost'
+        return f'{type(self).__name__}: centralized chooses the one with max accumulated cost'
 
 
 def perturb(x, rng, epsilon=0.01):

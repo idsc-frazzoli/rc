@@ -52,6 +52,12 @@ experiments['centralized-urgency'] = Experiment(desc="Centralized controller cho
                                                 who_goes=MaxUrgencyGoes(),
                                                 **common)
 
+experiments['centralized-urgency-then-cost'] = Experiment(desc="Centralized controller chooses the one with highest urgency and if ties the one with the maximum cost.",
+                                                agent_policy_scenario=FixedPolicy(RandomAgentPolicy()),
+                                                who_goes=MaxUrgencyThenCost(),
+                                                **common)
+
+
 experiments['baseline-random'] = Experiment(desc="Random choice of who goes",
                                             agent_policy_scenario=FixedPolicy(RandomAgentPolicy()),
                                             who_goes=RandomWhoGoes(), **common)
