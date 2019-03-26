@@ -81,6 +81,10 @@ with r.plot('plot') as pylab:
 
     # pylab.axis((0.3, 0.5, 0.32, 0.37))
 
+with r.plot('tmp') as pylab:
+    x = [0.0, 0.0, 0.3, 0.3, 0.4, 0.5, 0.7, 0.9, 0.9, 0.9, 1.0, 1.0, 1.3]
+    pylab.plot(x, '.')
+    
 fn = 'quick.html'
 r.to_html(fn)
 print(f'written to {fn}')
