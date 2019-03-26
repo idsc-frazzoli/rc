@@ -72,7 +72,7 @@ def run_experiment(exp: Experiment, seed: Optional[int] = None):
 
             agents = (i1, i2)
 
-            if day in [0, exp.num_days] and encounter == 0:
+            if day in [0, exp.num_days-1] and encounter == 0:
                 print(f'rng check: encounter {encounter} chose {agents}')
 
 

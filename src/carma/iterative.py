@@ -1,14 +1,16 @@
+import dataclasses
 import itertools
 import sys
 from dataclasses import dataclass
 from enum import Enum
 from typing import *
 
+import matplotlib
 import numpy as np
-from matplotlib import rcParams
+import yaml
 from numpy.testing import assert_allclose
 
-from reprep import Report, posneg
+from reprep import Report, posneg, RepRepDefaults, MIME_PNG
 
 
 class Assignment(Enum):
@@ -135,6 +137,8 @@ class Iteration:
     transitions: Optional[Any] = None
 
     diff: float = 0
+    average_karma: float = None
+    global_utility: float = None
 
     def __post_init__(self):
         N = self.stationary_karma_pd.size
@@ -177,7 +181,7 @@ def probability_of_winning(model: Model, k_i, m_i, k_j, m_j) -> float:
     else:
         assert False
 
-    assert_allclose(pwin + plose, 1.0)
+    # assert_allclose(pwin + plose, 1.0)
 
     return pwin
 
@@ -210,8 +214,8 @@ def delta_karma_if_i_wins_or_lose(model: Model, k_i, m_i, k_j, m_j) -> Tuple[flo
 
 
 def consider_bidding(model: Model, stationary_karma_pd, utility, policy, k_i, m_i,
-                     consider_self_effect) -> Tuple[
-    np.ndarray, np.ndarray]:
+                     consider_self_effect) -> \
+        Tuple[np.ndarray, np.ndarray]:
     """
         What would happen if we bid m_i when we are k_i and high?
 
@@ -221,7 +225,11 @@ def consider_bidding(model: Model, stationary_karma_pd, utility, policy, k_i, m_
     expected_cost_today_of_m_i = 0.0
     # I can bid up to m_i
     assert 0 <= m_i <= k_i
-
+    next_karma_if_win = model.next_karma_if_win
+    next_karma_if_lose = model.next_karma_if_lose
+    probability_of_winning_ = model.probability_of_winning_
+    alpha = model.alpha
+    urgency0 = model.urgency0
     # for each karma of the other
     for k_j in model.valid_karma_values:
         # probability that they have this karma
@@ -233,20 +241,20 @@ def consider_bidding(model: Model, stationary_karma_pd, utility, policy, k_i, m_
         # first, account for type "low"
         # they bid 0
         m_j = 0
-        pwin_if_low = model.probability_of_winning_[k_i, m_i, k_j, m_j]
+        pwin_if_low = probability_of_winning_[k_i, m_i, k_j, m_j]
         plose_if_low = 1.0 - pwin_if_low
 
-        next_karma_if_low_and_win = model.next_karma_if_win[k_i, m_i, k_j, m_j]
-        next_karma_if_low_and_lose = model.next_karma_if_lose[k_i, m_i, k_j, m_j]
+        next_karma_if_low_and_win = next_karma_if_win[k_i, m_i, k_j, m_j]
+        next_karma_if_low_and_lose = next_karma_if_lose[k_i, m_i, k_j, m_j]
 
-        utility_if_low_and_lose = model.alpha * utility[next_karma_if_low_and_lose]
-        utility_if_low_and_win = model.alpha * utility[next_karma_if_low_and_win]
+        utility_if_low_and_lose = alpha * utility[next_karma_if_low_and_lose]
+        utility_if_low_and_win = alpha * utility[next_karma_if_low_and_win]
 
         P = p_k_j * model.prob_low
-        expected_cost_today_of_m_i += P * plose_if_low * (-model.urgency0)
+        expected_cost_today_of_m_i += P * plose_if_low * (-urgency0)
 
         expected_utility_of_m_i += P * (
-                plose_if_low * (-model.urgency0 + utility_if_low_and_lose) +
+                plose_if_low * (-urgency0 + utility_if_low_and_lose) +
                 pwin_if_low * (0 + utility_if_low_and_win)
         )
 
@@ -263,18 +271,18 @@ def consider_bidding(model: Model, stationary_karma_pd, utility, policy, k_i, m_
             if p_m_j_given_k_j == 0:
                 continue
 
-            pwin = model.probability_of_winning_[k_i, m_i, k_j, m_j]
+            pwin = probability_of_winning_[k_i, m_i, k_j, m_j]
             plose = 1.0 - pwin
-            next_karma_if_high_and_win = model.next_karma_if_win[k_i, m_i, k_j, m_j]
-            next_karma_if_high_and_lose = model.next_karma_if_lose[k_i, m_i, k_j, m_j]
-            utility_if_high_and_win = model.alpha * utility[next_karma_if_high_and_win]
-            utility_if_high_and_lose = model.alpha * utility[next_karma_if_high_and_lose]
+            next_karma_if_high_and_win = next_karma_if_win[k_i, m_i, k_j, m_j]
+            next_karma_if_high_and_lose = next_karma_if_lose[k_i, m_i, k_j, m_j]
+            utility_if_high_and_win = alpha * utility[next_karma_if_high_and_win]
+            utility_if_high_and_lose = alpha * utility[next_karma_if_high_and_lose]
 
             P = p_k_j * model.prob_high * p_m_j_given_k_j
             expected_utility_of_m_i += P * \
-                                       (plose * (- model.urgency0 + utility_if_high_and_lose) +
+                                       (plose * (- urgency0 + utility_if_high_and_lose) +
                                         pwin * (0 + utility_if_high_and_win))
-            expected_cost_today_of_m_i += P * (plose * (-model.urgency0) + pwin * 0)
+            expected_cost_today_of_m_i += P * (plose * (-urgency0) + pwin * 0)
 
     return expected_utility_of_m_i, expected_cost_today_of_m_i
 
@@ -323,7 +331,7 @@ def policy_given_utilities(model: Model, expected_utilities, energy_factor: floa
     policy_smooth[np.isnan(expected_utilities)] = 0.0
 
     policy_smooth = policy_smooth / np.sum(policy_smooth)
-    policy_smooth = remove_underflow(policy_smooth)
+    # policy_smooth = remove_underflow(policy_smooth)
 
     q = float(energy_factor)
     assert 0 <= q <= 1, q
@@ -347,12 +355,12 @@ def normalize_affine(x0):
     return x / m
 
 
-def remove_underflow(dist, min_pd=0.001):
-    """ Removes the values of a p.d. that would create underflow later. """
-    dist = np.copy(dist)
-    dist[dist < min_pd] = 0
-    dist = dist / np.sum(dist)
-    return dist
+# def remove_underflow(dist, min_pd=0.001):
+#     """ Removes the values of a p.d. that would create underflow later. """
+#     dist = np.copy(dist)
+#     dist[dist < min_pd] = 0
+#     dist = dist / np.sum(dist)
+#     return dist
 
 
 def compute_expectation(p, values):
@@ -432,6 +440,7 @@ def iterate(sim: Simulation, it: Iteration, energy_factor: float, it_ef: int, co
 
     # with timeit('solveStationary'):
     stationary_karma_pd2 = solveStationary(transitions)
+
     # print(stationary_karma_pd2)
 
     # for i in exp.valid_karma_values:
@@ -445,6 +454,9 @@ def iterate(sim: Simulation, it: Iteration, energy_factor: float, it_ef: int, co
     # utility2 = q * utility2 + (1 - q) * it.utility
     # stationary_karma_pd2_final = q * stationary_karma_pd2 + (1 - q) * it.stationary_karma_pd
 
+    global_utility = float(np.dot(stationary_karma_pd2, utility2))
+    average_karma = float(np.dot(stationary_karma_pd2, sim.model.valid_karma_values))
+
     # r = 0
     # policy2 = get_random_policy(exp) * r + (1 - r) * policy2
     return Iteration(policy=policy2,
@@ -452,25 +464,25 @@ def iterate(sim: Simulation, it: Iteration, energy_factor: float, it_ef: int, co
                      stationary_karma_pd=stationary_karma_pd2,
                      stationary_karma_pd_inst=stationary_karma_pd2,
                      debug_utilities=debug_utilities, utility=utility2,
-                     transitions=transitions, energy_factor=energy_factor)
+                     transitions=transitions, energy_factor=energy_factor,
+                     average_karma=average_karma,
+                     global_utility=global_utility)
 
 
 def compute_transitions(model: Model, policy, stationary_karma_pd):
     assert_pd(stationary_karma_pd)
 
-    # print('high')
     transitions_high = compute_transitions_high(model, policy, stationary_karma_pd)
-    # print('low')
+
     transitions_low = compute_transitions_low(model, policy, stationary_karma_pd)
 
-    r = 1 - model.mix
-    transitions = r * (model.prob_high * transitions_high + model.prob_low * transitions_low) + (
-            1 - r) * get_transitions_mix(model)
-    assert_good_transitions(transitions)
+    transitions0 = model.prob_high * transitions_high + model.prob_low * transitions_low
 
-    for i in model.valid_karma_values:
-        transitions[i, :] = remove_underflow(transitions[i, :])
-
+    if model.mix > 0:
+        r = 1 - model.mix
+        transitions = r * transitions0 + (1 - r) * get_transitions_mix(model)
+    else:
+        transitions = transitions0
     assert_good_transitions(transitions)
 
     return transitions
@@ -499,6 +511,12 @@ def compute_transitions_low(model: Model, policy, stationary_karma_pd):
     N = model.distinct_karma_values
     transitions = np.zeros(shape=(N, N), dtype='float64')
 
+    probability_of_winning_ = model.probability_of_winning_
+    next_karma_if_win = model.next_karma_if_win
+    next_karma_if_lose = model.next_karma_if_lose
+    prob_high = model.prob_high
+    prob_low = model.prob_low
+
     for k_i in model.valid_karma_values:
         assert_pd(policy[k_i, :])
         # when it's low, I always bid 0
@@ -512,13 +530,13 @@ def compute_transitions_low(model: Model, policy, stationary_karma_pd):
 
             # first account for type low
             m_j = 0
-            pwin = model.probability_of_winning_[k_i, m_i, k_j, m_j]
+            pwin = probability_of_winning_[k_i, m_i, k_j, m_j]
             plose = 1.0 - pwin
 
-            k_if_win = model.next_karma_if_win[k_i, m_i, k_j, m_j]
-            k_if_lose = model.next_karma_if_lose[k_i, m_i, k_j, m_j]
+            k_if_win = next_karma_if_win[k_i, m_i, k_j, m_j]
+            k_if_lose = next_karma_if_lose[k_i, m_i, k_j, m_j]
 
-            B = model.prob_low * p_k_j
+            B = prob_low * p_k_j
             transitions[k_i, k_if_win] += B * pwin
             transitions[k_i, k_if_lose] += B * plose
 
@@ -530,13 +548,13 @@ def compute_transitions_low(model: Model, policy, stationary_karma_pd):
                 if p_m_j_given_k_j == 0:
                     continue
 
-                pwin = model.probability_of_winning_[k_i, m_i, k_j, m_j]
+                pwin = probability_of_winning_[k_i, m_i, k_j, m_j]
                 plose = 1.0 - pwin
 
-                k_if_win = model.next_karma_if_win[k_i, m_i, k_j, m_j]
-                k_if_lose = model.next_karma_if_lose[k_i, m_i, k_j, m_j]
+                k_if_win = next_karma_if_win[k_i, m_i, k_j, m_j]
+                k_if_lose = next_karma_if_lose[k_i, m_i, k_j, m_j]
 
-                C = model.prob_high * p_k_j * p_m_j_given_k_j
+                C = prob_high * p_k_j * p_m_j_given_k_j
                 transitions[k_i, k_if_win] += C * pwin
                 transitions[k_i, k_if_lose] += C * plose
 
@@ -551,6 +569,12 @@ def compute_transitions_high(model: Model, policy, stationary_karma_pd):
     # print(stationary_karma_pd)
     N = model.distinct_karma_values
     transitions = np.zeros(shape=(N, N), dtype='float64')
+
+    probability_of_winning_ = model.probability_of_winning_
+    next_karma_if_win = model.next_karma_if_win
+    next_karma_if_lose = model.next_karma_if_lose
+    prob_high = model.prob_high
+    prob_low = model.prob_low
 
     for k_i in model.valid_karma_values:
         assert_pd(policy[k_i, :])
@@ -569,27 +593,25 @@ def compute_transitions_high(model: Model, policy, stationary_karma_pd):
 
                 # first account if the other is type low
                 m_j = 0
-                pwin = model.probability_of_winning_[k_i, m_i, k_j, m_j]
+                pwin = probability_of_winning_[k_i, m_i, k_j, m_j]
                 plose = 1.0 - pwin
-                k_if_win = model.next_karma_if_win[k_i, m_i, k_j, m_j]
-                k_if_lose = model.next_karma_if_lose[k_i, m_i, k_j, m_j]
+                k_if_win = next_karma_if_win[k_i, m_i, k_j, m_j]
+                k_if_lose = next_karma_if_lose[k_i, m_i, k_j, m_j]
 
-                B = p_m_i * p_k_j * model.prob_low
+                B = p_m_i * p_k_j * prob_low
                 transitions[k_i, k_if_win] += B * pwin
                 transitions[k_i, k_if_lose] += B * plose
 
-                # now account for type high
-                assert_pd(policy[k_j, :])
                 # all possible karmas
                 for m_j in range(0, k_j + 1):
                     p_m_j_given_k_j = policy[k_j, m_j]
-                    k_if_win = model.next_karma_if_win[k_i, m_i, k_j, m_j]
-                    k_if_lose = model.next_karma_if_lose[k_i, m_i, k_j, m_j]
+                    k_if_win = next_karma_if_win[k_i, m_i, k_j, m_j]
+                    k_if_lose = next_karma_if_lose[k_i, m_i, k_j, m_j]
 
-                    pwin = model.probability_of_winning_[k_i, m_i, k_j, m_j]
+                    pwin = probability_of_winning_[k_i, m_i, k_j, m_j]
                     plose = 1.0 - pwin
 
-                    C = p_m_i * p_k_j * model.prob_high * p_m_j_given_k_j
+                    C = p_m_i * p_k_j * prob_high * p_m_j_given_k_j
                     transitions[k_i, k_if_win] += C * pwin
                     transitions[k_i, k_if_lose] += C * plose
 
@@ -605,7 +627,10 @@ def solveStationaryUtility(opt: Optimization, model: Model, transitions, expecte
         u_prev = np.copy(u)
         for k_i in model.valid_karma_values:
             u[k_i] = expected_cost_today_per_karma[k_i] + model.alpha * np.dot(transitions[k_i, :], u_prev)
-
+        diff = np.max(np.abs(u_prev - u))
+        # print('diff %10.10f' % diff)
+        if diff < 0.00000001:
+            break
     if opt.regularize_utility_monotone:
         u = np.array(sorted(list(u)))
 
@@ -652,16 +677,21 @@ def initialize(model: Model, energy_factor) -> Iteration:
     utility = np.array(model.valid_karma_values, dtype='float64')
     stationary_karma = np.zeros(model.distinct_karma_values, dtype='float64')
     stationary_karma.fill(1.0 / model.distinct_karma_values)
+
+    # global_utility = float(np.dot(stationary_karma, utility2))
+    average_karma = float(np.dot(stationary_karma, model.valid_karma_values))
     # stationary_karma[10] = 1.0
     it = Iteration(policy=policy,
                    policy_inst=policy,
                    stationary_karma_pd=stationary_karma,
                    stationary_karma_pd_inst=stationary_karma,
-                   utility=utility, energy_factor=energy_factor)
+                   utility=utility,
+                   energy_factor=energy_factor,
+                   average_karma=average_karma)
     return it
 
 
-rcParams['backend'] = 'agg'
+# rcParams['backend'] = 'agg'
 
 
 def policy_diff(p1, p2):
@@ -697,7 +727,30 @@ def get_distribution_as_cv2_image(p, H=128):
     return image
 
 
-def run_experiment(exp_name: str, sim: Simulation, plot_incremental=False,
+def display_image(window_name, it_next, energy_factor, it_ef):
+    bgr_policy_inst = get_policy_as_cv2_image(it_next.policy_inst)
+    scale = 0.6
+    color = (0, 0, 0)
+    tl = (10, 30)
+    cv2.putText(bgr_policy_inst, 'inst.', tl,
+                cv2.FONT_HERSHEY_SIMPLEX, scale, color, 2, cv2.LINE_AA)
+
+    bgr_policy = get_policy_as_cv2_image(it_next.policy)
+    cv2.putText(bgr_policy, 'smoothed', tl,
+                cv2.FONT_HERSHEY_SIMPLEX, scale, color, 2, cv2.LINE_AA)
+
+    bgr_dist = get_distribution_as_cv2_image(it_next.stationary_karma_pd, H=bgr_policy.shape[0])
+
+    cv2.putText(bgr_dist, 'stationary karma', tl,
+                cv2.FONT_HERSHEY_SIMPLEX, scale, color, 2, cv2.LINE_AA)
+
+    bgr = np.hstack((bgr_policy, bgr_policy_inst, bgr_dist))
+    cv2.imshow(window_name, bgr)
+    cv2.setWindowTitle(window_name, 'energy_factor = %s it = %d ' % (energy_factor, it_ef))
+    cv2.waitKey(1)
+
+
+def run_experiment(exp_name: str, sim: Simulation, plot_incremental=True,
                    animate=False, plot_incremental_interval=100) -> List[Iteration]:
     it = initialize(sim.model, sim.opt.energy_factor_schedule[0])
     its = [it]
@@ -727,6 +780,9 @@ def run_experiment(exp_name: str, sim: Simulation, plot_incremental=False,
     if animate:
         cv2.startWindowThread()
 
+    matplotlib.use('cairo')
+    RepRepDefaults.default_image_format = MIME_PNG
+    # RepRepDefaults.save_extra_png = False
     # threading.Thread(target=plot_thread).start()
     try:
         it = 0
@@ -738,27 +794,8 @@ def run_experiment(exp_name: str, sim: Simulation, plot_incremental=False,
 
                 it_next.diff = policy_diff(its[-1].policy, it_next.policy)
 
-                if animate and it_ef % 5 == 0:
-                    bgr_policy_inst = get_policy_as_cv2_image(it_next.policy_inst)
-                    scale = 0.6
-                    color = (0, 0, 0)
-                    tl = (10, 30)
-                    cv2.putText(bgr_policy_inst, 'inst.', tl,
-                                cv2.FONT_HERSHEY_SIMPLEX, scale, color, 2, cv2.LINE_AA)
-
-                    bgr_policy = get_policy_as_cv2_image(it_next.policy)
-                    cv2.putText(bgr_policy, 'smoothed', tl,
-                                cv2.FONT_HERSHEY_SIMPLEX, scale, color, 2, cv2.LINE_AA)
-
-                    bgr_dist = get_distribution_as_cv2_image(it_next.stationary_karma_pd, H=bgr_policy.shape[0])
-
-                    cv2.putText(bgr_dist, 'stationary karma', tl,
-                                cv2.FONT_HERSHEY_SIMPLEX, scale, color, 2, cv2.LINE_AA)
-
-                    bgr = np.hstack((bgr_policy, bgr_policy_inst, bgr_dist))
-                    cv2.imshow(window_name, bgr)
-                    cv2.setWindowTitle(window_name, 'energy_factor = %s it = %d ' % (energy_factor, it_ef))
-                    cv2.waitKey(1)
+                if animate and it_ef % 25 == 0:
+                    display_image(window_name, it_next, energy_factor, it_ef)
 
                 its.append(it_next)
 
@@ -806,7 +843,9 @@ def solveStationary(A):
         x_new = np.dot(A.T, x)
         x_new = x_new / np.sum(x)
         diff = np.max(np.abs(x - x_new))
-        if diff < 0.0001:
+
+        if diff < 0.00001:
+            # print(i, diff)
             break
         # print('diff %s' % diff)
         # print('x_new %s' % x_new)
@@ -861,9 +900,9 @@ def iterative_main():
                                     **common)
 
     models['M-α°-p°-u°-k°-sp'] = Model(description="second price", max_karma=max_carma_mid, urgency0=urgency_mid,
-                                    alpha=alpha_mid,
-                                    prob_high=p_mid,
-                                    assignment=Assignment.SecondPrice)
+                                       alpha=alpha_mid,
+                                       prob_high=p_mid,
+                                       assignment=Assignment.SecondPrice)
 
     models['M-α°-p⁻-u°-k°'] = Model(description="p(high) larger", max_karma=max_carma_mid, urgency0=urgency_mid,
                                     alpha=alpha_mid, prob_high=p_low,
@@ -880,6 +919,14 @@ def iterative_main():
                                     **common)
 
     opts = {}
+    # opts['o1-noreg-noself'] = Optimization(num_iterations=200,
+    #                                        inertia=0.05,
+    #                                        energy_factor_schedule=(0.30, 0.45, 0.60, 0.65, 0.7, 0.8, 0.9, 0.95, 1),
+    #                                        diff_threshold=0.01,
+    #                                        consider_self_effect=False,
+    #                                        regularize_utility_monotone=True,
+    #                                        regularize_marginal_utility_monotone=False
+    #                                        )
     opts['o2-reg-noself'] = Optimization(num_iterations=200,
                                          inertia=0.05,
                                          energy_factor_schedule=(0.30, 0.45, 0.60, 0.65, 0.7, 0.8, 0.9, 0.95, 1),
@@ -888,30 +935,27 @@ def iterative_main():
                                          regularize_utility_monotone=True,
                                          regularize_marginal_utility_monotone=True
                                          )
-    opts['o3-reg-self'] = Optimization(num_iterations=300,
-                                       inertia=0.3,
-                                       energy_factor_schedule=(0.30, 0.45, 0.60, 0.65, 0.7, 0.8, 0.9, 0.95, 1),
-                                       # energy_factor_schedule=(0.30, 0.35, 0.40, 0.45, 0.50, 0.55, 0.60, 0.65, 0.7, 0.8, 0.9, 0.95, 1),
-                                       diff_threshold=0.01,
-                                       consider_self_effect=True,
-                                       regularize_utility_monotone=True,
-                                       regularize_marginal_utility_monotone=True,
-                                       )
-    opts['o4-noreg-self'] = Optimization(num_iterations=200,
-                                         inertia=0.05,
-                                         energy_factor_schedule=(0.30, 0.45, 0.60, 0.65, 0.7, 0.8, 0.9, 0.95, 1),
-                                         diff_threshold=0.01,
-                                         consider_self_effect=False,
-                                         regularize_utility_monotone=False,
-                                         regularize_marginal_utility_monotone=False
-                                         )
+    # opts['o3-reg-self'] = Optimization(num_iterations=300,
+    #                                    inertia=0.3,
+    #                                    energy_factor_schedule=(0.30, 0.45, 0.60, 0.65, 0.7, 0.8, 0.9, 0.95, 1),
+    #                                    # energy_factor_schedule=(0.30, 0.35, 0.40, 0.45, 0.50, 0.55, 0.60, 0.65, 0.7, 0.8, 0.9, 0.95, 1),
+    #                                    diff_threshold=0.01,
+    #                                    consider_self_effect=True,
+    #                                    regularize_utility_monotone=True,
+    #                                    regularize_marginal_utility_monotone=True,
+    #                                    )
+    # opts['o4-noreg-self'] = Optimization(num_iterations=200,
+    #                                      inertia=0.05,
+    #                                      energy_factor_schedule=(0.30, 0.45, 0.60, 0.65, 0.7, 0.8, 0.9, 0.95, 1),
+    #                                      diff_threshold=0.01,
+    #                                      consider_self_effect=False,
+    #                                      regularize_utility_monotone=False,
+    #                                      regularize_marginal_utility_monotone=False
+    #                                      )
     for model_name, model in models.items():
         for name_opt, opt in opts.items():
             name_exp = f'{model_name}-{name_opt}'
             experiments[name_exp] = Simulation(model=model, opt=opt)
-
-
-
 
     args = sys.argv[1:]
     if not args:
@@ -931,10 +975,11 @@ def iterative_main():
     for exp_name in todo:
         print('Experiment %s' % exp_name)
         exp = experiments[exp_name]
+        print(dataclasses.asdict(exp))
         rows.append(exp_name)
 
         animate = 'DISPLAY' in os.environ
-        history = run_experiment(exp_name, exp, plot_incremental=False,
+        history = run_experiment(exp_name, exp, plot_incremental=True,
                                  animate=animate)
 
         dn = os.path.join(od, exp_name)
@@ -945,6 +990,15 @@ def iterative_main():
         fn = os.path.join(dn, 'summary.html')
         r.to_html(fn)
         print(f'Report written to {fn}')
+
+        fn = os.path.join(dn, 'summary.yaml')
+        policy = policy_mean(exp.model, history[-1].policy)
+        summary = {'results': {'policy': policy}}
+        summary['sim'] = dataclasses.asdict(exp)
+        s = yaml.dump(summary)
+        with open(fn, 'w') as f:
+            f.write(s)
+        print('data written to %s' % fn)
 
         r.nid = exp_name
         r0.add_child(r)
@@ -962,13 +1016,19 @@ def iterative_main():
     r0.to_html(fn0)
 
 
-def policy_as_string(policy):
+def policy_mean(model: Model, policy):
     bests = []
-    for k in range(policy.shape[0]):
-        best = np.argmax(policy[k, :])
-        bests.append(best)
+    for k in model.valid_karma_values:
+        m_mean = np.dot(policy[k, :], model.valid_karma_values)
+        # best = np.argmax(policy[k, :])
+        # bests.append(best)
+        bests.append(float(m_mean))
+    return bests
 
-    return "policy=%s" % bests
+
+def policy_as_string(model: Model, policy):
+    p = policy_mean(model, policy)
+    return ", ".join(['%.1f' % _ for _ in p])
 
 
 def make_figures2(name: str, sim: Simulation, history: List[Iteration]) -> Report:
@@ -984,22 +1044,16 @@ def make_figures2(name: str, sim: Simulation, history: List[Iteration]) -> Repor
 
     r.text('description', str(data))
 
-    rcParams['backend'] = 'agg'
+    # from matplotlib import rcParams
+    # rcParams['backend'] = 'agg'
 
     # style = dict(alpha=0.5, linewidth=0.3)
 
     f = r.figure('final', cols=3)
 
-    with f.plot('delta_policy') as pylab:
-        iterations = range(len(history))
-        diffs = [_.diff for _ in history]
-        pylab.plot(iterations, diffs, '*')
-        pylab.xlabel('iterations')
-        pylab.ylabel('delta policy')
-
     last = history[-1]
     caption = """ Policy visualized as intensity (more red: agent more likely to choose message)
-%s """ % policy_as_string(last.policy)
+%s """ % policy_as_string(sim.model, last.policy)
     # print('policy: %s' % last.policy)
     with f.plot('policy_last', caption=caption) as pylab:
 
@@ -1010,7 +1064,7 @@ def make_figures2(name: str, sim: Simulation, history: List[Iteration]) -> Repor
         pylab.title(f'Policy [{name}]')
 
     caption = """ Policy visualized as intensity (more red: agent more likely to choose message)
-    %s """ % policy_as_string(last.policy_inst)
+    %s """ % policy_as_string(sim.model, last.policy_inst)
     with f.plot('policy_last_inst', caption=caption) as pylab:
         pylab.imshow(prepare_for_plot(last.policy_inst.T))
         pylab.xlabel('karma')
@@ -1090,6 +1144,32 @@ def make_figures2(name: str, sim: Simulation, history: List[Iteration]) -> Repor
         pylab.ylabel('marginal utility of one unit of karma')
         pylab.title(f'Marginal utility of karma [{name}]')
 
+    style = dict(alpha=0.5, linewidth=0.3)
+
+    with f.plot('delta_policy') as pylab:
+        iterations = range(len(history))
+        x = [_.diff for _ in history]
+        pylab.plot(iterations, x, '-', **style)
+        pylab.plot(iterations, x, 'r.', markersize=0.1)
+        pylab.xlabel('iterations')
+        pylab.ylabel('delta policy')
+
+    with f.plot('global_utility') as pylab:
+        iterations = range(len(history))
+        x = [_.global_utility for _ in history]
+        pylab.plot(iterations, x, '-', **style)
+        pylab.plot(iterations, x, 'r.', markersize=0.1)
+        pylab.xlabel('iterations')
+        pylab.ylabel('global_utility')
+
+    with f.plot('average_karma', caption="Average karma. Should be constant. Quantifies numerical errors") as pylab:
+        iterations = range(len(history))
+        x = [_.average_karma for _ in history]
+        pylab.plot(iterations, x, '-', **style)
+        pylab.plot(iterations, x, 'r.', markersize=0.1)
+        pylab.xlabel('iterations')
+        pylab.ylabel('average karma')
+
     crucial = [0]
     for i in range(len(history) - 1):
         if history[i + 1].energy_factor != history[i].energy_factor:
@@ -1100,7 +1180,7 @@ def make_figures2(name: str, sim: Simulation, history: List[Iteration]) -> Repor
     for i in crucial:
         it = history[i]
         name = 'it%04d' % i
-        s = policy_as_string(it.policy)
+        s = policy_as_string(sim.model, it.policy)
         with f.plot(name + '-p', caption='ef = %.2f; %s' % (it.energy_factor, s)) as pylab:
             pylab.imshow(prepare_for_plot(it.policy.T))
             pylab.xlabel('karma')
@@ -1111,7 +1191,7 @@ def make_figures2(name: str, sim: Simulation, history: List[Iteration]) -> Repor
     for i in crucial:
         it = history[i]
         name = 'it%04d' % i
-        s = policy_as_string(it.policy)
+        s = policy_as_string(sim.model, it.policy)
         with f.plot(name + '-pi', caption='ef = %.2f; %s' % (it.energy_factor, s)) as pylab:
             pylab.imshow(prepare_for_plot(it.policy_inst.T))
             pylab.xlabel('karma')
@@ -1144,7 +1224,6 @@ def make_figures2(name: str, sim: Simulation, history: List[Iteration]) -> Repor
             pylab.xlabel('karma')
             pylab.ylabel('probability')
             pylab.title(f'stationary karma at it = {i} ef = {it.energy_factor}')
-
 
     # history = history[:10]
     # f = r.figure('history', cols=2)

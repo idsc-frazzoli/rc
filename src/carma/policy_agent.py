@@ -102,6 +102,7 @@ class PureStrategy(AgentPolicy):
     def __repr__(self):
         return f'{type(self).__name__}: bid according to policy {self.policy}'
 
+
 #
 # equilibria_ws = {
 #     0.00: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
@@ -141,13 +142,13 @@ class ComputedEquilibrium(PureStrategy):
         return f'{type(self).__name__}: alpha = {self.alpha}'
 
 
-#
-# class Equilibrium030(PureStrategy):
-#     def __init__(self):
-#         # policy =[0, 1, 2, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12]
-#         policy = [0, 1, 1, 2, 3, 3, 4, 4, 5, 5, 5, 6, 6]
-#         PureStrategy.__init__(self, policy)
-#
+class GoodGuees(PureStrategy):
+    def __init__(self):
+        # policy =[0, 1, 2, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12]
+        policy = [0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+        PureStrategy.__init__(self, policy)
+
+
 #
 # class Equilibrium050(PureStrategy):
 #     def __init__(self):

@@ -1,10 +1,10 @@
 # Real = Decimal
 from decimal import Decimal
 
-from matplotlib import rcParams
+import matplotlib
 
 from carma.iterative import plot_transitions
-from reprep import Report
+from reprep import Report, RepRepDefaults, MIME_SVG
 from reprep.plot_utils import y_axis_set
 from .experiment import Experiment
 from .policy_agent import *
@@ -27,7 +27,7 @@ highlow = DiscreteDistribution(((UrgencyValue(0), Probability(0.5)),
 experiments = {}
 num_agents = 200
 num_days = 100
-average_encounters_per_day_per_agent = 0.1
+average_encounters_per_day_per_agent = 0.01
 
 initial_karma = RandomKarma(0, Globals.max_carma)  # lower, upper
 
@@ -37,6 +37,11 @@ common = dict(num_agents=num_agents,
               initial_karma_scenario=initial_karma, cost_update_policy=PayUrgency(),
               karma_update_policy=BoundedKarma(Globals.max_carma),
               urgency_distribution_scenario=ConstantUrgencyDistribution(highlow))
+
+experiments['guess1'] = Experiment(desc="A guess about optimal strategy.",
+                                        agent_policy_scenario=FixedPolicy(GoodGuees()),
+                                        who_goes=MaxGoesIfHasKarma(), **common)
+
 
 for alpha in equilibria:
     name = 'equilibrium%.2f' % alpha
@@ -165,6 +170,14 @@ def carma1_main():
         if not os.path.exists(dn):
             os.makedirs(dn)
 
+
+        datae = []
+        for s in statistics:
+            val = s(exp, history)
+            datae.append(val)
+        data.append(datae)
+
+
         print('Creating reports...')
         r = make_figures(exp_name, exp, history)
         r.table('stats', data=data, cols=cols, rows=rows)
@@ -176,12 +189,6 @@ def carma1_main():
 
         r0.add_child(r)
         r0.to_html(fn0)
-
-        datae = []
-        for s in statistics:
-            val = s(exp, history)
-            datae.append(val)
-        data.append(datae)
 
 
     r0.table('stats', data=data, cols=cols, rows=rows)
@@ -264,7 +271,10 @@ def make_figures(name: str, exp: Experiment, history) -> Report:
 
     r.text('description', str(data))
 
-    rcParams['backend'] = 'agg'
+    matplotlib.use('agg')
+    RepRepDefaults.default_image_format = MIME_SVG
+    RepRepDefaults.save_extra_png = False
+
 
     style = dict(alpha=0.5, linewidth=0.3)
     K, nagents = history.shape
@@ -272,29 +282,31 @@ def make_figures(name: str, exp: Experiment, history) -> Report:
     sub = time[::1]
 
     f = r.figure(cols=4)
-    caption = 'Cumulative cost'
-    with f.plot('cost_cumulative', caption=caption) as pylab:
-        cost = history[sub, :]['cost']
-        pylab.plot(time[sub], cost, **style)
-        pylab.title('cost')
-        pylab.ylabel('cost')
-        pylab.xlabel('time')
 
-    caption = 'Average cost (cumulative divided by time). Shown for the latter part of trajectory'
-    with f.plot('cost_average', caption=caption) as pylab:
+    if False:
+        caption = 'Cumulative cost'
+        with f.plot('cost_cumulative', caption=caption) as pylab:
+            cost = history[sub, :]['cost']
+            pylab.plot(time[sub], cost, **style)
+            pylab.title('cost')
+            pylab.ylabel('cost')
+            pylab.xlabel('time')
 
-        cost = history[sub, :]['cost_average']
-        last = history[-1, :]['cost_average']
-        m = np.median(last)
+        caption = 'Average cost (cumulative divided by time). Shown for the latter part of trajectory'
+        with f.plot('cost_average', caption=caption) as pylab:
 
-        # m1, m2 = np.percentile(one, q=[3,97])
+            cost = history[sub, :]['cost_average']
+            last = history[-1, :]['cost_average']
+            m = np.median(last)
 
-        pylab.plot(time[sub], cost, **style)
+            # m1, m2 = np.percentile(one, q=[3,97])
 
-        y_axis_set(pylab, m / 2, m * 2)
-        pylab.title('average cost')
-        pylab.ylabel('average cost')
-        pylab.xlabel('time')
+            pylab.plot(time[sub], cost, **style)
+
+            y_axis_set(pylab, m / 2, m * 2)
+            pylab.title('average cost')
+            pylab.ylabel('average cost')
+            pylab.xlabel('time')
 
     cdf = compute_karma_distribution(history[:, :]['karma'])
     INTERVAL_STAT = 200
