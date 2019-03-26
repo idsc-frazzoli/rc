@@ -1,2 +1,5 @@
+ConfTools
+cairocffi
+PyYAML
 reprep==3.0.0
 opencv-python
