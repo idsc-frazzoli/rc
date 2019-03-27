@@ -4,7 +4,7 @@ from decimal import Decimal
 import matplotlib
 
 from carma.iterative import plot_transitions
-from reprep import Report, RepRepDefaults, MIME_SVG
+from reprep import Report
 from reprep.plot_utils import y_axis_set
 from .experiment import Experiment
 from .policy_agent import *
@@ -25,7 +25,7 @@ highlow = DiscreteDistribution(((UrgencyValue(0), Probability(0.5)),
 #                                     (UrgencyValue(1.5), Probability(0.4)),
 #                                     (UrgencyValue(3), Probability(0.3))))
 experiments = {}
-num_agents = 200
+num_agents = 2000
 num_days = 100
 average_encounters_per_day_per_agent = 0.01
 
@@ -39,37 +39,35 @@ common = dict(num_agents=num_agents,
               urgency_distribution_scenario=ConstantUrgencyDistribution(highlow))
 
 experiments['guess1'] = Experiment(desc="A guess about optimal strategy.",
-                                        agent_policy_scenario=FixedPolicy(GoodGuees()),
-                                        who_goes=MaxGoesIfHasKarma(), **common)
-
+                                   agent_policy_scenario=FixedPolicy(GoodGuees()),
+                                   who_goes=MaxGoesIfHasKarma(), **common)
 
 for alpha in equilibria:
     name = 'equilibrium%.2f' % alpha
     experiments[name] = Experiment(desc="Mixed equilibrium for alpha = %.2f" % alpha,
-                                             agent_policy_scenario=FixedPolicy(ComputedEquilibrium(alpha)),
-                                             who_goes=MaxGoesIfHasKarma(),
-                                             **common
-                                             )
+                                   agent_policy_scenario=FixedPolicy(ComputedEquilibrium(alpha)),
+                                   who_goes=MaxGoesIfHasKarma(),
+                                   **common
+                                   )
 
 for alpha in equilibria_pure:
     name = 'pure%.2f' % alpha
     experiments[name] = Experiment(desc="Pure equilibrium for alpha = %.2f" % alpha,
-                                             agent_policy_scenario=FixedPolicy(ComputedEquilibriumPure(alpha)),
-                                             who_goes=MaxGoesIfHasKarma(),
-                                             **common
-                                             )
-
+                                   agent_policy_scenario=FixedPolicy(ComputedEquilibriumPure(alpha)),
+                                   who_goes=MaxGoesIfHasKarma(),
+                                   **common
+                                   )
 
 experiments['centralized-urgency'] = Experiment(desc="Centralized controller chooses the one with highest urgency.",
                                                 agent_policy_scenario=FixedPolicy(RandomAgentPolicy()),
                                                 who_goes=MaxUrgencyGoes(),
                                                 **common)
 
-experiments['centralized-urgency-then-cost'] = Experiment(desc="Centralized controller chooses the one with highest urgency and if ties the one with the maximum cost.",
-                                                agent_policy_scenario=FixedPolicy(RandomAgentPolicy()),
-                                                who_goes=MaxUrgencyThenCost(),
-                                                **common)
-
+experiments['centralized-urgency-then-cost'] = Experiment(
+    desc="Centralized controller chooses the one with highest urgency and if ties the one with the maximum cost.",
+    agent_policy_scenario=FixedPolicy(RandomAgentPolicy()),
+    who_goes=MaxUrgencyThenCost(),
+    **common)
 
 experiments['baseline-random'] = Experiment(desc="Random choice of who goes",
                                             agent_policy_scenario=FixedPolicy(RandomAgentPolicy()),
@@ -96,11 +94,6 @@ experiments['centralized-cost'] = Experiment(
 prec = 5
 
 
-# def stats_avg_cost(exp, history):
-#     """ Mean average cost. """
-#     return Decimal(np.mean(np.mean(history[:, :]['cost']))).__round__(prec)
-
-
 def stats_avg_cum_cost(exp, history):
     """ Final cumulative cost. """
     last = history[-1, :]['cost']
@@ -117,32 +110,6 @@ def stats_avg_cum_cost_std(exp, history):
     """ stddev """
     last = history[-1, :]['cost_average']
     return Decimal(np.std(last)).__round__(prec)
-
-
-#
-# def stats_avg_cum_cost_avg(exp, history):
-#     """ Final cost / number of encounters each """
-#     each = []
-#     num_encounters = []
-#     total = []
-#
-#     for i in range(history.shape[1]):
-#         n = np.sum(history[:, i]['participated'].astype('int'))
-#         final_cost = history[-1, i]['cost']
-#         total.append(final_cost)
-#         average = final_cost / max(n, 1)
-#         each.append(average)
-#         num_encounters.append(n)
-#
-#     print('encounters: %s' % num_encounters)
-#     print('total cost: %s' % total)
-#     print('cost: %s' % each)
-#     return Decimal(np.mean(each)).__round__(prec)
-#
-# def stats_std_final_cost_avg(exp, history):
-#     """ STD of final average cost distribution. """
-#     last = history[-1, :]['cost_average']
-#     return Decimal(np.std(last)).__round__(prec)
 
 
 def stats_std_final_karma(exp, history):
@@ -178,13 +145,11 @@ def carma1_main():
         if not os.path.exists(dn):
             os.makedirs(dn)
 
-
         datae = []
         for s in statistics:
             val = s(exp, history)
             datae.append(val)
         data.append(datae)
-
 
         print('Creating reports...')
         r = make_figures(exp_name, exp, history)
@@ -197,7 +162,6 @@ def carma1_main():
 
         r0.add_child(r)
         r0.to_html(fn0)
-
 
     r0.table('stats', data=data, cols=cols, rows=rows)
     print(f'Complete report written to {fn0}')
@@ -217,8 +181,8 @@ def compute_transitions_matrix_and_policy_for_urgency_nonzero(history):
 
     ntimes, nagents = history['karma'].shape
     for i in range(nagents):
-        yes = np.logical_and( history[:, i]['urgency'] > 0,
-                                      history[:, i]['participated'])
+        yes = np.logical_and(history[:, i]['urgency'] > 0,
+                             history[:, i]['participated'])
         yes = yes.flatten()
         # print(yes)
         # print (np.argwhere(yes).flatten())
@@ -229,7 +193,7 @@ def compute_transitions_matrix_and_policy_for_urgency_nonzero(history):
             # part = history[t, i]['participated']
             message = history[t, i]['message']
 
-                # assert 0 <= message <= NK, history[t, i]
+            # assert 0 <= message <= NK, history[t, i]
             P[k1, k2] += 1.0
             policy[k1, message] += 1
 
@@ -279,10 +243,9 @@ def make_figures(name: str, exp: Experiment, history) -> Report:
 
     r.text('description', str(data))
 
-    matplotlib.use('agg')
-    RepRepDefaults.default_image_format = MIME_SVG
-    RepRepDefaults.save_extra_png = False
-
+    matplotlib.use('cairo')
+    # RepRepDefaults.default_image_format = MIME_SVG
+    # RepRepDefaults.save_extra_png = False
 
     style = dict(alpha=0.5, linewidth=0.3)
     K, nagents = history.shape
@@ -290,6 +253,21 @@ def make_figures(name: str, exp: Experiment, history) -> Report:
     sub = time[::1]
 
     f = r.figure(cols=4)
+
+    caption = 'avg number of encounters'
+    with f.plot('avg_encounters', caption=caption) as pylab:
+        mean_encounters = np.mean(history['encounters'].astype('float64'), axis=1)
+        pylab.plot(mean_encounters, **style)
+        pylab.title('mean_encounters')
+        pylab.ylabel('encounters')
+        pylab.xlabel('time')
+
+    with f.plot('avg_encounters_first', caption=caption) as pylab:
+        mean_encounters = np.mean(history['encounters_first'].astype('float64'), axis=1)
+        pylab.plot(mean_encounters, **style)
+        pylab.title('encounters first')
+        pylab.ylabel('encounters')
+        pylab.xlabel('time')
 
     if False:
         caption = 'Cumulative cost'
@@ -302,7 +280,6 @@ def make_figures(name: str, exp: Experiment, history) -> Report:
 
         caption = 'Average cost (cumulative divided by time). Shown for the latter part of trajectory'
         with f.plot('cost_average', caption=caption) as pylab:
-
             cost = history[sub, :]['cost_average']
             last = history[-1, :]['cost_average']
             m = np.median(last)
@@ -357,29 +334,30 @@ def make_figures(name: str, exp: Experiment, history) -> Report:
 
     sub = time > (len(time) / 4)
 
-    caption = """ Cost vs karma phase space. """
-    with f.plot('cost-karma', caption=caption) as pylab:
-        for i in range(nagents):
-            cost_i = history[sub, i]['cost']
-            karma_i = history[sub, i]['karma']
-            pylab.plot(cost_i, karma_i, '.', **style)
+    if False:
+        caption = """ Cost vs karma phase space. """
+        with f.plot('cost-karma', caption=caption) as pylab:
+            for i in range(nagents):
+                cost_i = history[sub, i]['cost']
+                karma_i = history[sub, i]['karma']
+                pylab.plot(cost_i, karma_i, '.', **style)
 
-        pylab.title('cost/karma')
+            pylab.title('cost/karma')
 
-        pylab.xlabel('cost')
-        pylab.ylabel('karma')
+            pylab.xlabel('cost')
+            pylab.ylabel('karma')
 
-    caption = """ Agerage cost vs karma phase space. """
-    with f.plot('cost_average-karma', caption=caption) as pylab:
-        for i in range(nagents):
-            cost_i = history[sub, i]['cost_average']
-            karma_i = history[sub, i]['karma']
-            pylab.plot(cost_i, karma_i, '.', **style)
+        caption = """ Agerage cost vs karma phase space. """
+        with f.plot('cost_average-karma', caption=caption) as pylab:
+            for i in range(nagents):
+                cost_i = history[sub, i]['cost_average']
+                karma_i = history[sub, i]['karma']
+                pylab.plot(cost_i, karma_i, '.', **style)
 
-        pylab.title('cost_average/karma')
+            pylab.title('cost_average/karma')
 
-        pylab.xlabel('cost_average')
-        pylab.ylabel('karma')
+            pylab.xlabel('cost_average')
+            pylab.ylabel('karma')
 
     return r
 
