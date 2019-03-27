@@ -26,7 +26,7 @@ highlow = DiscreteDistribution(((UrgencyValue(0), Probability(0.5)),
 #                                     (UrgencyValue(3), Probability(0.3))))
 experiments = {}
 num_agents = 200
-num_days = 1000
+num_days = 10000 
 average_encounters_per_day_per_agent = 0.1
 
 initial_karma = RandomKarma(0, Globals.max_carma)  # lower, upper
@@ -162,6 +162,7 @@ statistics = [
 
 
 def carma1_main():
+    do_reports = False
     od = './out-experiments'
     fn0 = os.path.join(od, 'summary.html')
     r0 = Report('all-experiments')
@@ -187,8 +188,10 @@ def carma1_main():
 
 
         print('Creating reports...')
-        r = make_figures(exp_name, exp, history)
-        #r = Report()
+        if do_reports:
+            r = make_figures(exp_name, exp, history)
+        else:
+            r = Report()
         r.table('stats', data=data, cols=cols, rows=rows)
 
         r.nid = exp_name
