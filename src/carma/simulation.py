@@ -64,17 +64,24 @@ def run_experiment(exp: Experiment, seed: Optional[int] = None):
     history['message'].fill(-100)
     history['participated'].fill(False)
     run_experiment.h = 0  # current moment in history
+    h_karma = history['karma']
+    h_cost = history['cost']
+    h_cost_average = history['cost_average']
+    h_urgency = history['urgency']
+    h_encounters = history['encounters']
+    h_encounters_first = history['encounters_first']
+    h_encounters_notfirst = history['encounters_notfirst']
 
     def save():
         h = run_experiment.h
         for i in range(n):
-            history[h, i]['karma'] = current_karma[i]
-            history[h, i]['cost'] = accumulated_cost[i]
-            history[h, i]['cost_average'] = accumulated_cost[i] / max(encounters[i], 1)
-            history[h, i]['urgency'] = urgency[i]
-            history[h, i]['encounters'] = encounters[i]
-            history[h, i]['encounters_first'] = encounters_first[i]
-            history[h, i]['encounters_notfirst'] = encounters_notfirst[i]
+            h_karma[h, i] = current_karma[i]
+            h_cost[h, i] = accumulated_cost[i]
+            h_cost_average[h, i] = accumulated_cost[i] / max(encounters[i], 1)
+            h_urgency[h, i] = urgency[i]
+            h_encounters[h, i] = encounters[i]
+            h_encounters_first[h, i] = encounters_first[i]
+            h_encounters_notfirst[h, i] = encounters_notfirst[i]
         run_experiment.h += 1
 
     def reset_costs():
@@ -152,7 +159,7 @@ def run_experiment(exp: Experiment, seed: Optional[int] = None):
                 else:
                     encounters_notfirst[i] += 1
 
-        save()
+            save()
 
     res = history[warm_up_finished_at:, :]
 

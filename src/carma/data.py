@@ -13,7 +13,7 @@ from .policy_initial import *
 from .policy_karma_update import *
 from .policy_urgency import *
 from .policy_who_goes import *
-from .simulation import run_experiment
+from .simulation import run_experiment, compute_karma_distribution2
 from .types import Probability
 
 # constant = DiscreteDistribution(((UrgencyValue(4), Probability(1)),))
@@ -245,7 +245,8 @@ def compute_karma_distribution(karma: np.ndarray):
 
     for i in range(ntimes):
         karma_day = karma[i, :]
-        h, bin_edges = np.histogram(karma_day, bins=NK, density=True)
+        # h, bin_edges = np.histogram(karma_day, bins=NK, density=True)
+        h = compute_karma_distribution2(karma_day)
         # h = h / (1.0 / np.sum(h))
         cdf[i, :] = h
     return cdf
@@ -275,20 +276,20 @@ def make_figures(name: str, exp: Experiment, history) -> Report:
 
     f = r.figure(cols=4)
 
-    caption = 'avg number of encounters'
-    with f.plot('avg_encounters', caption=caption) as pylab:
-        mean_encounters = np.mean(history['encounters'].astype('float64'), axis=1)
-        pylab.plot(mean_encounters, **style)
-        pylab.title('mean_encounters')
-        pylab.ylabel('encounters')
-        pylab.xlabel('time')
-
-    with f.plot('avg_encounters_first', caption=caption) as pylab:
-        mean_encounters = np.mean(history['encounters_first'].astype('float64'), axis=1)
-        pylab.plot(mean_encounters, **style)
-        pylab.title('encounters first')
-        pylab.ylabel('encounters')
-        pylab.xlabel('time')
+    # caption = 'avg number of encounters'
+    # with f.plot('avg_encounters', caption=caption) as pylab:
+    #     mean_encounters = np.mean(history['encounters'].astype('float64'), axis=1)
+    #     pylab.plot(mean_encounters, **style)
+    #     pylab.title('mean_encounters')
+    #     pylab.ylabel('encounters')
+    #     pylab.xlabel('time')
+    #
+    # with f.plot('avg_encounters_first', caption=caption) as pylab:
+    #     mean_encounters = np.mean(history['encounters_first'].astype('float64'), axis=1)
+    #     pylab.plot(mean_encounters, **style)
+    #     pylab.title('encounters first')
+    #     pylab.ylabel('encounters')
+    #     pylab.xlabel('time')
 
     if False:
         caption = 'Cumulative cost'
@@ -333,11 +334,17 @@ def make_figures(name: str, exp: Experiment, history) -> Report:
         pylab.hist(history[-1, :]['encounters'], density='True')
         pylab.xlabel('num encounters')
 
-    total_karma = np.sum(history['karma'], axis=1)
-    with f.plot('total_karma') as pylab:
-        pylab.plot(total_karma, '.', **style)
 
-    print(cdf.shape)
+
+
+    mean_karma = np.mean(history['karma'], axis=1)
+    std_karma = np.std(history['karma'], axis=1)
+    with f.plot('total_karma') as pylab:
+        pylab.plot(mean_karma, 'b-', **style)
+    with f.plot('std_karma') as pylab:
+        pylab.plot(std_karma, 'b-', **style) 
+
+
     with f.plot('karma') as pylab:
 
         cdf_plot = np.kron(cdf, np.ones((1, 40)))
@@ -379,9 +386,10 @@ def make_figures(name: str, exp: Experiment, history) -> Report:
         pylab.xlabel('karma')
         pylab.ylabel('p(karma)')
 
-    sub = time > (len(time) / 4)
+
 
     if False:
+        sub = time > (len(time) / 4)
         caption = """ Cost vs karma phase space. """
         with f.plot('cost-karma', caption=caption) as pylab:
             for i in range(nagents):
