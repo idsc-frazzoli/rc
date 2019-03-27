@@ -140,19 +140,19 @@ class MixedStrategyExpectation(AgentPolicy):
         return f'{type(self).__name__}: bid according to policy {self.policy}'
 
 
-#
-# equilibria_ws = {
-#     0.00: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
-#     0.30: [0, 1, 1, 2, 3, 3, 4, 4, 5, 5, 5, 6, 6],
-#     0.50: [0, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3],
-#     0.70: [0, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2],
-#     # 0.75:[0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 3, 4, 4],
-#     0.80: [0, 1, 1, 1, 1, 2, 2, 2, 3, 3, 3, 3, 3],
-#     0.85: [0, 1, 1, 1, 1, 2, 2, 2, 2, 2, 3, 3, 3],
-#     0.90: [0, 0, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2],
-#     # 0.95:[0, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2]
-#     0.98: [0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2],
-# }
+
+equilibria_pure = {
+    0.00: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+    0.30: [0, 1, 1, 2, 3, 3, 4, 4, 5, 5, 5, 6, 6],
+    0.50: [0, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3],
+    0.70: [0, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2],
+    # 0.75:[0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 3, 4, 4],
+    0.80: [0, 1, 1, 1, 1, 2, 2, 2, 3, 3, 3, 3, 3],
+    0.85: [0, 1, 1, 1, 1, 2, 2, 2, 2, 2, 3, 3, 3],
+    0.90: [0, 0, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2],
+    # 0.95:[0, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2]
+    0.98: [0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2],
+}
 
 # equilibria with self-effect activated
 # equilibria = {
@@ -195,6 +195,16 @@ class ComputedEquilibrium(MixedStrategyExpectation):
     def __init__(self, alpha):
         self.alpha = alpha
         policy = equilibria[alpha]
+        MixedStrategyExpectation.__init__(self, policy)
+
+    def __repr__(self):
+        return f'{type(self).__name__}: alpha = {self.alpha}'
+
+
+class ComputedEquilibriumPure(MixedStrategyExpectation):
+    def __init__(self, alpha):
+        self.alpha = alpha
+        policy = equilibria_pure[alpha]
         MixedStrategyExpectation.__init__(self, policy)
 
     def __repr__(self):
