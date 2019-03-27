@@ -139,6 +139,8 @@ class Iteration:
     diff: float = 0
     average_karma: float = None
     global_utility: float = None
+    social_utility: float = None
+    expected_cost_today_per_karma: np.ndarray = None
 
     def __post_init__(self):
         N = self.stationary_karma_pd.size
@@ -456,6 +458,7 @@ def iterate(sim: Simulation, it: Iteration, energy_factor: float, it_ef: int, co
 
     global_utility = float(np.dot(stationary_karma_pd2, utility2))
     average_karma = float(np.dot(stationary_karma_pd2, sim.model.valid_karma_values))
+    social_utility = float(np.dot(stationary_karma_pd2, expected_cost_today_per_karma))
 
     # r = 0
     # policy2 = get_random_policy(exp) * r + (1 - r) * policy2
@@ -464,6 +467,8 @@ def iterate(sim: Simulation, it: Iteration, energy_factor: float, it_ef: int, co
                      stationary_karma_pd=stationary_karma_pd2,
                      stationary_karma_pd_inst=stationary_karma_pd2,
                      debug_utilities=debug_utilities, utility=utility2,
+                     expected_cost_today_per_karma=expected_cost_today_per_karma,
+                     social_utility=social_utility,
                      transitions=transitions, energy_factor=energy_factor,
                      average_karma=average_karma,
                      global_utility=global_utility)
@@ -794,7 +799,7 @@ def run_experiment(exp_name: str, sim: Simulation, plot_incremental=True,
 
                 it_next.diff = policy_diff(its[-1].policy, it_next.policy)
 
-                if animate and it_ef % 25 == 0:
+                if animate and it_ef % 1 == 0:
                     display_image(window_name, it_next, energy_factor, it_ef)
 
                 its.append(it_next)
@@ -935,6 +940,15 @@ def iterative_main():
                                          regularize_utility_monotone=True,
                                          regularize_marginal_utility_monotone=True
                                          )
+    opts['tmp'] = Optimization(num_iterations=200,
+                                         inertia=0.07,
+                                         energy_factor_schedule=(0.30, 0.45, 0.60, 0.65, 0.7, 0.8, 0.9, 0.95, 1),
+                                         diff_threshold=0.01,
+                                         consider_self_effect=False,
+                                         regularize_utility_monotone=True,
+                                         regularize_marginal_utility_monotone=True
+                                         )
+
     # opts['o3-reg-self'] = Optimization(num_iterations=300,
     #                                    inertia=0.3,
     #                                    energy_factor_schedule=(0.30, 0.45, 0.60, 0.65, 0.7, 0.8, 0.9, 0.95, 1),
@@ -992,8 +1006,12 @@ def iterative_main():
         print(f'Report written to {fn}')
 
         fn = os.path.join(dn, 'summary.yaml')
-        policy = policy_mean(exp.model, history[-1].policy)
-        summary = {'results': {'policy': policy}}
+        policy_mixed = policy_mean(exp.model, history[-1].policy)
+        policy_pure = policy_best(exp.model, history[-1].policy)
+        summary = {'results': {'policy_mixed': policy_mixed,
+                               'policy_pure': policy_pure,
+                               'policy_complete': history[-1].policy.tolist(),
+                               'policy_complete_inst': history[-1].policy_inst.tolist()}}
         summary['sim'] = dataclasses.asdict(exp)
         s = yaml.dump(summary)
         with open(fn, 'w') as f:
@@ -1031,7 +1049,7 @@ def policy_best(model: Model, policy):
     for k in model.valid_karma_values:
         # m_mean = np.dot(policy[k, :], model.valid_karma_values)
         best = np.argmax(policy[k, :])
-        bests.append(best)
+        bests.append(int(best))
         # bests.append(float(m_mean))
     return bests
 
@@ -1064,7 +1082,7 @@ def make_figures2(name: str, sim: Simulation, history: List[Iteration]) -> Repor
 
     # style = dict(alpha=0.5, linewidth=0.3)
 
-    f = r.figure('final', cols=3)
+    f = r.figure('final', cols=4)
 
     last = history[-1]
     caption = """ Policy visualized as intensity (more red: agent more likely to choose message)
@@ -1146,6 +1164,14 @@ def make_figures2(name: str, sim: Simulation, history: List[Iteration]) -> Repor
         pylab.ylabel('expected utility')
         pylab.title(f'Expected utility [{name}]')
 
+    if last.expected_cost_today_per_karma is not None:
+        caption = """ Expected cost today as a function of karma possessed.  """
+        with f.plot('cost_today', caption=caption) as pylab:
+            pylab.plot(last.expected_cost_today_per_karma, '*-')
+            pylab.xlabel('karma possessed')
+            pylab.ylabel('expected cost today')
+            pylab.title(f'Expected cost today [{name}]')
+
     # with f.plot('utility_bar', caption=caption) as pylab:
     #     pylab.imshow((make1d(last.utility)))
     #     pylab.xlabel('karma')
@@ -1159,6 +1185,7 @@ def make_figures2(name: str, sim: Simulation, history: List[Iteration]) -> Repor
         pylab.ylabel('marginal utility of one unit of karma')
         pylab.title(f'Marginal utility of karma [{name}]')
 
+    f = r.figure('history', cols=4)
     style = dict(alpha=0.5, linewidth=0.3)
 
     with f.plot('delta_policy') as pylab:
@@ -1169,13 +1196,45 @@ def make_figures2(name: str, sim: Simulation, history: List[Iteration]) -> Repor
         pylab.xlabel('iterations')
         pylab.ylabel('delta policy')
 
-    with f.plot('global_utility') as pylab:
+    with f.plot('global_utility', caption="Global utility (discounted)") as pylab:
         iterations = range(len(history))
         x = [_.global_utility for _ in history]
         pylab.plot(iterations, x, '-', **style)
         pylab.plot(iterations, x, 'r.', markersize=0.1)
         pylab.xlabel('iterations')
-        pylab.ylabel('global_utility')
+        pylab.ylabel('global utility')
+
+    with f.plot('social_utility', caption="Social utility (not discounted)") as pylab:
+        iterations = range(len(history))
+        x = [_.social_utility for _ in history]
+        pylab.plot(iterations, x, '-', **style)
+        pylab.plot(iterations, x, 'r.', markersize=0.1)
+        pylab.xlabel('iterations')
+        pylab.ylabel('social utility')
+
+    with f.plot('social_vs_global') as pylab:
+        x = [_.social_utility for _ in history][1:]
+        y = [_.global_utility for _ in history][1:]
+        pylab.plot(x, y, '-', **style)
+        pylab.plot(x, y, 'r.', markersize=0.1)
+        pylab.xlabel('social utility')
+        pylab.ylabel('global utility')
+    # with f.plot('social_vs_global2') as pylab:
+    #     x = [_.social_utility for _ in history][1:]
+    #     y = [_.global_utility for _ in history][1:]
+    #     z = np.linspace(0, 1, len(x))
+    #     colorline(x, y, z=z)
+    #     pylab.xlabel('social utility')
+    #     pylab.ylabel('global utility')
+
+
+    with f.plot('global_utility_vs_delta') as pylab:
+        x = [_.diff for _ in history][1:]
+        y = [_.global_utility for _ in history][1:]
+        pylab.plot(x, y, '-', **style)
+        pylab.plot(x, y, 'r.', markersize=0.1)
+        pylab.xlabel('delta policy (stability)')
+        pylab.ylabel('global utility')
 
     with f.plot('average_karma', caption="Average karma. Should be constant. Quantifies numerical errors") as pylab:
         iterations = range(len(history))
@@ -1287,6 +1346,50 @@ def prepare_for_plot(M):
     M[M == 0] = np.nan
     return posneg(M)
 
+import matplotlib.pyplot as plt
+import numpy as np
+import matplotlib.collections as mcoll
+def colorline(
+    x, y, z=None, cmap=plt.get_cmap('copper'), norm=plt.Normalize(0.0, 1.0),
+        linewidth=3, alpha=1.0):
+    """
+    http://nbviewer.ipython.org/github/dpsanders/matplotlib-examples/blob/master/colorline.ipynb
+    http://matplotlib.org/examples/pylab_examples/multicolored_line.html
+    Plot a colored line with coordinates x and y
+    Optionally specify colors in the array z
+    Optionally specify a colormap, a norm function and a line width
+    """
+
+    # Default colors equally spaced on [0,1]:
+    if z is None:
+        z = np.linspace(0.0, 1.0, len(x))
+
+    # Special case if a single number:
+    if not hasattr(z, "__iter__"):  # to check for numerical input -- this is a hack
+        z = np.array([z])
+
+    z = np.asarray(z)
+
+    segments = make_segments(x, y)
+    lc = mcoll.LineCollection(segments, array=z, cmap=cmap, norm=norm,
+                              linewidth=linewidth, alpha=alpha)
+
+    ax = plt.gca()
+    ax.add_collection(lc)
+
+    return lc
+
+
+def make_segments(x, y):
+    """
+    Create list of line segments from x and y coordinates, in the correct format
+    for LineCollection: an array of the form numlines x (points per line) x 2 (x
+    and y) array
+    """
+
+    points = np.array([x, y]).T.reshape(-1, 1, 2)
+    segments = np.concatenate([points[:-1], points[1:]], axis=1)
+    return segments
 
 if __name__ == '__main__':
     iterative_main()

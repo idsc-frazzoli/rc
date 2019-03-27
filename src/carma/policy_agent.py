@@ -214,7 +214,7 @@ class ComputedEquilibriumPure(MixedStrategyExpectation):
 class GoodGuees(PureStrategy):
     def __init__(self):
         # policy =[0, 1, 2, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12]
-        policy = [0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+        policy = [0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1]
         PureStrategy.__init__(self, policy)
 
 

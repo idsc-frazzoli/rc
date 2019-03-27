@@ -1,10 +1,11 @@
+from decimal import Decimal
 from typing import *
 
 import numpy as np
 
 from .distribution import choose_pair, DiscreteDistribution
 from .experiment import Experiment
-from .policy_agent import AgentPolicy
+from .policy_agent import AgentPolicy, Globals
 from .types import RNG, KarmaValue, CostValue, MessageValue
 
 
@@ -59,8 +60,36 @@ def run_experiment(exp: Experiment, seed: Optional[int] = None):
             history[h, i]['encounters_notfirst'] = encounters_notfirst[i]
         run_experiment.h += 1
 
+    def reset_costs():
+        # reset the costs after warmup
+        for i in range(n):
+            accumulated_cost[i] = 0
+            encounters[i] = 0
+            encounters_first[i] = 0
+            encounters_notfirst[i] = 0
+
+    warm_up_days = int(0.3 * exp.num_days)
+
+
+    def nice_karma_dist(x):
+        cd, _ = np.histogram(x,  Globals.max_carma+1, density=True)
+        f = lambda _: round(Decimal(_), 2)
+        cd = list(map(f, cd))
+        dist = " ".join(str(_) for _ in cd)
+        mean = np.dot(Globals.valid_karma_values, cd)
+        return "mean: %.1f  dist: %s" % (mean, dist)
+
+    print('initial karma dist: %s' % nice_karma_dist(current_karma))
+    warm_up_finished_at = None
     # iterate over days
     for day in range(exp.num_days):
+
+        if day == warm_up_days:
+            msg = 'Warm up finished after %d days.  Resetting costs, but keeping karmas.' % day
+            print(msg)
+            reset_costs()
+            print('warmup karma dist: %s' % nice_karma_dist(current_karma))
+            warm_up_finished_at = run_experiment.h
         # choose urgency for each agent for today
         urgency = [urgency_distribution[i].sample(rng=rng_sim) for i in range(n)]
 
@@ -123,4 +152,6 @@ def run_experiment(exp: Experiment, seed: Optional[int] = None):
 
 
 
-    return history
+    res = history[warm_up_finished_at:, :]
+
+    return res
