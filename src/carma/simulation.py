@@ -2,6 +2,7 @@ from decimal import Decimal
 from typing import *
 
 import numpy as np
+from tqdm import tqdm
 
 from .distribution import choose_pair, DiscreteDistribution
 from .experiment import Experiment
@@ -22,7 +23,7 @@ def nice_karma_dist(x: List[float]):
     f = lambda _: round(Decimal(_), 3)
     cd = list(map(f, cd))
     dist = " ".join(str(_) for _ in cd)
-    return "mean: %.1f  dist: %s  sum %s" % (mean, dist, sum(x))
+    return "mean: %.1f  dist: %s  # %s sum %s " % (mean, dist, len(x), sum(x))
 
 
 def run_experiment(exp: Experiment, seed: Optional[int] = None):
@@ -89,7 +90,7 @@ def run_experiment(exp: Experiment, seed: Optional[int] = None):
     print('initial karma dist: %s' % nice_karma_dist(current_karma))
     warm_up_finished_at = None
     # iterate over days
-    for day in range(exp.num_days):
+    for day in tqdm(range(exp.num_days)):
 
         if day == warm_up_days:
             msg = 'Warm up finished after %d days.  Resetting costs, but keeping karmas.' % day
@@ -108,7 +109,7 @@ def run_experiment(exp: Experiment, seed: Optional[int] = None):
             agents = (i1, i2)
 
             if day in [0, exp.num_days - 1] and encounter == 0:
-                print(f'rng check: encounter {encounter} chose {agents}')
+                print(f'rng check: encounter {day}/{encounter} chose {agents}')
 
             # ask each to generate a message
             messages_dist: Tuple[DiscreteDistribution[MessageValue]] = tuple(
@@ -151,7 +152,7 @@ def run_experiment(exp: Experiment, seed: Optional[int] = None):
                 else:
                     encounters_notfirst[i] += 1
 
-            save()
+        save()
 
     res = history[warm_up_finished_at:, :]
 
