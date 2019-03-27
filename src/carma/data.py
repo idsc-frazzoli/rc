@@ -45,8 +45,16 @@ experiments['guess1'] = Experiment(desc="A guess about optimal strategy.",
 
 for alpha in equilibria:
     name = 'equilibrium%.2f' % alpha
-    experiments[name] = Experiment(desc="Computed equilibrium for alpha = %.2f" % alpha,
+    experiments[name] = Experiment(desc="Mixed equilibrium for alpha = %.2f" % alpha,
                                              agent_policy_scenario=FixedPolicy(ComputedEquilibrium(alpha)),
+                                             who_goes=MaxGoesIfHasKarma(),
+                                             **common
+                                             )
+
+for alpha in equilibria_pure:
+    name = 'pure%.2f' % alpha
+    experiments[name] = Experiment(desc="Pure equilibrium for alpha = %.2f" % alpha,
+                                             agent_policy_scenario=FixedPolicy(ComputedEquilibriumPure(alpha)),
                                              who_goes=MaxGoesIfHasKarma(),
                                              **common
                                              )

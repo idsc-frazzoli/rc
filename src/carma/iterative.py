@@ -1026,9 +1026,24 @@ def policy_mean(model: Model, policy):
     return bests
 
 
+def policy_best(model: Model, policy):
+    bests = []
+    for k in model.valid_karma_values:
+        # m_mean = np.dot(policy[k, :], model.valid_karma_values)
+        best = np.argmax(policy[k, :])
+        bests.append(best)
+        # bests.append(float(m_mean))
+    return bests
+
+
 def policy_as_string(model: Model, policy):
-    p = policy_mean(model, policy)
-    return ", ".join(['%.1f' % _ for _ in p])
+    def s(p):
+        return ", ".join(['%.1f' % _ for _ in p])
+
+    p1 = policy_mean(model, policy)
+    p2 = policy_best(model, policy)
+
+    return s(p1) + ' ' + s(p2)
 
 
 def make_figures2(name: str, sim: Simulation, history: List[Iteration]) -> Report:
