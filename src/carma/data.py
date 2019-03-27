@@ -127,9 +127,16 @@ statistics = [
     stats_std_final_karma
 ]
 
-
+import argparse
 def carma1_main():
-    do_reports = False
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument( '--no-reports', action='store_true', default=False)
+    parser.add_argument('--experiment', type=str, default=None)
+    parsed = parser.parse_args()
+
+    do_reports = not parsed.no_reports
+
     od = './out-experiments'
     fn0 = os.path.join(od, 'summary.html')
     r0 = Report('all-experiments')
@@ -137,7 +144,17 @@ def carma1_main():
     data = []
     cols = [x.__doc__ for x in statistics]
 
-    for exp_name, exp in experiments.items():
+    if parsed.experiment is None:
+        todo = list(experiments)
+    else:
+        todo = parsed.experiment.split(',')
+
+    for exp_name in todo:
+        exp = experiments[exp_name]
+
+    for exp_name in todo:
+        print(f'running experiment {exp_name}')
+        exp = experiments[exp_name]
         rows.append(exp_name)
 
         history = run_experiment(exp, seed=42)
@@ -296,9 +313,12 @@ def make_figures(name: str, exp: Experiment, history) -> Report:
             pylab.title('average cost')
             pylab.ylabel('average cost')
             pylab.xlabel('time')
-
+    from .simulation import  compute_karma_distribution2
     cdf = compute_karma_distribution(history[:, :]['karma'])
     INTERVAL_STAT = 200
+    karma_first = compute_karma_distribution2(history[0, :]['karma'])
+    karma_last = compute_karma_distribution2(history[-1, :]['karma'])
+
     karma_stationary = np.mean(cdf[-INTERVAL_STAT:, :], axis=0)
 
     transitions, policy = compute_transitions_matrix_and_policy_for_urgency_nonzero(history)
@@ -312,6 +332,10 @@ def make_figures(name: str, exp: Experiment, history) -> Report:
     with f.plot('num_encounters', caption='Number of encounters') as pylab:
         pylab.hist(history[-1, :]['encounters'], density='True')
         pylab.xlabel('num encounters')
+
+    total_karma = np.sum(history['karma'], axis=1)
+    with f.plot('total_karma') as pylab:
+        pylab.plot(total_karma, '.', **style)
 
     print(cdf.shape)
     with f.plot('karma') as pylab:
@@ -327,7 +351,26 @@ def make_figures(name: str, exp: Experiment, history) -> Report:
         pylab.gca().invert_yaxis()
         # TODO: turn off y axis
 
+    f = r.figure('karma-dist', caption='Karma distribution')
+    with f.plot('karma_initial') as pylab:
+        # n = 10
+        # for t in range(-n, -1):
+        #     k = cdf[t, :]
+        pylab.bar(Globals.valid_karma_values, karma_first)
+        pylab.title('karma at time 0')
+        pylab.xlabel('karma')
+        pylab.ylabel('p(karma)')
+
     with f.plot('karma_last') as pylab:
+        # n = 10
+        # for t in range(-n, -1):
+        #     k = cdf[t, :]
+        pylab.bar(Globals.valid_karma_values, karma_last)
+        pylab.title('final karma')
+        pylab.xlabel('karma')
+        pylab.ylabel('p(karma)')
+
+    with f.plot('karma_stat') as pylab:
         # n = 10
         # for t in range(-n, -1):
         #     k = cdf[t, :]

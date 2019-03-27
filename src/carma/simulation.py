@@ -9,6 +9,22 @@ from .policy_agent import AgentPolicy, Globals
 from .types import RNG, KarmaValue, CostValue, MessageValue
 
 
+def compute_karma_distribution2(x: List[float]):
+    bins = np.linspace(-0.5, Globals.max_carma + 0.5, Globals.max_carma + 2)
+    cd, _ = np.histogram(x, bins, density=True)
+
+    return cd
+
+
+def nice_karma_dist(x: List[float]):
+    cd = compute_karma_distribution2(x)
+    mean = np.dot(Globals.valid_karma_values, cd)
+    f = lambda _: round(Decimal(_), 3)
+    cd = list(map(f, cd))
+    dist = " ".join(str(_) for _ in cd)
+    return "mean: %.1f  dist: %s  sum %s" % (mean, dist, sum(x))
+
+
 def run_experiment(exp: Experiment, seed: Optional[int] = None):
     rng_policy = RNG(seed=seed)
     rng_sim = RNG(seed=seed)
@@ -70,15 +86,6 @@ def run_experiment(exp: Experiment, seed: Optional[int] = None):
 
     warm_up_days = int(0.3 * exp.num_days)
 
-
-    def nice_karma_dist(x):
-        cd, _ = np.histogram(x,  Globals.max_carma+1, density=True)
-        f = lambda _: round(Decimal(_), 2)
-        cd = list(map(f, cd))
-        dist = " ".join(str(_) for _ in cd)
-        mean = np.dot(Globals.valid_karma_values, cd)
-        return "mean: %.1f  dist: %s" % (mean, dist)
-
     print('initial karma dist: %s' % nice_karma_dist(current_karma))
     warm_up_finished_at = None
     # iterate over days
@@ -98,12 +105,10 @@ def run_experiment(exp: Experiment, seed: Optional[int] = None):
             # choose pair of agents who meet
             i1, i2 = choose_pair(n, rng_sim)
 
-
             agents = (i1, i2)
 
-            if day in [0, exp.num_days-1] and encounter == 0:
+            if day in [0, exp.num_days - 1] and encounter == 0:
                 print(f'rng check: encounter {encounter} chose {agents}')
-
 
             # ask each to generate a message
             messages_dist: Tuple[DiscreteDistribution[MessageValue]] = tuple(
@@ -124,7 +129,6 @@ def run_experiment(exp: Experiment, seed: Optional[int] = None):
 
             new_karmas = exp.karma_update_policy.update(karmas, messages=messages, who_goes=who_goes, rng=rng_policy)
 
-
             # now update each of them
             for a in range(len(agents)):
                 new_cost_i = exp.cost_update_policy.update(costs[a], urgency=urgencies, messages=messages,
@@ -139,7 +143,6 @@ def run_experiment(exp: Experiment, seed: Optional[int] = None):
                 accumulated_cost[i] = new_cost_i
                 encounters[i] += 1
 
-
                 history[run_experiment.h, i]['message'] = messages[a]
                 history[run_experiment.h, i]['participated'] = True
 
@@ -149,8 +152,6 @@ def run_experiment(exp: Experiment, seed: Optional[int] = None):
                     encounters_notfirst[i] += 1
 
             save()
-
-
 
     res = history[warm_up_finished_at:, :]
 
