@@ -51,7 +51,6 @@ bid-urgency	229.26000	0.45838	0.04988	4.02191
 centralized-cost	372.76500	0.74673	0.02982	4.55475
 """
 results ="""
-guess1	233.52000	0.46694	0.05840	2.32718
 equilibrium0.00	258.01500	0.51576	0.05561	5.49052
 equilibrium0.80	192.70500	0.38530	0.04100	3.29329
 equilibrium1.00	265.69500	0.53130	0.05680	1.98388
@@ -85,96 +84,116 @@ centralized-urgency	186.58500	0.37321	0.03943	4.57228
 centralized-urgency-then-cost	186.58500	0.37374	0.01532	4.83278
 baseline-random	374.73000	0.74942	0.05679	4.72819
 bid1-always	374.02500	0.74795	0.04901	3.58131
-bid1-if-urgent	202.93500	0.40579	0.04772	3.70618
 bid-urgency	229.26000	0.45838	0.04988	4.02191
 centralized-cost	372.76500	0.74673	0.02982	4.55475
 """
-dtype = [('name', '<S32'), ('cumulative', float), ('mean_cost', float), ('std_cost', float)]
-lines = [_ for _ in results.strip().split('\n') if not _.startswith('#')]
-lines = sorted(lines)
-n = len(lines)
+#guess1	233.52000	0.46694	0.05840	2.32718
+#bid1-if-urgent	202.93500	0.40579	0.04772	3.70618
 
-matplotlib.use('agg')
-RepRepDefaults.default_image_format = MIME_SVG
-RepRepDefaults.save_extra_png = True
-RepRepDefaults.save_extra_pdf = True
-data = np.zeros(shape=n, dtype=dtype)
-for i, x in enumerate(lines):
-    tokens = x.split()
-    data[i]['name'] = tokens[0]
-    data[i]['cumulative'] = float(tokens[1])
-    data[i]['mean_cost'] = float(tokens[2])
-    data[i]['std_cost'] = float(tokens[3])
+def quick_graph_main():
 
-# print(data)
+    dtype = [('name', '<S32'), ('cumulative', float), ('mean_cost', float), ('std_cost', float)]
+    lines = [_ for _ in results.strip().split('\n') if not _.startswith('#')]
+    lines = sorted(lines)
+    n = len(lines)
 
-def color_for_alpha(alpha):
-    return alpha, np.sin(alpha*np.pi) ,0.5
+    tsize = 16  # Text size for plotting
 
-r = Report()
-with r.plot('plot') as pylab:
-    x, y = data[0]['mean_cost'], data[0]['std_cost']
-    pylab.plot(x, y, '*')
+    matplotlib.use('agg')
+    RepRepDefaults.default_image_format = MIME_SVG
+    RepRepDefaults.save_extra_png = True
+    RepRepDefaults.save_extra_pdf = True
+    data = np.zeros(shape=n, dtype=dtype)
+    for i, x in enumerate(lines):
+        tokens = x.split()
+        data[i]['name'] = tokens[0]
+        data[i]['cumulative'] = float(tokens[1])
+        data[i]['mean_cost'] = float(tokens[2])
+        data[i]['std_cost'] = float(tokens[3])
 
-    fig, ax = pylab.subplots()
-    for i in range(n):
-        name = data[i]['name'].decode('utf-8')
-        x, y = data[i]['mean_cost'], data[i]['std_cost']
-        ise = 'eq' in name
+    # print(data)
 
-        marker = 'o' if ise else '*'
-        if ise:
-            alpha = float(name.replace('equilibrium',''))
+    def color_for_alpha(alpha):
+        return alpha, np.sin(alpha*np.pi) ,0.5
+
+    # from mpl_toolkits.axes_grid1.inset_locator import zoomed_inset_axes
+
+    r = Report()
+    with r.plot('plot') as pylab:
+        x, y = data[0]['mean_cost'], data[0]['std_cost']
+        pylab.plot(x, y, '*')
+        # axins.plot(x, y, '*')
+
+        fig, ax = pylab.subplots()
+        # axins = zoomed_inset_axes(ax, 1.5, loc=2)
+        for i in range(n):
+            name = data[i]['name'].decode('utf-8')
+            x, y = data[i]['mean_cost'], data[i]['std_cost']
+            ise = 'eq' in name
+
+            marker = 'o' if ise else '*'
+            if ise:
+                alpha = float(name.replace('equilibrium',''))
+                color = color_for_alpha(alpha)
+                label = ' α = %.2f' % alpha
+                ax.plot(x, y, marker, label=label, color=color)
+                # axins.plot(x, y, marker, label=label, color=color)
+            else:
+                ax.plot(x, y, marker, label=name)
+                # axins.plot(x, y, marker, label=name)
+                ax.annotate(name, (x + 0.01, y), ha='left', va='bottom', rotation=0, size=6)
+
+        # x1, x2, y1, y2 = 0.36, 0.5, 0.035, 0.055 # specify the limits
+        # axins.set_xlim(x1, x2) # apply the x-limits
+        # axins.set_ylim(y1, y2) # apply the y-limits
+        # ax.annotate('most efficient\nmost fair', (0.35, 0.18))
+
+        pylab.xlabel('Inefficiency (mean of cost)', size=tsize)
+        pylab.ylabel('Unfairness (std-dev of cost)', size=tsize)
+        ax.legend(loc=9, bbox_to_anchor=(0.5, -0.15), ncol=2)
+
+        # pylab.axis((0.3, 0.5, 0.32, 0.37))
+
+    d = {0.00: [0.0, 1.0, 2.0, 2.9, 3.9, 4.9, 5.8, 6.8, 7.8, 8.8, 9.7, 10.7, 11.7],
+         0.80: [0.0, 1.0, 1.0, 1.0, 1.9, 2.0, 2.0, 3.0, 3.0, 3.0, 4.0, 4.0, 4.1],
+         1.00: [0.0, 0.0, 0.3, 0.3, 0.4, 0.5, 0.7, 0.9, 0.9, 0.9, 1.0, 1.0, 1.3],
+         0.20: [0.0, 1.0, 2.0, 2.3, 3.0, 4.0, 4.7, 5.4, 6.1, 7.1, 8.1, 9.1, 11.8],
+         0.05: [0.0, 1.0, 2.0, 3.0, 3.8, 4.3, 5.0, 6.0, 7.0, 8.0, 9.2, 10.1, 12.0],
+         0.30: [0.0, 1.0, 2.0, 2.0, 3.0, 3.9, 4.4, 5.4, 6.1, 6.8, 8.0, 9.2, 11.6],
+         0.90: [0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.5, 1.9, 2.0, 2.0, 2.0, 2.0, 3.0],
+         0.70: [0.0, 1.0, 1.0, 2.0, 2.2, 2.9, 3.1, 3.9, 4.0, 4.5, 5.0, 5.3, 6.3],
+         0.85: [0.0, 1.0, 1.0, 1.0, 1.0, 2.0, 2.0, 2.1, 3.0, 3.1, 3.1, 3.1, 4.1],
+         0.10: [0.0, 1.0, 2.0, 2.9, 3.0, 4.0, 4.9, 5.9, 6.9, 7.9, 8.9, 9.9, 11.7],
+         0.35: [0.0, 1.0, 1.6, 2.0, 3.0, 3.8, 4.2, 4.7, 5.5, 6.3, 7.3, 8.9, 11.4],
+         0.65: [0.0, 1.0, 1.0, 2.0, 2.7, 3.3, 3.9, 4.2, 4.7, 5.4, 6.3, 7.5, 9.2],
+         0.95: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.7, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
+         0.25: [0.0, 1.0, 2.0, 2.0, 3.0, 4.0, 4.4, 5.3, 6.1, 6.7, 7.7, 9.1, 11.7],
+         0.50: [0.0, 1.0, 1.0, 2.0, 2.9, 3.6, 4.0, 4.6, 5.4, 6.0, 7.0, 8.4, 10.8],
+         0.60: [0.0, 1.0, 1.0, 2.0, 2.9, 3.5, 3.9, 4.5, 5.0, 5.6, 6.6, 8.0, 10.3],
+         0.40: [0.0, 1.0, 1.0, 2.0, 3.0, 3.9, 4.1, 4.7, 5.3, 6.2, 6.9, 8.5, 11.5],
+         0.45: [0.0, 1.0, 1.0, 2.0, 3.0, 3.8, 4.1, 4.7, 5.4, 6.2, 6.8, 8.4, 11.1],
+         0.75: [0.0, 1.0, 1.0, 2.0, 2.0, 3.0, 3.0, 3.0, 4.0, 4.0, 4.7, 5.1, 6.3],
+         0.15: [0.0, 1.0, 2.0, 2.0, 3.0, 4.0, 4.9, 5.9, 6.9, 7.9, 8.9, 9.8, 11.7],
+         0.55: [0.0, 1.0, 1.0, 2.0, 2.8, 3.5, 4.0, 4.6, 5.3, 5.7, 6.7, 7.9, 10.6]}
+
+
+    with r.plot('tmp') as pylab:
+        # zoom-factor: 2.5, location: upper-left
+        for alpha in sorted(d):
+            policy = d[alpha]
             color = color_for_alpha(alpha)
-            label = ' α = %.2f' % alpha
-            pylab.plot(x, y, marker, label=label, color=color)
-        else:
+            pylab.plot(policy, '-*', label=' α = %.2f' % alpha, color=color)
 
-            pylab.plot(x, y, marker, label=name)
 
-            ax.annotate(name, (x + 0.01, y), ha='left', va='bottom', rotation=0, size=6)
+        pylab.xlabel('Karma', size=tsize)
+        pylab.ylabel('Expected value of message', size=tsize)
+        pylab.title('Visualization of Nash Equilibria (mixed strategies)',
+                    size=tsize)
+        pylab.legend(loc=9, bbox_to_anchor=(0.5, -0.1), ncol=4)
 
-    # ax.annotate('most efficient\nmost fair', (0.35, 0.18))
+    fn = 'quick.html'
+    r.to_html(fn)
+    print(f'written to {fn}')
 
-    pylab.xlabel('inefficiency (mean of cost)')
-    pylab.ylabel('unfairness (std-dev of cost)')
-    pylab.legend(loc=9, bbox_to_anchor=(0.5, -0.1), ncol=2)
-
-    # pylab.axis((0.3, 0.5, 0.32, 0.37))
-
-d = {0.00: [0.0, 1.0, 2.0, 2.9, 3.9, 4.9, 5.8, 6.8, 7.8, 8.8, 9.7, 10.7, 11.7],
-     0.80: [0.0, 1.0, 1.0, 1.0, 1.9, 2.0, 2.0, 3.0, 3.0, 3.0, 4.0, 4.0, 4.1],
-     1.00: [0.0, 0.0, 0.3, 0.3, 0.4, 0.5, 0.7, 0.9, 0.9, 0.9, 1.0, 1.0, 1.3],
-     0.20: [0.0, 1.0, 2.0, 2.3, 3.0, 4.0, 4.7, 5.4, 6.1, 7.1, 8.1, 9.1, 11.8],
-     0.05: [0.0, 1.0, 2.0, 3.0, 3.8, 4.3, 5.0, 6.0, 7.0, 8.0, 9.2, 10.1, 12.0],
-     0.30: [0.0, 1.0, 2.0, 2.0, 3.0, 3.9, 4.4, 5.4, 6.1, 6.8, 8.0, 9.2, 11.6],
-     0.90: [0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.5, 1.9, 2.0, 2.0, 2.0, 2.0, 3.0],
-     0.70: [0.0, 1.0, 1.0, 2.0, 2.2, 2.9, 3.1, 3.9, 4.0, 4.5, 5.0, 5.3, 6.3],
-     0.85: [0.0, 1.0, 1.0, 1.0, 1.0, 2.0, 2.0, 2.1, 3.0, 3.1, 3.1, 3.1, 4.1],
-     0.10: [0.0, 1.0, 2.0, 2.9, 3.0, 4.0, 4.9, 5.9, 6.9, 7.9, 8.9, 9.9, 11.7],
-     0.35: [0.0, 1.0, 1.6, 2.0, 3.0, 3.8, 4.2, 4.7, 5.5, 6.3, 7.3, 8.9, 11.4],
-     0.65: [0.0, 1.0, 1.0, 2.0, 2.7, 3.3, 3.9, 4.2, 4.7, 5.4, 6.3, 7.5, 9.2],
-     0.95: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.7, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
-     0.25: [0.0, 1.0, 2.0, 2.0, 3.0, 4.0, 4.4, 5.3, 6.1, 6.7, 7.7, 9.1, 11.7],
-     0.50: [0.0, 1.0, 1.0, 2.0, 2.9, 3.6, 4.0, 4.6, 5.4, 6.0, 7.0, 8.4, 10.8],
-     0.60: [0.0, 1.0, 1.0, 2.0, 2.9, 3.5, 3.9, 4.5, 5.0, 5.6, 6.6, 8.0, 10.3],
-     0.40: [0.0, 1.0, 1.0, 2.0, 3.0, 3.9, 4.1, 4.7, 5.3, 6.2, 6.9, 8.5, 11.5],
-     0.45: [0.0, 1.0, 1.0, 2.0, 3.0, 3.8, 4.1, 4.7, 5.4, 6.2, 6.8, 8.4, 11.1],
-     0.75: [0.0, 1.0, 1.0, 2.0, 2.0, 3.0, 3.0, 3.0, 4.0, 4.0, 4.7, 5.1, 6.3],
-     0.15: [0.0, 1.0, 2.0, 2.0, 3.0, 4.0, 4.9, 5.9, 6.9, 7.9, 8.9, 9.8, 11.7],
-     0.55: [0.0, 1.0, 1.0, 2.0, 2.8, 3.5, 4.0, 4.6, 5.3, 5.7, 6.7, 7.9, 10.6]}
-
-with r.plot('tmp') as pylab:
-    for alpha in sorted(d):
-        policy = d[alpha]
-        color = color_for_alpha(alpha)
-        pylab.plot(policy, '-*', label=' α = %.2f' % alpha, color=color)
-
-    pylab.xlabel('karma')
-    pylab.ylabel('expected value of message ')
-    pylab.title('Visualization of Nash Equilibria (mixed strategies)')
-    pylab.legend(loc=9, bbox_to_anchor=(0.5, -0.1), ncol=4)
-
-fn = 'quick.html'
-r.to_html(fn)
-print(f'written to {fn}')
+if __name__ == '__main__':
+    quick_graph_main()

@@ -9,6 +9,7 @@ import matplotlib
 import numpy as np
 import yaml
 from numpy.testing import assert_allclose
+import seaborn
 
 from reprep import Report, posneg, RepRepDefaults, MIME_PNG
 
@@ -1084,6 +1085,8 @@ def make_figures2(name: str, sim: Simulation, history: List[Iteration]) -> Repor
 
     f = r.figure('final', cols=4)
 
+    tsize = int(18)
+
     last = history[-1]
     caption = """ Policy visualized as intensity (more red: agent more likely to choose message)
 %s """ % policy_as_string(sim.model, last.policy)
@@ -1091,8 +1094,8 @@ def make_figures2(name: str, sim: Simulation, history: List[Iteration]) -> Repor
     with f.plot('policy_last', caption=caption) as pylab:
 
         pylab.imshow(prepare_for_plot(last.policy.T))
-        pylab.xlabel('karma')
-        pylab.ylabel('message')
+        pylab.xlabel('Karma', size=tsize)
+        pylab.ylabel('Message', size=tsize)
         pylab.gca().invert_yaxis()
         pylab.title(f'Policy [{name}]')
 
@@ -1100,8 +1103,8 @@ def make_figures2(name: str, sim: Simulation, history: List[Iteration]) -> Repor
     %s """ % policy_as_string(sim.model, last.policy_inst)
     with f.plot('policy_last_inst', caption=caption) as pylab:
         pylab.imshow(prepare_for_plot(last.policy_inst.T))
-        pylab.xlabel('karma')
-        pylab.ylabel('message')
+        pylab.xlabel('Karma', size=tsize)
+        pylab.ylabel('Message', size=tsize)
         pylab.gca().invert_yaxis()
         pylab.title(f'Policy inst [{name}]')
 
@@ -1111,8 +1114,8 @@ def make_figures2(name: str, sim: Simulation, history: List[Iteration]) -> Repor
             # print(last.debug_utilities)
             pylab.imshow(last.debug_utilities.T)
             pylab.gca().invert_yaxis()
-            pylab.xlabel('karma')
-            pylab.ylabel('message')
+            pylab.xlabel('Karma', size=tsize)
+            pylab.ylabel('Message', size=tsize)
             pylab.title(f'Utilities [{name}]')
 
     if last.debug_utilities is not None:
@@ -1122,8 +1125,8 @@ def make_figures2(name: str, sim: Simulation, history: List[Iteration]) -> Repor
                 label = 'k=%d' % i if i in [0, sim.model.max_karma] else None
                 pylab.plot(last.debug_utilities[i, :], '*-', label=label)
 
-            pylab.ylabel('utility')
-            pylab.xlabel('message')
+            pylab.ylabel('Utility', size=tsize)
+            pylab.xlabel('Message', size=tsize)
             pylab.legend()
             pylab.title(f'Utilities [{name}]')
 
@@ -1133,8 +1136,8 @@ def make_figures2(name: str, sim: Simulation, history: List[Iteration]) -> Repor
         for i in sim.model.valid_karma_values:
             label = 'k=%d' % i if i in [0, sim.model.max_karma] else None
             pylab.plot(last.policy[i, :], '*-', label=label)
-        pylab.xlabel('message')
-        pylab.ylabel('p(message)')
+        pylab.xlabel('Message', size=tsize)
+        pylab.ylabel('p(message)', size=tsize)
         pylab.legend()
         pylab.title(f'Policy [{name}]')
 
@@ -1147,8 +1150,8 @@ def make_figures2(name: str, sim: Simulation, history: List[Iteration]) -> Repor
     caption = """ Karma stationary distribution. Computed as the equilibrium given the transition matrix. """
     with f.plot('karma_dist_last', caption=caption) as pylab:
         pylab.bar(sim.model.valid_karma_values, last.stationary_karma_pd)
-        pylab.xlabel('karma')
-        pylab.ylabel('probability')
+        pylab.xlabel('Karma', size=tsize)
+        pylab.ylabel('Probability', size=tsize)
         pylab.title(f'Stationary karma [{name}]')
 
     # with f.plot('karma_dist', caption=caption) as pylab:
@@ -1158,18 +1161,18 @@ def make_figures2(name: str, sim: Simulation, history: List[Iteration]) -> Repor
     #     pylab.title(f'Stationary karma [{name}]')
 
     caption = """ Expected utility as a function of karma possessed.  """
-    with f.plot('utility', caption=caption) as pylab:
+    with f.plot('Utility', caption=caption) as pylab:
         pylab.plot(last.utility, '*-')
-        pylab.xlabel('karma possessed')
-        pylab.ylabel('expected utility')
+        pylab.xlabel('Karma possessed', size=tsize)
+        pylab.ylabel('Expected utility', size=tsize)
         pylab.title(f'Expected utility [{name}]')
 
     if last.expected_cost_today_per_karma is not None:
         caption = """ Expected cost today as a function of karma possessed.  """
         with f.plot('cost_today', caption=caption) as pylab:
             pylab.plot(last.expected_cost_today_per_karma, '*-')
-            pylab.xlabel('karma possessed')
-            pylab.ylabel('expected cost today')
+            pylab.xlabel('Karma possessed', size=tsize)
+            pylab.ylabel('Expected cost today', size=tsize)
             pylab.title(f'Expected cost today [{name}]')
 
     # with f.plot('utility_bar', caption=caption) as pylab:
@@ -1181,8 +1184,8 @@ def make_figures2(name: str, sim: Simulation, history: List[Iteration]) -> Repor
     with f.plot('utility_marginal', caption=caption) as pylab:
         marginal = np.diff(last.utility)
         pylab.plot(marginal, '*-')
-        pylab.xlabel('karma possessed')
-        pylab.ylabel('marginal utility of one unit of karma')
+        pylab.xlabel('Karma possessed', size=tsize)
+        pylab.ylabel('Marginal utility of one unit of karma', size=tsize)
         pylab.title(f'Marginal utility of karma [{name}]')
 
     f = r.figure('history', cols=4)
@@ -1193,32 +1196,32 @@ def make_figures2(name: str, sim: Simulation, history: List[Iteration]) -> Repor
         x = [_.diff for _ in history]
         pylab.plot(iterations, x, '-', **style)
         pylab.plot(iterations, x, 'r.', markersize=0.1)
-        pylab.xlabel('iterations')
-        pylab.ylabel('delta policy')
+        pylab.xlabel('Iterations', size=tsize)
+        pylab.ylabel('Delta policy', size=tsize)
 
     with f.plot('global_utility', caption="Global utility (discounted)") as pylab:
         iterations = range(len(history))
         x = [_.global_utility for _ in history]
         pylab.plot(iterations, x, '-', **style)
         pylab.plot(iterations, x, 'r.', markersize=0.1)
-        pylab.xlabel('iterations')
-        pylab.ylabel('global utility')
+        pylab.xlabel('Iterations', size=tsize)
+        pylab.ylabel('Global utility', size=tsize)
 
     with f.plot('social_utility', caption="Social utility (not discounted)") as pylab:
         iterations = range(len(history))
         x = [_.social_utility for _ in history]
         pylab.plot(iterations, x, '-', **style)
         pylab.plot(iterations, x, 'r.', markersize=0.1)
-        pylab.xlabel('iterations')
-        pylab.ylabel('social utility')
+        pylab.xlabel('Iterations', size=tsize)
+        pylab.ylabel('Social utility', size=tsize)
 
     with f.plot('social_vs_global') as pylab:
         x = [_.social_utility for _ in history][1:]
         y = [_.global_utility for _ in history][1:]
         pylab.plot(x, y, '-', **style)
         pylab.plot(x, y, 'r.', markersize=0.1)
-        pylab.xlabel('social utility')
-        pylab.ylabel('global utility')
+        pylab.xlabel('Social utility', size=tsize)
+        pylab.ylabel('Global utility', size=tsize)
     # with f.plot('social_vs_global2') as pylab:
     #     x = [_.social_utility for _ in history][1:]
     #     y = [_.global_utility for _ in history][1:]
@@ -1233,16 +1236,16 @@ def make_figures2(name: str, sim: Simulation, history: List[Iteration]) -> Repor
         y = [_.global_utility for _ in history][1:]
         pylab.plot(x, y, '-', **style)
         pylab.plot(x, y, 'r.', markersize=0.1)
-        pylab.xlabel('delta policy (stability)')
-        pylab.ylabel('global utility')
+        pylab.xlabel('Delta policy (stability)', size=tsize)
+        pylab.ylabel('Global utility', size=tsize)
 
     with f.plot('average_karma', caption="Average karma. Should be constant. Quantifies numerical errors") as pylab:
         iterations = range(len(history))
         x = [_.average_karma for _ in history]
         pylab.plot(iterations, x, '-', **style)
         pylab.plot(iterations, x, 'r.', markersize=0.1)
-        pylab.xlabel('iterations')
-        pylab.ylabel('average karma')
+        pylab.xlabel('Iterations', size=tsize)
+        pylab.ylabel('Average karma', size=tsize)
 
     crucial = [0]
     for i in range(len(history) - 1):
@@ -1257,10 +1260,10 @@ def make_figures2(name: str, sim: Simulation, history: List[Iteration]) -> Repor
         s = policy_as_string(sim.model, it.policy)
         with f.plot(name + '-p', caption='ef = %.2f; %s' % (it.energy_factor, s)) as pylab:
             pylab.imshow(prepare_for_plot(it.policy.T))
-            pylab.xlabel('karma')
-            pylab.ylabel('message')
+            pylab.xlabel('Karma', size=tsize)
+            pylab.ylabel('Message', size=etsize)
             pylab.gca().invert_yaxis()
-            pylab.title(f'policy at it = {i} ef = {it.energy_factor}')
+            pylab.title(f'Policy at it = {i} ef = {it.energy_factor}')
 
     for i in crucial:
         it = history[i]
@@ -1268,8 +1271,8 @@ def make_figures2(name: str, sim: Simulation, history: List[Iteration]) -> Repor
         s = policy_as_string(sim.model, it.policy)
         with f.plot(name + '-pi', caption='ef = %.2f; %s' % (it.energy_factor, s)) as pylab:
             pylab.imshow(prepare_for_plot(it.policy_inst.T))
-            pylab.xlabel('karma')
-            pylab.ylabel('message')
+            pylab.xlabel('Karma', size=tsize)
+            pylab.ylabel('Message', size=tsize)
             pylab.gca().invert_yaxis()
             pylab.title(f'policy at it = {i} ef = {it.energy_factor}')
 
@@ -1284,8 +1287,8 @@ def make_figures2(name: str, sim: Simulation, history: List[Iteration]) -> Repor
             else:
                 pylab.plot(0, 0)
 
-        pylab.ylabel('utility')
-        pylab.xlabel('message')
+        pylab.ylabel('Utility', size=tsize)
+        pylab.xlabel('Message', size=tsize)
 
         pylab.title(f'utilities at it = {i} ef = {it.energy_factor}')
 
@@ -1295,8 +1298,8 @@ def make_figures2(name: str, sim: Simulation, history: List[Iteration]) -> Repor
 
         with f.plot(name + '-k', caption='ef = %.2f' % it.energy_factor) as pylab:
             pylab.bar(sim.model.valid_karma_values, it.stationary_karma_pd)
-            pylab.xlabel('karma')
-            pylab.ylabel('probability')
+            pylab.xlabel('Karma', size=tsize)
+            pylab.ylabel('Probability', size=tsize)
             pylab.title(f'stationary karma at it = {i} ef = {it.energy_factor}')
 
     # history = history[:10]

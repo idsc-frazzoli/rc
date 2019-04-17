@@ -3,7 +3,6 @@ from decimal import Decimal
 
 import matplotlib
 
-from carma.iterative import plot_transitions
 from reprep import Report
 from reprep.plot_utils import y_axis_set
 from .experiment import Experiment

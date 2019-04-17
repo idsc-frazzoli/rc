@@ -10,6 +10,7 @@ import seaborn
 
 def make_figures(name: str, exp: Experiment, history) -> Report:
     r = Report(name)
+    tsize = 18
 
     data = ""
     for k in exp.__annotations__:
@@ -52,9 +53,9 @@ def make_figures(name: str, exp: Experiment, history) -> Report:
         with f.plot('cost_cumulative', caption=caption) as pylab:
             cost = history[sub, :]['cost']
             pylab.plot(time[sub], cost, **style)
-            pylab.title('cost')
-            pylab.ylabel('cost')
-            pylab.xlabel('time')
+            pylab.title('Cost', size=tsize)
+            pylab.ylabel('Cost', size=tsize)
+            pylab.xlabel('Time', size=tsize)
 
         caption = 'Average cost (cumulative divided by time). Shown for the latter part of trajectory'
         with f.plot('cost_average', caption=caption) as pylab:
@@ -67,9 +68,9 @@ def make_figures(name: str, exp: Experiment, history) -> Report:
             pylab.plot(time[sub], cost, **style)
 
             y_axis_set(pylab, m / 2, m * 2)
-            pylab.title('average cost')
-            pylab.ylabel('average cost')
-            pylab.xlabel('time')
+            pylab.title('Average cost', size=tsize)
+            pylab.ylabel('Average cost', size=tsize)
+            pylab.xlabel('Time', size=tsize)
     from .simulation import  compute_karma_distribution2
     cdf = compute_karma_distribution(history[:, :]['karma'])
     INTERVAL_STAT = 200
@@ -88,7 +89,7 @@ def make_figures(name: str, exp: Experiment, history) -> Report:
 
     with f.plot('num_encounters', caption='Number of encounters') as pylab:
         pylab.hist(history[-1, :]['encounters'], density='True')
-        pylab.xlabel('num encounters')
+        pylab.xlabel('Num encounters', size=tsize)
 
 
 
@@ -108,9 +109,9 @@ def make_figures(name: str, exp: Experiment, history) -> Report:
         pylab.imshow(cdf_plot.T)
 
         # pylab.plot(time[sub], karma, '.', **style)
-        pylab.title('karma')
-        pylab.xlabel('time')
-        pylab.ylabel('karma')
+        pylab.title('Karma', size=tsize)
+        pylab.xlabel('Time', size=tsize)
+        pylab.ylabel('Karma', size=tsize)
         pylab.gca().invert_yaxis()
         # TODO: turn off y axis
 
@@ -120,27 +121,27 @@ def make_figures(name: str, exp: Experiment, history) -> Report:
         # for t in range(-n, -1):
         #     k = cdf[t, :]
         pylab.bar(Globals.valid_karma_values, karma_first)
-        pylab.title('karma at time 0')
-        pylab.xlabel('karma')
-        pylab.ylabel('p(karma)')
+        pylab.title('Karma at time 0', size=tsize)
+        pylab.xlabel('Karma', size=tsize)
+        pylab.ylabel('p(karma)', size=tsize)
 
     with f.plot('karma_last') as pylab:
         # n = 10
         # for t in range(-n, -1):
         #     k = cdf[t, :]
         pylab.bar(Globals.valid_karma_values, karma_last)
-        pylab.title('final karma')
-        pylab.xlabel('karma')
-        pylab.ylabel('p(karma)')
+        pylab.title('Final Karma', size=tsize)
+        pylab.xlabel('Karma', size=tsize)
+        pylab.ylabel('p(karma)', size=tsize)
 
     with f.plot('karma_stat') as pylab:
         # n = 10
         # for t in range(-n, -1):
         #     k = cdf[t, :]
         pylab.bar(Globals.valid_karma_values, karma_stationary)
-        pylab.title('karma stationary')
-        pylab.xlabel('karma')
-        pylab.ylabel('p(karma)')
+        pylab.title('Karma stationary', size=tsize)
+        pylab.xlabel('Karma', size=tsize)
+        pylab.ylabel('p(karma)', size=tsize)
 
 
 
@@ -153,10 +154,10 @@ def make_figures(name: str, exp: Experiment, history) -> Report:
                 karma_i = history[sub, i]['karma']
                 pylab.plot(cost_i, karma_i, '.', **style)
 
-            pylab.title('cost/karma')
+            pylab.title('Cost / Karma', size=tsize)
 
-            pylab.xlabel('cost')
-            pylab.ylabel('karma')
+            pylab.xlabel('Cost', size=tsize)
+            pylab.ylabel('Karma', size=tsize)
 
         caption = """ Agerage cost vs karma phase space. """
         with f.plot('cost_average-karma', caption=caption) as pylab:
@@ -165,9 +166,9 @@ def make_figures(name: str, exp: Experiment, history) -> Report:
                 karma_i = history[sub, i]['karma']
                 pylab.plot(cost_i, karma_i, '.', **style)
 
-            pylab.title('cost_average/karma')
+            pylab.title('Cost average / Karma', size=tsize)
 
-            pylab.xlabel('cost_average')
-            pylab.ylabel('karma')
+            pylab.xlabel('Cost average', size=tsize)
+            pylab.ylabel('Karma', size=tsize)
 
     return r

@@ -9,6 +9,7 @@ setup(name='carma',
             'console_scripts': [
                   'carma1 = carma:carma1_main',
                   'carma-compute-equilibria = carma.iterative:iterative_main',
+                  'carma-overview = carma.quick_graph:quick_graph_main',
             ]
       },
       install_requires=[
