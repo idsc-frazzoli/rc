@@ -26,7 +26,7 @@ highlow = DiscreteDistribution(((UrgencyValue(0), Probability(0.5)),
 #                                     (UrgencyValue(3), Probability(0.3))))
 experiments = {}
 num_agents = 200
-num_days = 1000 
+num_days = 1000
 average_encounters_per_day_per_agent = 0.1
 
 initial_karma = RandomKarma(0, Globals.max_carma)  # lower, upper
@@ -37,10 +37,6 @@ common = dict(num_agents=num_agents,
               initial_karma_scenario=initial_karma, cost_update_policy=PayUrgency(),
               karma_update_policy=BoundedKarma(Globals.max_carma),
               urgency_distribution_scenario=ConstantUrgencyDistribution(highlow))
-
-experiments['guess1'] = Experiment(desc="A guess about optimal strategy.",
-                                   agent_policy_scenario=FixedPolicy(GoodGuees()),
-                                   who_goes=MaxGoesIfHasKarma(), **common)
 
 for alpha in equilibria:
     name = 'equilibrium%.2f' % alpha
@@ -64,10 +60,10 @@ experiments['centralized-urgency'] = Experiment(desc="Centralized controller cho
                                                 **common)
 
 experiments['centralized-urgency-then-cost'] = Experiment(
-    desc="Centralized controller chooses the one with highest urgency and if ties the one with the maximum cost.",
-    agent_policy_scenario=FixedPolicy(RandomAgentPolicy()),
-    who_goes=MaxUrgencyThenCost(),
-    **common)
+        desc="Centralized controller chooses the one with highest urgency and if ties the one with the maximum cost.",
+        agent_policy_scenario=FixedPolicy(RandomAgentPolicy()),
+        who_goes=MaxUrgencyThenCost(),
+        **common)
 
 experiments['baseline-random'] = Experiment(desc="Random choice of who goes",
                                             agent_policy_scenario=FixedPolicy(RandomAgentPolicy()),
@@ -90,6 +86,10 @@ experiments['centralized-cost'] = Experiment(
         agent_policy_scenario=FixedPolicy(BidUrgency()),
         who_goes=MaxCostGoes(),
         **common)
+
+experiments['guess1'] = Experiment(desc="A guess about optimal strategy.",
+                                   agent_policy_scenario=FixedPolicy(GoodGuees()),
+                                   who_goes=MaxGoesIfHasKarma(), **common)
 
 prec = 5
 
@@ -128,10 +128,11 @@ statistics = [
 ]
 
 import argparse
-def carma1_main():
 
+
+def carma1_main():
     parser = argparse.ArgumentParser()
-    parser.add_argument( '--no-reports', action='store_true', default=False)
+    parser.add_argument('--no-reports', action='store_true', default=False)
     parser.add_argument('--experiment', type=str, default=None)
     parsed = parser.parse_args()
 
@@ -272,7 +273,7 @@ def make_figures(name: str, exp: Experiment, history) -> Report:
     style = dict(alpha=0.5, linewidth=0.3)
     K, nagents = history.shape
     time = np.array(range(K))
-    sub = time[::1]
+    # sub = time[::1]
 
     f = r.figure(cols=4)
 
@@ -314,7 +315,7 @@ def make_figures(name: str, exp: Experiment, history) -> Report:
             pylab.title('average cost')
             pylab.ylabel('average cost')
             pylab.xlabel('time')
-    from .simulation import  compute_karma_distribution2
+    from .simulation import compute_karma_distribution2
     cdf = compute_karma_distribution(history[:, :]['karma'])
     INTERVAL_STAT = 200
     karma_first = compute_karma_distribution2(history[0, :]['karma'])
@@ -334,16 +335,43 @@ def make_figures(name: str, exp: Experiment, history) -> Report:
         pylab.hist(history[-1, :]['encounters'], density='True')
         pylab.xlabel('num encounters')
 
-
-
-
     mean_karma = np.mean(history['karma'], axis=1)
     std_karma = np.std(history['karma'], axis=1)
+
     with f.plot('total_karma') as pylab:
         pylab.plot(mean_karma, 'b-', **style)
     with f.plot('std_karma') as pylab:
-        pylab.plot(std_karma, 'b-', **style) 
 
+        pylab.plot(std_karma, 'b-', **style)
+
+        pylab.gca().set_ylim(bottom=0)
+
+    with f.plot('karma_vs_total') as pylab:
+        orders = np.argsort(history['cost'], axis=1)
+        orders_f = orders.flatten()
+        karma_f = history['karma'].flatten()
+        bins = np.linspace(-0.5, Globals.max_carma + 0.5, Globals.max_carma + 2)
+        H, xe, ye = np.histogram2d(orders_f, karma_f, bins=(32, bins), density=True)
+
+        pylab.imshow(H.T)
+        pylab.xlabel('rank in cost')
+        pylab.ylabel('karma')
+        # pylab.plot(orders_f, karma_f, '.', **style)
+
+    with f.plot('karma_vs_avg_cost') as pylab:
+        # orders = np.argsort(history['cost_average'], axis=1)
+        # orders_f = orders.flatten()
+        cost_average_mean = np.mean(history['cost_average'], axis=1)
+        N = history.shape[1]
+        dcost = history['cost_average'] - (cost_average_mean * np.ones((N, 1))).T
+        dcost = dcost.flatten()
+        karma_f = history['karma'].flatten()
+        H, xe, ye = np.histogram2d(dcost, karma_f, bins=(32, 13), density=True)
+        # pylab.pcolormesh(xe, ye, H)
+        pylab.imshow(H.T)
+        pylab.xlabel('rank in cost')
+        pylab.ylabel('karma')
+        # pylab.plot(orders_f, karma_f, '.', **style)
 
     with f.plot('karma') as pylab:
 
@@ -385,8 +413,6 @@ def make_figures(name: str, exp: Experiment, history) -> Report:
         pylab.title('karma stationary')
         pylab.xlabel('karma')
         pylab.ylabel('p(karma)')
-
-
 
     if False:
         sub = time > (len(time) / 4)

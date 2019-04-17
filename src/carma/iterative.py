@@ -1,6 +1,7 @@
 import dataclasses
 import itertools
 import sys
+import time
 from dataclasses import dataclass
 from enum import Enum
 from typing import *
@@ -217,7 +218,7 @@ def delta_karma_if_i_wins_or_lose(model: Model, k_i, m_i, k_j, m_j) -> Tuple[flo
 
 def consider_bidding(model: Model, stationary_karma_pd, utility, policy, k_i, m_i,
                      consider_self_effect) -> \
-        Tuple[np.ndarray, np.ndarray]:
+        Tuple[float, float]:
     """
         What would happen if we bid m_i when we are k_i and high?
 
@@ -789,6 +790,8 @@ def run_experiment(exp_name: str, sim: Simulation, plot_incremental=True,
     RepRepDefaults.default_image_format = MIME_PNG
     # RepRepDefaults.save_extra_png = False
     # threading.Thread(target=plot_thread).start()
+
+
     try:
         it = 0
         for energy_factor in sim.opt.energy_factor_schedule:
@@ -800,7 +803,14 @@ def run_experiment(exp_name: str, sim: Simulation, plot_incremental=True,
                 it_next.diff = policy_diff(its[-1].policy, it_next.policy)
 
                 if animate and it_ef % 1 == 0:
+
+                    if it < 30:
+                        time.sleep(0.3)
                     display_image(window_name, it_next, energy_factor, it_ef)
+
+                    if it == 0:
+                        print('switch to the other window')
+                        time.sleep(5)
 
                 its.append(it_next)
 
