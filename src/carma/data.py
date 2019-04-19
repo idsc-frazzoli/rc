@@ -41,10 +41,6 @@ common = dict(num_agents=num_agents,
               karma_update_policy=BoundedKarma(Globals.max_carma),
               urgency_distribution_scenario=ConstantUrgencyDistribution(highlow))
 
-experiments['guess1'] = Experiment(desc="A guess about optimal strategy.",
-                                   agent_policy_scenario=FixedPolicy(GoodGuees()),
-                                   who_goes=MaxGoesIfHasKarma(), **common)
-
 for alpha in equilibria:
     name = 'equilibrium%.2f' % alpha
     experiments[name] = Experiment(desc="Mixed equilibrium for alpha = %.2f" % alpha,
@@ -67,10 +63,10 @@ experiments['centralized-urgency'] = Experiment(desc="Centralized controller cho
                                                 **common)
 
 experiments['centralized-urgency-then-cost'] = Experiment(
-    desc="Centralized controller chooses the one with highest urgency and if ties the one with the maximum cost.",
-    agent_policy_scenario=FixedPolicy(RandomAgentPolicy()),
-    who_goes=MaxUrgencyThenCost(),
-    **common)
+        desc="Centralized controller chooses the one with highest urgency and if ties the one with the maximum cost.",
+        agent_policy_scenario=FixedPolicy(RandomAgentPolicy()),
+        who_goes=MaxUrgencyThenCost(),
+        **common)
 
 experiments['baseline-random'] = Experiment(desc="Random choice of who goes",
                                             agent_policy_scenario=FixedPolicy(RandomAgentPolicy()),
@@ -94,6 +90,10 @@ experiments['centralized-cost'] = Experiment(
         who_goes=MaxCostGoes(),
         **common)
 
+experiments['guess1'] = Experiment(desc="A guess about optimal strategy.",
+                                   agent_policy_scenario=FixedPolicy(GoodGuees()),
+                                   who_goes=MaxGoesIfHasKarma(), **common)
+
 prec = 5
 
 statistics = [
@@ -106,10 +106,11 @@ statistics = [
 ]
 
 import argparse
-def carma1_main():
 
+
+def carma1_main():
     parser = argparse.ArgumentParser()
-    parser.add_argument( '--no-reports', action='store_true', default=False)
+    parser.add_argument('--no-reports', action='store_true', default=False)
     parser.add_argument('--experiment', type=str, default=None)
     parsed = parser.parse_args()
 
