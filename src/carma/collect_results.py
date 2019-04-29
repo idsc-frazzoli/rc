@@ -13,6 +13,7 @@ expect = {
 }
 optimal = {}
 for fn in files:
+    print(f"File: {fn}")
     with open(fn) as f:
         data = f.read()
         data = yaml.load(data)
@@ -24,7 +25,7 @@ for fn in files:
         if model.get(k) != v:
             continue
     alpha = model['alpha']
-    policy = data['results']['policy']
+    policy = data['results']['policy_pure']  # TODO: which should be selected?
     print(alpha, policy)
 
     optimal[round(Decimal(alpha),2)] = [round(Decimal(_), 1) for _ in policy]

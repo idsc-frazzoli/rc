@@ -10,15 +10,18 @@ import matplotlib
 import numpy as np
 import yaml
 from numpy.testing import assert_allclose
+import seaborn
 
 from reprep import Report, posneg, RepRepDefaults, MIME_PNG
-
+from pylab import rcParams
+rcParams['figure.figsize'] = 4, 4
 
 class Assignment(Enum):
     FirstPrice = 1
     SecondPrice = 2
     HalfPrice = 3
 
+tsize = int(18)
 
 @dataclass
 class Model:
@@ -893,8 +896,9 @@ def iterative_main():
     p_low, p_mid, p_high = 0.4, 0.5, 0.6
     urgency_low, urgency_mid, urgency_high = 2.0, 3.0, 4.0
 
-    alphas = (0, 0.05, 0.10, 0.15, 0.20, 0.25, 0.30, 0.35, 0.40, 0.45, 0.50,
-              0.55, 0.60, 0.65, 0.70, 0.75, 0.8, 0.85, 0.90, 0.95, 1.00)
+    # alphas = (0, 0.05, 0.10, 0.15, 0.20, 0.25, 0.30, 0.35, 0.40, 0.45, 0.50,
+              # 0.55, 0.60, 0.65, 0.70, 0.75, 0.8, 0.85, 0.90, 0.95, 1.00)
+    alphas = (0.3, 0.7, 1.0)
     for alpha in alphas:
         name = 'M-α%03d-p°-u°-k°' % (alpha * 100)
         models[name] = Model(description=f"α = {alpha}",
@@ -902,36 +906,36 @@ def iterative_main():
                              alpha=alpha, prob_high=p_mid,
                              **common)
 
-    models['M-α°-p°-u°-k⁻'] = Model(description="fewer karma levels", max_karma=max_carma_low, urgency0=urgency_mid,
-                                    alpha=alpha_mid, prob_high=p_mid,
-                                    **common)
-    models['M-α°-p°-u°-k⁺'] = Model(description="more karma levels", max_karma=max_carma_high, urgency0=urgency_mid,
-                                    alpha=alpha_mid, prob_high=p_mid,
-                                    **common)
+    # models['M-α°-p°-u°-k⁻'] = Model(description="fewer karma levels", max_karma=max_carma_low, urgency0=urgency_mid,
+    #                                 alpha=alpha_mid, prob_high=p_mid,
+    #                                 **common)
+    # models['M-α°-p°-u°-k⁺'] = Model(description="more karma levels", max_karma=max_carma_high, urgency0=urgency_mid,
+    #                                 alpha=alpha_mid, prob_high=p_mid,
+    #                                 **common)
 
     models['M-α°-p°-u°-k°'] = Model(description="baseline", max_karma=max_carma_mid, urgency0=urgency_mid,
                                     alpha=alpha_mid,
                                     prob_high=p_mid,
                                     **common)
 
-    models['M-α°-p°-u°-k°-sp'] = Model(description="second price", max_karma=max_carma_mid, urgency0=urgency_mid,
-                                       alpha=alpha_mid,
-                                       prob_high=p_mid,
-                                       assignment=Assignment.SecondPrice)
-
-    models['M-α°-p⁻-u°-k°'] = Model(description="p(high) larger", max_karma=max_carma_mid, urgency0=urgency_mid,
-                                    alpha=alpha_mid, prob_high=p_low,
-                                    **common)
-
-    models['M-α°-p⁺-u°-k°'] = Model(description="p(high) smaller", max_karma=max_carma_mid, urgency0=urgency_mid,
-                                    alpha=alpha_mid, prob_high=p_high,
-                                    **common)
-    models['M-α°-p°-u⁻-k°'] = Model(description="u smaller", max_karma=max_carma_mid, urgency0=urgency_low,
-                                    alpha=alpha_mid, prob_high=p_mid,
-                                    **common)
-    models['M-α°-p°-u⁺-k°'] = Model(description="u larger", max_karma=max_carma_mid, urgency0=urgency_high,
-                                    alpha=alpha_mid, prob_high=p_mid,
-                                    **common)
+    # models['M-α°-p°-u°-k°-sp'] = Model(description="second price", max_karma=max_carma_mid, urgency0=urgency_mid,
+    #                                    alpha=alpha_mid,
+    #                                    prob_high=p_mid,
+    #                                    assignment=Assignment.SecondPrice)
+    #
+    # models['M-α°-p⁻-u°-k°'] = Model(description="p(high) larger", max_karma=max_carma_mid, urgency0=urgency_mid,
+    #                                 alpha=alpha_mid, prob_high=p_low,
+    #                                 **common)
+    #
+    # models['M-α°-p⁺-u°-k°'] = Model(description="p(high) smaller", max_karma=max_carma_mid, urgency0=urgency_mid,
+    #                                 alpha=alpha_mid, prob_high=p_high,
+    #                                 **common)
+    # models['M-α°-p°-u⁻-k°'] = Model(description="u smaller", max_karma=max_carma_mid, urgency0=urgency_low,
+    #                                 alpha=alpha_mid, prob_high=p_mid,
+    #                                 **common)
+    # models['M-α°-p°-u⁺-k°'] = Model(description="u larger", max_karma=max_carma_mid, urgency0=urgency_high,
+    #                                 alpha=alpha_mid, prob_high=p_mid,
+    #                                 **common)
 
     opts = {}
     # opts['o1-noreg-noself'] = Optimization(num_iterations=200,
@@ -950,14 +954,14 @@ def iterative_main():
                                          regularize_utility_monotone=True,
                                          regularize_marginal_utility_monotone=True
                                          )
-    opts['tmp'] = Optimization(num_iterations=200,
-                                         inertia=0.07,
-                                         energy_factor_schedule=(0.30, 0.45, 0.60, 0.65, 0.7, 0.8, 0.9, 0.95, 1),
-                                         diff_threshold=0.01,
-                                         consider_self_effect=False,
-                                         regularize_utility_monotone=True,
-                                         regularize_marginal_utility_monotone=True
-                                         )
+    # opts['tmp'] = Optimization(num_iterations=200,
+    #                                      inertia=0.07,
+    #                                      energy_factor_schedule=(0.30, 0.45, 0.60, 0.65, 0.7, 0.8, 0.9, 0.95, 1),
+    #                                      diff_threshold=0.01,
+    #                                      consider_self_effect=False,
+    #                                      regularize_utility_monotone=True,
+    #                                      regularize_marginal_utility_monotone=True
+    #                                      )
 
     # opts['o3-reg-self'] = Optimization(num_iterations=300,
     #                                    inertia=0.3,
@@ -1094,6 +1098,7 @@ def make_figures2(name: str, sim: Simulation, history: List[Iteration]) -> Repor
 
     f = r.figure('final', cols=4)
 
+
     last = history[-1]
     caption = """ Policy visualized as intensity (more red: agent more likely to choose message)
 %s """ % policy_as_string(sim.model, last.policy)
@@ -1101,19 +1106,19 @@ def make_figures2(name: str, sim: Simulation, history: List[Iteration]) -> Repor
     with f.plot('policy_last', caption=caption) as pylab:
 
         pylab.imshow(prepare_for_plot(last.policy.T))
-        pylab.xlabel('karma')
-        pylab.ylabel('message')
+        pylab.xlabel('Karma', size=tsize)
+        pylab.ylabel('Message', size=tsize)
         pylab.gca().invert_yaxis()
-        pylab.title(f'Policy [{name}]')
+        pylab.title(r'Policy with $\alpha$={}'.format(sim.model.alpha), size=tsize) # [{name}]')
 
     caption = """ Policy visualized as intensity (more red: agent more likely to choose message)
     %s """ % policy_as_string(sim.model, last.policy_inst)
     with f.plot('policy_last_inst', caption=caption) as pylab:
         pylab.imshow(prepare_for_plot(last.policy_inst.T))
-        pylab.xlabel('karma')
-        pylab.ylabel('message')
+        pylab.xlabel('Karma', size=tsize)
+        pylab.ylabel('Message', size=tsize)
         pylab.gca().invert_yaxis()
-        pylab.title(f'Policy inst [{name}]')
+        pylab.title(r'Policy with $\alpha$={}'.format(sim.model.alpha), size=tsize) # inst [{name}]')
 
     caption = """ Utilities visualized in false colors. Yellow = better."""
     if last.debug_utilities is not None:
@@ -1121,9 +1126,9 @@ def make_figures2(name: str, sim: Simulation, history: List[Iteration]) -> Repor
             # print(last.debug_utilities)
             pylab.imshow(last.debug_utilities.T)
             pylab.gca().invert_yaxis()
-            pylab.xlabel('karma')
-            pylab.ylabel('message')
-            pylab.title(f'Utilities [{name}]')
+            pylab.xlabel('Karma', size=tsize)
+            pylab.ylabel('Message', size=tsize)
+            pylab.title(f'Utilities', size=tsize) # [{name}]')
 
     if last.debug_utilities is not None:
         caption = 'Utility of sending a message for each type of agent'
@@ -1132,10 +1137,10 @@ def make_figures2(name: str, sim: Simulation, history: List[Iteration]) -> Repor
                 label = 'k=%d' % i if i in [0, sim.model.max_karma] else None
                 pylab.plot(last.debug_utilities[i, :], '*-', label=label)
 
-            pylab.ylabel('utility')
-            pylab.xlabel('message')
+            pylab.ylabel('Utility', size=tsize)
+            pylab.xlabel('Message', size=tsize)
             pylab.legend()
-            pylab.title(f'Utilities [{name}]')
+            pylab.title(f'Utilities', size=tsize) #[{name}]')
 
     caption = 'Policy visualized as plots; probability of sending each message for each type of agent.'
     with f.plot('policy_as_plots', caption=caption) as pylab:
@@ -1143,23 +1148,23 @@ def make_figures2(name: str, sim: Simulation, history: List[Iteration]) -> Repor
         for i in sim.model.valid_karma_values:
             label = 'k=%d' % i if i in [0, sim.model.max_karma] else None
             pylab.plot(last.policy[i, :], '*-', label=label)
-        pylab.xlabel('message')
-        pylab.ylabel('p(message)')
+        pylab.xlabel('Message', size=tsize)
+        pylab.ylabel('p(message)', size=tsize)
         pylab.legend()
-        pylab.title(f'Policy [{name}]')
+        pylab.title(r'Policy with $\alpha$={}'.format(sim.model.alpha), size=tsize) # [{name}]')
 
     if last.transitions is not None:
         caption = 'Transition matrix'
         with f.plot('transitions', caption=caption) as pylab:
             plot_transitions(pylab, last.transitions)
-            pylab.title(f'Transitions [{name}]')
+            pylab.title(f'Transitions', size=tsize) # [{name}]')
 
     caption = """ Karma stationary distribution. Computed as the equilibrium given the transition matrix. """
     with f.plot('karma_dist_last', caption=caption) as pylab:
         pylab.bar(sim.model.valid_karma_values, last.stationary_karma_pd)
-        pylab.xlabel('karma')
-        pylab.ylabel('probability')
-        pylab.title(f'Stationary karma [{name}]')
+        pylab.xlabel('Karma', size=tsize)
+        pylab.ylabel('Probability', size=tsize)
+        pylab.title(f'Stationary karma', size=tsize) # [{name}]')
 
     # with f.plot('karma_dist', caption=caption) as pylab:
     #     pylab.imshow(prepare_for_plot(make1d(last.stationary_karma_pd)))
@@ -1168,19 +1173,19 @@ def make_figures2(name: str, sim: Simulation, history: List[Iteration]) -> Repor
     #     pylab.title(f'Stationary karma [{name}]')
 
     caption = """ Expected utility as a function of karma possessed.  """
-    with f.plot('utility', caption=caption) as pylab:
+    with f.plot('Utility', caption=caption) as pylab:
         pylab.plot(last.utility, '*-')
-        pylab.xlabel('karma possessed')
-        pylab.ylabel('expected utility')
-        pylab.title(f'Expected utility [{name}]')
+        pylab.xlabel('Karma possessed', size=tsize)
+        pylab.ylabel('Expected utility', size=tsize)
+        pylab.title(f'Expected utility', size=tsize) # [{name}]')
 
     if last.expected_cost_today_per_karma is not None:
         caption = """ Expected cost today as a function of karma possessed.  """
         with f.plot('cost_today', caption=caption) as pylab:
             pylab.plot(last.expected_cost_today_per_karma, '*-')
-            pylab.xlabel('karma possessed')
-            pylab.ylabel('expected cost today')
-            pylab.title(f'Expected cost today [{name}]')
+            pylab.xlabel('Karma possessed', size=tsize)
+            pylab.ylabel('Expected cost today', size=tsize)
+            pylab.title(f'Expected cost today', size=tsize) # [{name}]')
 
     # with f.plot('utility_bar', caption=caption) as pylab:
     #     pylab.imshow((make1d(last.utility)))
@@ -1191,9 +1196,9 @@ def make_figures2(name: str, sim: Simulation, history: List[Iteration]) -> Repor
     with f.plot('utility_marginal', caption=caption) as pylab:
         marginal = np.diff(last.utility)
         pylab.plot(marginal, '*-')
-        pylab.xlabel('karma possessed')
-        pylab.ylabel('marginal utility of one unit of karma')
-        pylab.title(f'Marginal utility of karma [{name}]')
+        pylab.xlabel('Karma possessed', size=tsize)
+        pylab.ylabel('Marginal utility of one unit of karma', size=tsize)
+        pylab.title(f'Marginal utility of karma', size=tsize) # [{name}]')
 
     f = r.figure('history', cols=4)
     style = dict(alpha=0.5, linewidth=0.3)
@@ -1203,32 +1208,32 @@ def make_figures2(name: str, sim: Simulation, history: List[Iteration]) -> Repor
         x = [_.diff for _ in history]
         pylab.plot(iterations, x, '-', **style)
         pylab.plot(iterations, x, 'r.', markersize=0.1)
-        pylab.xlabel('iterations')
-        pylab.ylabel('delta policy')
+        pylab.xlabel('Iterations', size=tsize)
+        pylab.ylabel('Delta policy', size=tsize)
 
     with f.plot('global_utility', caption="Global utility (discounted)") as pylab:
         iterations = range(len(history))
         x = [_.global_utility for _ in history]
         pylab.plot(iterations, x, '-', **style)
         pylab.plot(iterations, x, 'r.', markersize=0.1)
-        pylab.xlabel('iterations')
-        pylab.ylabel('global utility')
+        pylab.xlabel('Iterations', size=tsize)
+        pylab.ylabel('Global utility', size=tsize)
 
     with f.plot('social_utility', caption="Social utility (not discounted)") as pylab:
         iterations = range(len(history))
         x = [_.social_utility for _ in history]
         pylab.plot(iterations, x, '-', **style)
         pylab.plot(iterations, x, 'r.', markersize=0.1)
-        pylab.xlabel('iterations')
-        pylab.ylabel('social utility')
+        pylab.xlabel('Iterations', size=tsize)
+        pylab.ylabel('Social utility', size=tsize)
 
     with f.plot('social_vs_global') as pylab:
         x = [_.social_utility for _ in history][1:]
         y = [_.global_utility for _ in history][1:]
         pylab.plot(x, y, '-', **style)
         pylab.plot(x, y, 'r.', markersize=0.1)
-        pylab.xlabel('social utility')
-        pylab.ylabel('global utility')
+        pylab.xlabel('Social utility', size=tsize)
+        pylab.ylabel('Global utility', size=tsize)
     # with f.plot('social_vs_global2') as pylab:
     #     x = [_.social_utility for _ in history][1:]
     #     y = [_.global_utility for _ in history][1:]
@@ -1243,16 +1248,16 @@ def make_figures2(name: str, sim: Simulation, history: List[Iteration]) -> Repor
         y = [_.global_utility for _ in history][1:]
         pylab.plot(x, y, '-', **style)
         pylab.plot(x, y, 'r.', markersize=0.1)
-        pylab.xlabel('delta policy (stability)')
-        pylab.ylabel('global utility')
+        pylab.xlabel('Delta policy (stability)', size=tsize)
+        pylab.ylabel('Global utility', size=tsize)
 
     with f.plot('average_karma', caption="Average karma. Should be constant. Quantifies numerical errors") as pylab:
         iterations = range(len(history))
         x = [_.average_karma for _ in history]
         pylab.plot(iterations, x, '-', **style)
         pylab.plot(iterations, x, 'r.', markersize=0.1)
-        pylab.xlabel('iterations')
-        pylab.ylabel('average karma')
+        pylab.xlabel('Iterations', size=tsize)
+        pylab.ylabel('Average karma', size=tsize)
 
     crucial = [0]
     for i in range(len(history) - 1):
@@ -1267,10 +1272,10 @@ def make_figures2(name: str, sim: Simulation, history: List[Iteration]) -> Repor
         s = policy_as_string(sim.model, it.policy)
         with f.plot(name + '-p', caption='ef = %.2f; %s' % (it.energy_factor, s)) as pylab:
             pylab.imshow(prepare_for_plot(it.policy.T))
-            pylab.xlabel('karma')
-            pylab.ylabel('message')
+            pylab.xlabel('Karma', size=tsize)
+            pylab.ylabel('Message', size=tsize)
             pylab.gca().invert_yaxis()
-            pylab.title(f'policy at it = {i} ef = {it.energy_factor}')
+            pylab.title(r'Policy with $\alpha$={}'.format(sim.model.alpha), size=tsize) # at it = {i} ef = {it.energy_factor}')
 
     for i in crucial:
         it = history[i]
@@ -1278,10 +1283,10 @@ def make_figures2(name: str, sim: Simulation, history: List[Iteration]) -> Repor
         s = policy_as_string(sim.model, it.policy)
         with f.plot(name + '-pi', caption='ef = %.2f; %s' % (it.energy_factor, s)) as pylab:
             pylab.imshow(prepare_for_plot(it.policy_inst.T))
-            pylab.xlabel('karma')
-            pylab.ylabel('message')
+            pylab.xlabel('Karma', size=tsize)
+            pylab.ylabel('Message', size=tsize)
             pylab.gca().invert_yaxis()
-            pylab.title(f'policy at it = {i} ef = {it.energy_factor}')
+            pylab.title(r'Policy with $\alpha$={}'.format(sim.model.alpha), size=tsize) # at it = {i} ef = {it.energy_factor}')
 
     for i in crucial:
         it = history[i]
@@ -1294,10 +1299,10 @@ def make_figures2(name: str, sim: Simulation, history: List[Iteration]) -> Repor
             else:
                 pylab.plot(0, 0)
 
-        pylab.ylabel('utility')
-        pylab.xlabel('message')
+        pylab.ylabel('Utility', size=tsize)
+        pylab.xlabel('Message', size=tsize)
 
-        pylab.title(f'utilities at it = {i} ef = {it.energy_factor}')
+        pylab.title(f'Utilities', size=tsize) # at it = {i} ef = {it.energy_factor}')
 
     for i in crucial:
         it = history[i]
@@ -1305,9 +1310,9 @@ def make_figures2(name: str, sim: Simulation, history: List[Iteration]) -> Repor
 
         with f.plot(name + '-k', caption='ef = %.2f' % it.energy_factor) as pylab:
             pylab.bar(sim.model.valid_karma_values, it.stationary_karma_pd)
-            pylab.xlabel('karma')
-            pylab.ylabel('probability')
-            pylab.title(f'stationary karma at it = {i} ef = {it.energy_factor}')
+            pylab.xlabel('Karma', size=tsize)
+            pylab.ylabel('Probability', size=tsize)
+            pylab.title(f'Stationary karma', size=tsize) # at it = {i} ef = {it.energy_factor}')
 
     # history = history[:10]
     # f = r.figure('history', cols=2)
@@ -1347,8 +1352,8 @@ def make_figures2(name: str, sim: Simulation, history: List[Iteration]) -> Repor
 def plot_transitions(pylab, transitions):
     pylab.imshow(prepare_for_plot(transitions.T))
     pylab.gca().invert_yaxis()
-    pylab.xlabel('karma ')
-    pylab.ylabel('karma next')
+    pylab.xlabel('Karma', size=tsize)
+    pylab.ylabel('Karma next', size=tsize)
 
 
 def prepare_for_plot(M):

@@ -13,3 +13,7 @@ collect: build
 carma-compute-equilibria: build
 	mkdir -p experiments
 	docker run --rm --user $$(id -u) -it -v $(PWD)/experiments:$(PWD)/experiments -w $(PWD)/experiments  rc carma-compute-equilibria all
+
+carma-overview: build
+		mkdir -p experiments
+		docker run --rm --user $$(id -u) -it -v $(PWD)/experiments:$(PWD)/experiments -w $(PWD)/experiments  rc carma-overview
