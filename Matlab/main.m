@@ -23,6 +23,12 @@ param.U = 3;
 % Number of agents in one intersection
 param.I_size = 2;
 
+% Number of agents that pass
+param.num_p = 1;
+
+% Number of agents that get delayed
+param.num_d = param.I_size - param.num_p;
+
 % Number of iterations to run simulation
 param.num_iter = 10000;
 
@@ -91,201 +97,104 @@ for t = 1 : param.num_iter
     % Choose an agent to pass uniformly at random
     p = I(ceil(rand(1) * length(I)));
     
-    % Agent that passed incurs no cost. All other agents incur cost that
-    % equals their utilities
+    % Agents incur cost equal to their urgency, except passing agent
     c_rand(t,I) = u;
     c_rand(t,p) = 0;
     
     %% Centralized policy 1 - minimize W1, coin-flip if tie
     % Find agent(s) with max urgency, which are candidates for passing
-    u_temp = u;
-    [max_v, max_i] = max(u_temp);
-    p_max_u = I(max_i);
-    u_temp(max_i) = -realmax;
-    [next_max_v, max_i] = max(u_temp);
-    while next_max_v == max_v
-        p_max_u = [p_max_u, I(max_i)];
-        u_temp(max_i) = -realmax;
-        [next_max_v, max_i] = max(u_temp);
-    end
+    [~, p_i] = multi_maxes(u);
+    p_max_u = I(p_i);
     
     % Now choose an agent uniformly at random if there are multiple.
-    % Note that index 1 results if there is only one
-    p = p_max_u(ceil(rand(1) * length(p_max_u)));
+    num_max_u = length(p_max_u);
+    if num_max_u > 1
+        p = p_max_u(ceil(rand(1) * num_max_u));
+    else
+        p = p_max_u;
+    end
     
-    % Agent that passed incurs no cost. All other agents incur cost that
-    % equals their utilities
+    % Agents incur cost equal to their urgency, except passing agent
     c_1(t,I) = u;
     c_1(t,p) = 0;
     
     %% Centralized policy 2 - minimize W2, coin-flip if tie
-    % Find agent(s) with max accumulated cost plus urgency, which are
-    % candidates for passing
-    a_u_temp = sum(c_2(1:t,I)) + u;
-    [max_v, max_i] = max(a_u_temp);
-    p = I(max_i);
-    a_u_temp(max_i) = -realmax;
-    [next_max_v, max_i] = max(a_u_temp);
-    while next_max_v == max_v
-        p = [p, I(max_i)];
-        a_u_temp(max_i) = -realmax;
-        [next_max_v, max_i] = max(a_u_temp);
-    end
+    % Agent with maximum accumulated cost (counting current urgency) passes
+    a_u = sum(c_2(1:t,I)) + u;
+    [~, p_i] = multi_max(a_u);
+    p = I(p_i);
     
-    % Now choose an agent uniformly at random if there are multiple.
-    % Note that index 1 results if there is only one
-    p = p(ceil(rand(1) * length(p)));
-    
-    % Agent that passed incurs no cost. All other agents incur cost that
-    % equals their utilities
+    % Agents incur cost equal to their urgency, except passing agent
     c_2(t,I) = u;
     c_2(t,p) = 0;
     
     %% Centralized policy 1_2 - minimize W1, choose W2 minimizer on tie
     % Agent(s) with max urgency, which are candidates for passing, were
     % already found in first step of centralized policy 1
-    if length(p_max_u) > 1
-        p_ind = [];
-        for i = 1 : length(p_max_u)
-            p_ind = [p_ind, find(I == p_max_u(i))];
+    % If there are multiple agents with max urgency, pick on based on
+    % accumulated cost like in centralized policy 2
+    if num_max_u > 1
+        p_ind = zeros(1, num_max_u);
+        for i = 1 : num_max_u
+            p_ind(i) = find(I == p_max_u(i));
         end
-        a_u_temp = sum(c_1_2(1:t,p_max_u)) + u(p_ind);
-        [max_v, max_i] = max(a_u_temp);
-        p = p_max_u(max_i);
-        a_u_temp(max_i) = -realmax;
-        [next_max_v, max_i] = max(a_u_temp);
-        while next_max_v == max_v
-            p = [p, p_max_u(max_i)];
-            a_u_temp(max_i) = -realmax;
-            [next_max_v, max_i] = max(a_u_temp);
-        end
-
-        % Now choose an agent uniformly at random if there are multiple.
-        % Note that index 1 results if there is only one
-        p = p(ceil(rand(1) * length(p)));
+        a_u = sum(c_1_2(1:t,p_max_u)) + u(p_ind);
+        [~, p_i] = multi_max(a_u);
+        p = p_max_u(p_i);
     else
         p = p_max_u;
     end
     
-    % Agent that passed incurs no cost. All other agents incur cost that
-    % equals their utilities
+    % Agents incur cost equal to their urgency, except passing agent
     c_1_2(t,I) = u;
     c_1_2(t,p) = 0;
     
     %% Bid 1 always policy
     % Agents simply bid all their karma, less the minimum allowed level (if
     % applicable)
-    k = k_bid_1(t,I) - param.k_min;
+    m = k_bid_1(t,I) - param.k_min;
     
-    % Determine winning bid
-    k_temp = k;
-    [max_v, max_i] = max(k_temp);
-    win_i = max_i;
-    k_temp(max_i) = -realmax;
-    [next_max_v, max_i] = max(k_temp);
-    while next_max_v == max_v
-        win_i = [win_i, max_i];
-        k_temp(max_i) = -realmax;
-        [next_max_v, max_i] = max(k_temp);
-    end
+    % Agent bidding max karma passes and pays karma bidded
+    [m_p, p_i] = multi_max(m);
+    p = I(p_i);
     
-    % Now choose an agent uniformly at random if there are multiple.
-    % Note that index 1 results if there is only one
-    win_i = win_i(ceil(rand(1) * length(win_i)));
-    p = I(win_i);
-    
-    % Agent that passed incurs no cost. All other agents incur cost that
-    % equals their utilities
+    % Agents incur cost equal to their urgency, except passing agent
     c_bid_1(t,I) = u;
     c_bid_1(t,p) = 0;
     
-    % Determine agents that will be delayed. They will be getting karma
-    d = I;
-    d(win_i) = [];
+    % Get delayed agents. They will be getting karma
+    d = get_d(I, p_i);
     
-    % Update karma values
+    % Update karma
     if t < param.num_iter
-        % Determine karma payment from passing agent to each of delayed
-        % agents
-        % Candidate karma paid by passing agent
-        k_p = k(win_i);
-        % Distribute karma evenly over delayed agents. If an agent will max
-        % out their karma, tough luck!
-        k_d = zeros(1, length(d));
-        for i = 1 : length(d)
-            k_d(i) = min([floor(k_p / length(d)), param.k_max - k_bid_1(t,d(i))]);
-        end
-        % Sum back the total karma distributed, which takes into account
-        % delayed agents for which karma will saturate. This is the final
-        % total paid by passing agent
-        k_p = sum(k_d);
-        
-        % Initialize next karma values to current karma values
+        [k_p, k_d] = get_karma_payments(m_p, d, k_bid_1(t,:), param);
         k_bid_1(t+1,:) = k_bid_1(t,:);
-        
-        % Agent that passes loses karma
         k_bid_1(t+1,p) = k_bid_1(t+1,p) - k_p;
-        
-        % Agents that are delayed get karma
         k_bid_1(t+1,d) = k_bid_1(t+1,d) + k_d;
     end
     
     %% Bid 1 if urgent policy
     % Agents bid all their karma, less the minimum allowed level (if
     % applicable), if they are urgent
-    k = k_bid_1_u(t,I) - param.k_min;
-    k(u == 0) = 0;
+    m = k_bid_1_u(t,I) - param.k_min;
+    m(u == 0) = 0;
     
-    % Determine winning bid
-    k_temp = k;
-    [max_v, max_i] = max(k_temp);
-    win_i = max_i;
-    k_temp(max_i) = -realmax;
-    [next_max_v, max_i] = max(k_temp);
-    while next_max_v == max_v
-        win_i = [win_i, max_i];
-        k_temp(max_i) = -realmax;
-        [next_max_v, max_i] = max(k_temp);
-    end
+    % Agent bidding max karma passes and pays karma bidded
+    [m_p, p_i] = multi_max(m);
+    p = I(p_i);
     
-    % Now choose an agent uniformly at random if there are multiple.
-    % Note that index 1 results if there is only one
-    win_i = win_i(ceil(rand(1) * length(win_i)));
-    p = I(win_i);
-    
-    % Agent that passed incurs no cost. All other agents incur cost that
-    % equals their utilities
+    % Agents incur cost equal to their urgency, except passing agent
     c_bid_1_u(t,I) = u;
     c_bid_1_u(t,p) = 0;
     
-    % Determine agents that will be delayed. They will be getting karma
-    d = I;
-    d(win_i) = [];
+    % Get delayed agents. They will be getting karma
+    d = get_d(I, p_i);
     
-    % Update karma values
+    % Update karma
     if t < param.num_iter
-        % Determine karma payment from passing agent to each of delayed
-        % agents
-        % Candidate karma paid by passing agent
-        k_p = k(win_i);
-        % Distribute karma evenly over delayed agents. If an agent will max
-        % out their karma, tough luck!
-        k_d = zeros(1, length(d));
-        for i = 1 : length(d)
-            k_d(i) = min([floor(k_p / length(d)), param.k_max - k_bid_1_u(t,d(i))]);
-        end
-        % Sum back the total karma distributed, which takes into account
-        % delayed agents for which karma will saturate. This is the final
-        % total paid by passing agent
-        k_p = sum(k_d);
-        
-        % Initialize next karma values to current karma values
+        [k_p, k_d] = get_karma_payments(m_p, d, k_bid_1_u(t,:), param);
         k_bid_1_u(t+1,:) = k_bid_1_u(t,:);
-        
-        % Agent that passes loses karma
         k_bid_1_u(t+1,p) = k_bid_1_u(t+1,p) - k_p;
-        
-        % Agents that are delayed get karma
         k_bid_1_u(t+1,d) = k_bid_1_u(t+1,d) + k_d;
     end
 end
@@ -788,6 +697,52 @@ axes.YLabel.FontSize = 14;
 fprintf('DONE\n\n');
 
 %% Helper functions
+% Returns all maximizers (if there are multiple)
+function [max_v, max_i] = multi_maxes(input)
+    [max_v, max_i] = max(input);
+    input(max_i) = -realmax;
+    [next_max_v, next_max_i] = max(input);
+    while next_max_v == max_v
+        max_i = [max_i, next_max_i];
+        input(next_max_i) = -realmax;
+        [next_max_v, next_max_i] = max(input);
+    end
+end
+
+% Checks if there are multiple maximizers and returns one uniformly at
+% random
+function [max_v, max_i] = multi_max(input)
+    % Get maximizers
+    [max_v, max_i] = multi_maxes(input);
+    % Choose one uniformly at random if there are multiple
+    num_max = length(max_i);
+    if num_max > 1
+        max_i = max_i(ceil(rand(1) * num_max));
+    end
+end
+
+% Gets delayed agents given index of passing agent
+function d = get_d(I, p_i)    
+    d = I;
+    d(p_i) = [];
+end
+
+% Gets karma paid by passing agent to delayed agents
+function [k_p, k_d] = get_karma_payments(m_p, d, curr_k, param)
+    % Distribute karma evenly over delayed agents. If an agent will max
+    % out their karma, tough luck!
+    k_p_per_d = floor(m_p / param.num_d);
+    k_d = zeros(1, param.num_d);
+    for i = 1 : param.num_d
+        k_d(i) = min([k_p_per_d, param.k_max - curr_k(d(i))]);
+    end
+    % Sum back the total karma distributed, which takes into account
+    % delayed agents for which karma will saturate. This is the final
+    % total paid by passing agent
+    k_p = sum(k_d);
+end
+
+% Sets axis limit 'scale' above/below min-max values
 function axis_semi_tight(ax, scale)
     axis tight; % Set axis tight
     % x limits
@@ -806,6 +761,7 @@ function axis_semi_tight(ax, scale)
     ylim(ax, yl);
 end
 
+% Sets y-axis limit 'scale' above/below min-max values
 function y_semi_tight(ax, scale)
     axis tight; % Set axis tight
     yl = ylim(ax); % Get tight axis limits
