@@ -390,15 +390,15 @@ c_bid_1_u_cumsum_std = (c_bid_1_u_cumsum - W1_bid_1_u) ./ sqrt(W2_bid_1_u);
 c_bid_all_cumsum_std = (c_bid_all_cumsum - W1_bid_all) ./ sqrt(W2_bid_all);
 c_bid_all_u_cumsum_std = (c_bid_all_u_cumsum - W1_bid_all_u) ./ sqrt(W2_bid_all_u);
 
-% Get correlations
-[c_rand_cumsum_corr, corr_tau] = correlation(c_rand_cumsum_std);
-c_1_cumsum_corr = correlation(c_1_cumsum_std);
-c_2_cumsum_corr = correlation(c_2_cumsum_std);
-c_1_2_cumsum_corr = correlation(c_1_2_cumsum_std);
-c_bid_1_cumsum_corr = correlation(c_bid_1_cumsum_std);
-c_bid_1_u_cumsum_corr = correlation(c_bid_1_u_cumsum_std);
-c_bid_all_cumsum_corr = correlation(c_bid_all_cumsum_std);
-c_bid_all_u_cumsum_corr = correlation(c_bid_all_u_cumsum_std);
+% Get autocorrelations
+[c_rand_cumsum_acorr, acorr_tau] = autocorrelation(c_rand_cumsum_std);
+c_1_cumsum_acorr = autocorrelation(c_1_cumsum_std);
+c_2_cumsum_acorr = autocorrelation(c_2_cumsum_std);
+c_1_2_cumsum_acorr = autocorrelation(c_1_2_cumsum_std);
+c_bid_1_cumsum_acorr = autocorrelation(c_bid_1_cumsum_std);
+c_bid_1_u_cumsum_acorr = autocorrelation(c_bid_1_u_cumsum_std);
+c_bid_all_cumsum_acorr = autocorrelation(c_bid_all_cumsum_std);
+c_bid_all_u_cumsum_acorr = autocorrelation(c_bid_all_u_cumsum_std);
 
 %% Scatter plot - Inefficiency vs Unfairness
 figure(fg);
@@ -1355,25 +1355,25 @@ axes.YLabel.FontSize = 12;
 % axes.YLabel.String = 'Frequency';
 % axes.YLabel.FontSize = 12;
 
-%% Time-correlation of accumulated costs
+%% Autocorrelation of accumulated costs
 figure(fg);
 fg = fg + 1;
 fig = gcf;
 fig.Position = [mod(fg,2)*default_width, default_height/2, default_width, default_height];
-plot(corr_tau, c_rand_cumsum_corr);
+plot(acorr_tau, c_rand_cumsum_acorr);
 hold on;
-plot(corr_tau, c_1_cumsum_corr);
-plot(corr_tau, c_2_cumsum_corr);
-plot(corr_tau, c_1_2_cumsum_corr);
-plot(corr_tau, c_bid_1_cumsum_corr);
-plot(corr_tau, c_bid_1_u_cumsum_corr);
-plot(corr_tau, c_bid_all_cumsum_corr);
-plot(corr_tau, c_bid_all_u_cumsum_corr);
-stem(0, c_rand_cumsum_corr(corr_tau == 0));
+plot(acorr_tau, c_1_cumsum_acorr);
+plot(acorr_tau, c_2_cumsum_acorr);
+plot(acorr_tau, c_1_2_cumsum_acorr);
+plot(acorr_tau, c_bid_1_cumsum_acorr);
+plot(acorr_tau, c_bid_1_u_cumsum_acorr);
+plot(acorr_tau, c_bid_all_cumsum_acorr);
+plot(acorr_tau, c_bid_all_u_cumsum_acorr);
+stem(0, c_rand_cumsum_acorr(acorr_tau == 0));
 axes = gca;
 axis tight;
 axes.Title.Interpreter = 'latex';
-axes.Title.String = 'Correlation over time';
+axes.Title.String = 'Autocorrelation of accumulated costs';
 axes.Title.FontSize = 18;
 axes.XAxis.TickLabelInterpreter = 'latex';
 axes.XAxis.FontSize = 10;
@@ -1384,7 +1384,7 @@ axes.XLabel.Interpreter = 'latex';
 axes.XLabel.String = 'Time shift';
 axes.XLabel.FontSize = 14;
 axes.YLabel.Interpreter = 'latex';
-axes.YLabel.String = 'Correlation';
+axes.YLabel.String = 'Autocorrelation';
 axes.YLabel.FontSize = 14;
 lgd = legend(lgd_text);
 lgd.Interpreter = 'latex';
@@ -1438,6 +1438,20 @@ function [k_p, k_d] = get_karma_payments(m_p, d, curr_k, param)
     % delayed agents for which karma will saturate. This is the final
     % total paid by passing agent
     k_p = sum(k_d);
+end
+
+% Computes the autocorrelation of signal
+function [acorr, tau] = autocorrelation(input)
+    T = size(input, 1);
+    N = size(input, 2);
+    center_t = ceil(T / 2);
+    tau = -center_t + 1 : 1 : center_t;
+    mult_mat = input * input.';
+    acorr = zeros(1, T);
+    for i = 1 : T
+        acorr(i) = sum(diag(mult_mat, tau(i)));
+    end
+    acorr = acorr ./ ((T - abs(tau)) * N);
 end
 
 % Computes the correlation of a signal over time
