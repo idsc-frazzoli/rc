@@ -11,93 +11,25 @@ default_height = screenheight / 2;
 fg = 1;
 
 %% Fix rung for randomization
-rng(1);
+rng(0);
 
 %% Code control bits
 % Autocorrelation takes long time to compute
 control.compute_autocorrelation = true;
 
 % Flag to simulate centralized limited memory policies
-control.lim_mem_policies = true;
+control.lim_mem_policies = false;
 
 % Flag to simulate heuristic karma policies
-control.karma_heuristic_policies = false;
+control.karma_heuristic_policies = true;
+
 %% Parameters
-% Population size
-param.N = 200;
-
-% Discrete urgency level
-param.U = 3;
-
-% Number of agents in one intersection
-param.I_size = 2;
-
-% Number of agents that pass
-param.num_p = 1;
-
-% Number of agents that get delayed
-param.num_d = param.I_size - param.num_p;
-
-% Number of iterations to run simulation
-param.num_iter = 10000;
-
-if control.lim_mem_policies
-    % Limited memory policies steps
-    param.lim_mem_steps = [1 : 1 : 10, 20 : 10 : 100];
-
-    % Limited memory number of steps
-    param.lim_mem_num_steps = length(param.lim_mem_steps);
-end
-
-% Minimum karma level
-param.k_min = 0;
-
-% Maximum karma level
-param.k_max = 12;
-
-% %% Karma Nash equilibrium policy calculation
-% % Vector of all karma values
-% k = param.k_min : 1 : param.k_max;
-% num_k = length(k);
-% 
-% % Policy function, parametrized as a (num_k x num_k) matrix. Entry (i,j)
-% % denotes probability of transmitting message i when karma level is j. Note
-% % that columns must sum to 1
-% % Initialize to the identity, which is equivalent to bid-all-if-urgent
-% % (alpha = 0)
-% pie = eye(num_k);
-% 
-% % Stationary distribution, parametrized as a vector with num_k cols.
-% % Note that it sums to 1
-% % Initialize to uniform distribution 
-% D = 1 / num_k * ones(1, num_k);
-% 
-% % Utility function, parametrized as a vector with num_k cols
-% % Initialize to zero
-% theta = zeros(1, num_k);
-% 
-% % k_next cell of matrices. Each matrix corresponds to a current karma level
-% % Matrix describes agent 1's next karma in terms of agent 1 (rows) and
-% % agent 2 (cols) bids. Note that agent is only allowed to bid up to current
-% % karma level, which is why matrices in cell have different number of rows
-% k_next = cell(1, num_k);
-% for i_1 = 1 : num_k
-%     k_curr = k(i_1);
-%     k_next{i_1} = zeros(i_1, num_k);
-%     for i_2 = 1 : i_1
-%         for i_3 = 1 : num_k
-%             if k(i_2) < k(i_3)  % Agent i receives karma, up to max level
-%                 k_next{i_1}(i_2,i_3) = min([k_curr + k(i_3), param.k_max]);
-%             elseif k(i_2) > k(i_3) % Agent i pays karma
-%                 k_next{i_1}(i_2,i_3) = k_curr - k(i_2);
-%             else                    % Agent
-%                 k_next{i_1}(i_2,i_3) = k_curr;
-%             end
-%         end
-%     end
-% end
+param = load_parameters();
 
 %% Simulation initialization
+% Populatin of agent indices to sample from
+population = 1 : param.N;
+
 % Cost matrices for different policies
 % Row => Time step
 % Col => Agent
@@ -163,11 +95,20 @@ for t = 1 : param.num_iter
     % Tell user where we are
     fprintf('t = %d\n', t);
     
-    % Pick vehicles i & j uniformly at random
-    % Make sure vehicles are unique!
-    I = ceil(rand(1, param.I_size) * param.N);
-    while length(I) ~= length(unique(I))
-        I = ceil(rand(1, param.I_size) * param.N);
+    if ~param.same_num_inter
+        % Sample agents i & j uniformly at random
+        I = randsample(population, param.I_size);
+    else
+        % If all population has been sampled, re-fill population
+        if isempty(population)
+            population = 1 : param.N;
+        end
+        % Sample agents i & j uniformly at random and remove them from
+        % population
+        I = randsample(population, param.I_size);
+        for i = 1 : param.I_size
+            population(population == I(i)) = [];
+        end
     end
     
     % Increment number of intersections for picked agents
@@ -376,6 +317,28 @@ if control.karma_heuristic_policies
     c_bid_1_u_cumsum = cumsum(c_bid_1_u);
     c_bid_all_cumsum = cumsum(c_bid_all);
     c_bid_all_u_cumsum = cumsum(c_bid_all_u);
+end
+
+% If number of interactions per agent is fixed, true time is interprated as
+% the time after which all agents have participated in an interaction
+if param.same_num_inter
+    actual_t = param.num_inter_in_N : param.num_inter_in_N : param.num_iter;
+    num_inter = num_inter(actual_t,:);
+    c_rand_cumsum = c_rand_cumsum(actual_t,:);
+    c_1_cumsum = c_1_cumsum(actual_t,:);
+    c_2_cumsum = c_2_cumsum(actual_t,:);
+    c_1_2_cumsum = c_1_2_cumsum(actual_t,:);
+    if control.lim_mem_policies
+        for i = 1 : param.lim_mem_num_steps
+            c_lim_mem_cumsum{i} = c_lim_mem_cumsum{i}(actual_t,:);
+        end
+    end
+    if control.karma_heuristic_policies
+        c_bid_1_cumsum = c_bid_1_cumsum(actual_t,:);
+        c_bid_1_u_cumsum = c_bid_1_u_cumsum(actual_t,:);
+        c_bid_all_cumsum = c_bid_all_cumsum(actual_t,:);
+        c_bid_all_u_cumsum = c_bid_all_u_cumsum(actual_t,:);
+    end
 end
 
 % Cumulative costs per agent at each time step, normalized by their
@@ -1167,7 +1130,7 @@ fig.Position = [mod(fg,2)*default_width, default_height/2, default_width, defaul
 plot(num_inter);
 hold on;
 mean_num_inter = mean(num_inter, 2);
-plot(mean_num_inter, 'Linewidth', 10);
+plot(mean_num_inter, 'Linewidth', 3);
 axes = gca;
 axis tight;
 axes.Title.Interpreter = 'latex';
