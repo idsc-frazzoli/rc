@@ -54,65 +54,34 @@ const.alpha = 0.8;
 const.tol = 1e-3;
 
 % Maximum number of iterations
-const.max_iter = 1000000;
+const.max_iter = 1000;
 
 %% Karma Nash equilibrium policy calculation
 % Policy function, parametrized as a (num_k x num_k) matrix. Entry (i,j)
 % denotes probability of transmitting message k(j) when karma level is
 % k(i). Note that rows must sum to 1
-% Initialize to the identity, which is equivalent to bid-all-if-urgent
-% (alpha = 0)
-policy = cell(const.num_k, 1);
-% for i_k_i = 1 : const.num_k
-%     policy{i_k_i} = rand(1, i_k_i);
-%     policy{i_k_i} = policy{i_k_i} / sum(policy{i_k_i});
-% end
-for i_k_i = 1 : const.num_k
-    policy{i_k_i} = zeros(1, i_k_i);
-end
-policy{1}(1) = 1;
-policy{2}(2) = 1;
-policy{3}(2) = 1;
-policy{4}(2) = 1;
-policy{5}(3) = 1;
-policy{6}(3) = 1;
-policy{7}(3) = 1;
-policy{8}(4) = 1;
-policy{9}(4) = 1;
-policy{10}(4) = 1;
-policy{11}(5) = 1;
-policy{12}(5) = 1;
-policy{13}(5) = 1;
+% Initialize to identity
+% policy = cell(const.num_k, 1);
 % for i_k_i = 1 : const.num_k
 %     policy{i_k_i} = zeros(1, i_k_i);
 %     policy{i_k_i}(i_k_i) = 1;
 % end
+load('policy.mat');
+
+% Indicate to user where we are
+fprintf("Policy: %d", const.k(policy{1}==1));
+for i_k_i = 2 : const.num_k
+    fprintf("->%d", const.k(policy{i_k_i}==1));
+end
+fprintf("\n");
 
 % Stationary distribution, parametrized as a vector with num_k cols.
 % Note that it sums to 1
 % Initialize uniformly at random
-% D = rand(const.num_k, 1);
-D = zeros(const.num_k, 1);
-D(1) = 0.02;
-D(2) = 0.04;
-D(3) = 0.1;
-D(4) = 0.08;
-D(5) = 0.14;
-D(6) = 0.11;
-D(7) = 0.11;
-D(8) = 0.09;
-D(9) = 0.1;
-D(10) = 0.05;
-D(11) = 0.04;
-D(12) = 0.03;
-D(13) = 0.08;
+D = rand(const.num_k, 1);
 D = D / sum(D);
 
-% Utility function, parametrized as a vector with num_k cols
-% Initialize to zero
-theta = zeros(const.num_k, 1);
-
-%% Iterative algorithm to find Nash Equilibrium
+%% First iteration
 % Step 1: Compute T from policy and D
 T = get_T(policy, D, const, param);
 
@@ -125,7 +94,7 @@ while norm(D - D_next, inf) > const.tol && num_iter_D_T < const.max_iter
     D = D_next;
     T = get_T(policy, D, const, param);
     D_next = get_D(T, const);
-    
+
     num_iter_D_T = num_iter_D_T + 1;
 end
 
@@ -133,7 +102,7 @@ end
 c = get_c(policy, D, const, param);
 
 % Step 5: Compute theta from T and c
-theta = (eye(const.num_k) - const.alpha * get_T(policy, D, const, param)) \ c;
+theta = (eye(const.num_k) - const.alpha * T) \ c;
 
 % Step 6: Compute rho, the expected utility for each of agent i's
 % karma-bid pair, from policy, D and theta
@@ -142,22 +111,45 @@ rho = get_rho(policy, D, theta, const, param);
 % Step 7: Update policy, which is minimzer of rho
 policy_next = get_policy(rho, const);
 
-% Step 8: Repeat all steps above until policy converges
+% Step 8: Calculate error in policies
 policy_error = policy_norm(policy, policy_next, inf);
 num_iter = 0;
-while policy_error > const.tol && num_iter < const.max_iter
-    % Display status
-    fprintf('Iteration %d policy error %f\n', num_iter, policy_error);
+
+%% Iterate over all 'diagonal' pure policies to find Nash Equilibrium
+while policy_error > const.tol
+    % 'Step down' the diagonal of policy
+    for i_k_i = const.num_k : -1 : 2
+        i_m_i = find(policy{i_k_i} == 1);
+        i_m_i_prev = find(policy{i_k_i-1} == 1);
+        if i_m_i > i_m_i_prev
+            policy{i_k_i}(i_m_i) = 0;
+            policy{i_k_i}(i_m_i-1) = 1;
+            for i_k_i_2 = i_k_i + 1 : const.num_k
+                policy{i_k_i_2} = zeros(1, i_k_i_2);
+                policy{i_k_i_2}(i_k_i_2) = 1;
+            end
+            break;
+        end
+    end
     
-    policy = policy_next;
+    % Indicate to user where we are
+    fprintf("Policy: %d", const.k(policy{1}==1));
+    for i_k_i = 2 : const.num_k
+        fprintf("->%d", const.k(policy{i_k_i}==1));
+    end
+    fprintf("\n");
     
-    % Step 6-1: Compute T from policy and D
+    % Re-initialize D
+    D = rand(const.num_k, 1);
+    D = D / sum(D);
+
+    % Step 1: Compute T from policy and D
     T = get_T(policy, D, const, param);
 
-    % Step 6-2: Update D from T
+    % Step 2: Update D from T
     D_next = get_D(T, const);
 
-    % Step 6-3: Repeat steps 3-4 until (D,T) pair converge
+    % Step 3: Repeat steps 3-4 until (D,T) pair converge
     num_iter_D_T = 0;
     while norm(D - D_next, inf) > const.tol && num_iter_D_T < const.max_iter
         D = D_next;
@@ -167,21 +159,28 @@ while policy_error > const.tol && num_iter < const.max_iter
         num_iter_D_T = num_iter_D_T + 1;
     end
 
-    % Step 6-4: Compute expected current stage cost from policy and D
+    % Step 4: Compute expected current stage cost from policy and D
     c = get_c(policy, D, const, param);
-    
-    % Step 6-5: Compute theta from T and c
+
+    % Step 5: Compute theta from T and c
     theta = (eye(const.num_k) - const.alpha * T) \ c;
-    
-    % Step 6-6: Compute rho, the expected utility for each of agent i's
+
+    % Step 6: Compute rho, the expected utility for each of agent i's
     % karma-bid pair, from policy, D and theta
     rho = get_rho(policy, D, theta, const, param);
 
-    % Step 6-7: Update policy, which is minimzer of rho
+    % Step 7: Update policy, which is minimzer of rho
     policy_next = get_policy(rho, const);
     
+    % Step 8: Calculate error in policies
     policy_error = policy_norm(policy, policy_next, inf);
     num_iter = num_iter + 1;
+    
+    % Termination condition - cannot step down diagonal anymore if max
+    % karma level is bidding no karma
+    if find(policy{const.num_k} == 1) == 1
+        break;
+    end
 end
 
 %% Helper functions
@@ -243,70 +242,17 @@ function T = get_T(policy, D, const, param)
     end
 end
 
-% function T = get_other_T(policy, D, const, param)
-%     % T is the transition probability matrix with num_k x num_k entries.
-%     % Entry T(i_k_i,i_next_k_i) denotes probability of agent i's karma
-%     % level transitioning from k(i_k_i) to k(i_next_k_i).
-%     T = zeros(const.num_k);
-%     for i_k_i = 1 : const.num_k
-%         for i_next_k_i = 1 : const.num_k
-%             % Expectation over u_i
-%             for u_i = param.U
-%                 p_u_i = 1;
-%                 % Expectation over m_i
-%                 for i_m_i = 1 : i_k_i
-%                     if u_i == 0
-%                         p_m_i = (const.k(i_m_i) == 0);
-%                     else
-%                         p_m_i = policy{i_k_i}(i_m_i);
-%                     end
-%                     if p_m_i == 0
-%                         continue;
-%                     end
-%                     % Expectation over u_j
-%                     for u_j = [0, param.U]
-%                         p_u_j = 0.5;
-%                         % Expectation over k_j
-%                         for i_k_j = 1 : const.num_k
-%                             p_k_j = D(i_k_j);
-%                             if p_k_j == 0
-%                                 continue;
-%                             end
-%                             % Expectation over m_j
-%                             for i_m_j = 1 : i_k_j
-%                                 if u_j == 0
-%                                     p_m_j = (const.k(i_m_j) == 0);
-%                                 else
-%                                     p_m_j = policy{i_k_j}(i_m_j);
-%                                 end
-%                                 if p_m_j == 0
-%                                     continue;
-%                                 end
-%                                 
-%                                 % This is where the magic happens
-%                                 % Note that in some cases multiple equally
-%                                 % probable next karma levels are attainable
-%                                 % (when bids are the same)
-%                                 k_next = const.k_next{i_k_i,i_k_j}{i_m_i,i_m_j};
-%                                 p = p_u_i * p_m_i * p_u_j * p_k_j * p_m_j;
-%                                 T(i_k_i,i_next_k_i) = T(i_k_i,i_next_k_i)...
-%                                     + p * 1 / length(k_next) * sum((k_next == const.k(i_next_k_i)));
-%                             end
-%                         end
-%                     end
-%                 end
-%             end
-%         end
-%     end
-% end
-
 % Gets stationary distribution of transition matrix T
 % This essentially solves D = T*D. The solution is the right eigenvector
 % corresponding to eigenvalue 1, or the kernel of (I - T)
 function D = get_D(T, const)
     eig_T_1 = null(eye(const.num_k) - T.');
     % Make sure to return a valid probability distribution (sums to 1)
-    D = eig_T_1 / sum(eig_T_1);
+    if ~isempty(eig_T_1)
+        D = eig_T_1 / sum(eig_T_1);
+    else
+        D = 1 / const.num_k * ones(const.num_k, 1);
+    end
 end
 
 % Gets current stage cost
@@ -314,6 +260,7 @@ function c = get_c(policy, D, const, param)
     c = zeros(const.num_k, 1);
     for i_k_i = 1 : const.num_k
         % Expectation over u_i
+        % Can skip u_i = 0 since cost will be zero
         for u_i = param.U
             p_u_i = 0.5;
             % Expectation over m_i

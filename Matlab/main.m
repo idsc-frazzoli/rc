@@ -18,10 +18,10 @@ rng(0);
 control.compute_autocorrelation = true;
 
 % Flag to simulate centralized limited memory policies
-control.lim_mem_policies = false;
+control.lim_mem_policies = true;
 
 % Flag to simulate heuristic karma policies
-control.karma_heuristic_policies = true;
+control.karma_heuristic_policies = false;
 
 %% Parameters
 param = load_parameters();
