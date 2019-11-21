@@ -15,7 +15,7 @@ rng(0);
 
 %% Code control bits
 % Autocorrelation takes long time to compute
-control.compute_autocorrelation = true;
+control.compute_autocorrelation = false;
 
 % Flag to simulate centralized limited memory policies
 control.lim_mem_policies = true;
@@ -36,20 +36,20 @@ population = 1 : param.N;
 
 % Centralized policies
 % Cost for baseline policy - random
-c_rand = zeros(param.num_iter, param.N);
+c_rand = zeros(param.tot_num_inter, param.N);
 % Cost for centralized policy 1 - centralized urgency
-c_1 = zeros(param.num_iter, param.N);
+c_1 = zeros(param.tot_num_inter, param.N);
 % Cost for centralized policy 2 - centralized cost
-c_2 = zeros(param.num_iter, param.N);
+c_2 = zeros(param.tot_num_inter, param.N);
 % Cost for centralized policy 1_2 - centralized urgency then cost
-c_1_2 = zeros(param.num_iter, param.N);
+c_1_2 = zeros(param.tot_num_inter, param.N);
 
 % Centralized policies with limited memory
 if control.lim_mem_policies
     c_lim_mem = cell(param.lim_mem_num_steps, 1);
     c_in_mem  = cell(param.lim_mem_num_steps, 1);
     for i = 1 : param.lim_mem_num_steps
-        c_lim_mem{i} = zeros(param.num_iter, param.N);
+        c_lim_mem{i} = zeros(param.tot_num_inter, param.N);
         c_in_mem{i} = zeros(param.lim_mem_steps(i), param.N);
     end
 end
@@ -57,13 +57,13 @@ end
 % Hueristic karma policies
 if control.karma_heuristic_policies
     % Cost for bid 1 always policy
-    c_bid_1 = zeros(param.num_iter, param.N);
+    c_bid_1 = zeros(param.tot_num_inter, param.N);
     % Cost for bid 1 if urgent policy
-    c_bid_1_u = zeros(param.num_iter, param.N);
+    c_bid_1_u = zeros(param.tot_num_inter, param.N);
     % Cost for bid all always policy
-    c_bid_all = zeros(param.num_iter, param.N);
+    c_bid_all = zeros(param.tot_num_inter, param.N);
     % Cost for bid all if urgent policy
-    c_bid_all_u = zeros(param.num_iter, param.N);
+    c_bid_all_u = zeros(param.tot_num_inter, param.N);
 end
 
 % Karma matrices for karma polices. Initialized uniformly randomly
@@ -72,415 +72,430 @@ karma_init = round(rand(1, param.N) * (param.k_max - param.k_min)) + param.k_min
 
 if control.karma_heuristic_policies
     % Karma for bid 1 always policy
-    k_bid_1 = zeros(param.num_iter, param.N);
+    k_bid_1 = zeros(param.tot_num_inter, param.N);
     k_bid_1(1,:) = karma_init;
     % Karma for bid 1 if urgent policy
-    k_bid_1_u = zeros(param.num_iter, param.N);
+    k_bid_1_u = zeros(param.tot_num_inter, param.N);
     k_bid_1_u(1,:) = karma_init;
     % Karma for bid all always policy
-    k_bid_all = zeros(param.num_iter, param.N);
+    k_bid_all = zeros(param.tot_num_inter, param.N);
     k_bid_all(1,:) = karma_init;
     % Karma for bid all if urgent policy
-    k_bid_all_u = zeros(param.num_iter, param.N);
+    k_bid_all_u = zeros(param.tot_num_inter, param.N);
     k_bid_all_u(1,:) = karma_init;
 end
 
-% Number of times each agent was in an intersection, as a cumulative sum
-num_inter = zeros(param.num_iter, param.N);
+% Number of times each agent was in an intersection, as a accumulated sum
+num_inter = zeros(param.tot_num_inter, param.N);
 
 %% Simulation run
 % Convention:   p := agent that passes
 %               d := agent(s) that are delayed
-for t = 1 : param.num_iter
-    % Tell user where we are
-    fprintf('t = %d\n', t);
+for day = 1 : param.num_days
+    % Pick urgency in {0,U} uniformly at random for all agents. Urgency
+    % stays constant for agents per day
+    u_today = round(rand(1, param.N)) * param.U;
     
-    if ~param.same_num_inter
-        % Sample agents i & j uniformly at random
-        I = randsample(population, param.I_size);
-    else
-        % If all population has been sampled, re-fill population
-        if isempty(population)
-            population = 1 : param.N;
+    for inter = 1 : param.num_inter_per_day
+        t = (day - 1) * param.num_inter_per_day + inter;
+        % Tell user where we are
+        fprintf('Day: %d Interaction: %d Timestep: %d\n', day, inter, t);
+
+        if ~param.same_num_inter
+            % Sample agents i & j uniformly at random
+            I = randsample(population, param.I_size);
+        else
+            % If all population has been sampled, re-fill population
+            if isempty(population)
+                population = 1 : param.N;
+            end
+            % Sample agents i & j uniformly at random and remove them from
+            % population
+            I = randsample(population, param.I_size);
+            for i = 1 : param.I_size
+                population(population == I(i)) = [];
+            end
         end
-        % Sample agents i & j uniformly at random and remove them from
-        % population
-        I = randsample(population, param.I_size);
-        for i = 1 : param.I_size
-            population(population == I(i)) = [];
+
+        % Increment number of interactions for picked agents
+        % Reset to zero (which is what num_inter is initialized to) at end
+        % of warm-up period
+        if t > 1 && t ~= param.t_warm_up
+            num_inter(t,:) = num_inter(t-1,:);
         end
-    end
-    
-    % Increment number of intersections for picked agents
-    if t > 1
-        num_inter(t,:) = num_inter(t-1,:);
         num_inter(t,I) = num_inter(t,I) + 1;
-    else
-        num_inter(t,I) = 1;
-    end
-    
-    % Pick urgency in {0,U} uniformly at random
-    u = round(rand(1, param.I_size)) * param.U;
-    
-    %% Random policy
-    % Choose an agent to pass uniformly at random
-    p = I(ceil(rand(1) * length(I)));
-    
-    % Agents incur cost equal to their urgency, except passing agent
-    c_rand(t,I) = u;
-    c_rand(t,p) = 0;
-    
-    %% CENTRALIZED POLICIES %%
-    %% Centralized policy 1 - minimize W1, coin-flip if tie
-    % Find agent(s) with max urgency, which are candidates for passing
-    [~, p_i] = multi_maxes(u);
-    p_max_u = I(p_i);
-    
-    % Now choose an agent uniformly at random if there are multiple.
-    num_max_u = length(p_max_u);
-    if num_max_u > 1
-        p = p_max_u(ceil(rand(1) * num_max_u));
-    else
-        p = p_max_u;
-    end
-    
-    % Agents incur cost equal to their urgency, except passing agent
-    c_1(t,I) = u;
-    c_1(t,p) = 0;
-    
-    %% Centralized policy 2 - minimize W2, coin-flip if tie
-    % Agent with maximum accumulated cost (counting current urgency) passes
-    a_u = sum(c_2(1:t,I)) + u;
-    [~, p_i] = multi_max(a_u);
-    p = I(p_i);
-    
-    % Agents incur cost equal to their urgency, except passing agent
-    c_2(t,I) = u;
-    c_2(t,p) = 0;
-    
-    %% Centralized policy 1_2 - minimize W1, choose W2 minimizer on tie
-    % Agent(s) with max urgency, which are candidates for passing, were
-    % already found in first step of centralized policy 1
-    % If there are multiple agents with max urgency, pick on based on
-    % accumulated cost like in centralized policy 2
-    if num_max_u > 1
-        p_ind = zeros(1, num_max_u);
-        for i = 1 : num_max_u
-            p_ind(i) = find(I == p_max_u(i));
+
+        % Urgency of sampled agents
+        u = u_today(I);
+
+        %% Random policy
+        % Choose an agent to pass uniformly at random
+        p = I(ceil(rand(1) * length(I)));
+
+        % Agents incur cost equal to their urgency, except passing agent
+        c_rand(t,I) = u;
+        c_rand(t,p) = 0;
+
+        %% CENTRALIZED POLICIES %%
+        %% Centralized policy 1 - minimize W1, coin-flip if tie
+        % Find agent(s) with max urgency, which are candidates for passing
+        [~, p_i] = multi_maxes(u);
+        p_max_u = I(p_i);
+
+        % Now choose an agent uniformly at random if there are multiple.
+        num_max_u = length(p_max_u);
+        if num_max_u > 1
+            p = p_max_u(ceil(rand(1) * num_max_u));
+        else
+            p = p_max_u;
         end
-        a_u = sum(c_1_2(1:t,p_max_u)) + u(p_ind);
+
+        % Agents incur cost equal to their urgency, except passing agent
+        c_1(t,I) = u;
+        c_1(t,p) = 0;
+
+        %% Centralized policy 2 - minimize W2, coin-flip if tie
+        % Agent with maximum accumulated cost (counting current urgency) passes
+        if t <= param.t_warm_up
+            a_u = sum(c_2(1:t,I)) + u;
+        else
+            a_u = sum(c_2(param.t_warm_up+1:t,I)) + u;
+        end
         [~, p_i] = multi_max(a_u);
-        p = p_max_u(p_i);
-    else
-        p = p_max_u;
-    end
-    
-    % Agents incur cost equal to their urgency, except passing agent
-    c_1_2(t,I) = u;
-    c_1_2(t,p) = 0;
-    
-    %% Centralized policies with limited memroy
-    if control.lim_mem_policies
-        % Minimize accumulated cost up to limited number of interactions per
-        % agent, coin-flip if tie
-        for i = 1 : param.lim_mem_num_steps
-            % Agent with maximum accumulated cost in memory (counting current
-            % urgency) passes
-            a_u = sum(c_in_mem{i}(:,I)) + u;
+        p = I(p_i);
+
+        % Agents incur cost equal to their urgency, except passing agent
+        c_2(t,I) = u;
+        c_2(t,p) = 0;
+
+        %% Centralized policy 1_2 - minimize W1, choose W2 minimizer on tie
+        % Agent(s) with max urgency, which are candidates for passing, were
+        % already found in first step of centralized policy 1
+        % If there are multiple agents with max urgency, pick on based on
+        % accumulated cost like in centralized policy 2
+        if num_max_u > 1
+            p_ind = zeros(1, num_max_u);
+            for i = 1 : num_max_u
+                p_ind(i) = find(I == p_max_u(i));
+            end
+            if t <= param.t_warm_up
+                a_u = sum(c_1_2(1:t,p_max_u)) + u(p_ind);
+            else
+                a_u = sum(c_1_2(param.t_warm_up+1:t,p_max_u)) + u(p_ind);
+            end
             [~, p_i] = multi_max(a_u);
+            p = p_max_u(p_i);
+        else
+            p = p_max_u;
+        end
+
+        % Agents incur cost equal to their urgency, except passing agent
+        c_1_2(t,I) = u;
+        c_1_2(t,p) = 0;
+
+        %% Centralized policies with limited memroy
+        if control.lim_mem_policies
+            % Minimize accumulated cost up to limited number of interactions per
+            % agent, coin-flip if tie
+            for i = 1 : param.lim_mem_num_steps
+                % Agent with maximum accumulated cost in memory (counting current
+                % urgency) passes
+                a_u = sum(c_in_mem{i}(:,I)) + u;
+                [~, p_i] = multi_max(a_u);
+                p = I(p_i);
+
+                % Agents incur cost equal to their urgency, except passing agent
+                c_lim_mem{i}(t,I) = u;
+                c_lim_mem{i}(t,p) = 0;
+
+                % Update limited memory with most recent cost
+                c_in_mem{i}(1:end-1,I) = c_in_mem{i}(2:end,I);
+                c_in_mem{i}(end,I) = c_lim_mem{i}(t,I);
+            end
+        end
+
+        %% HEURISTIC KARMA POLICIES
+        if control.karma_heuristic_policies
+            %% Bid 1 always policy
+            % Agents simply bid 1, if they have it
+            m = min([ones(1, param.I_size); k_bid_1(t,I) - param.k_min]);
+
+            % Agent bidding max karma passes and pays karma bidded
+            [m_p, p_i] = multi_max(m);
             p = I(p_i);
 
             % Agents incur cost equal to their urgency, except passing agent
-            c_lim_mem{i}(t,I) = u;
-            c_lim_mem{i}(t,p) = 0;
+            c_bid_1(t,I) = u;
+            c_bid_1(t,p) = 0;
 
-            % Update limited memory with most recent cost
-            c_in_mem{i}(1:end-1,I) = c_in_mem{i}(2:end,I);
-            c_in_mem{i}(end,I) = c_lim_mem{i}(t,I);
-        end
-    end
-    
-    %% HEURISTIC KARMA POLICIES
-    if control.karma_heuristic_policies
-        %% Bid 1 always policy
-        % Agents simply bid 1, if they have it
-        m = min([ones(1, param.I_size); k_bid_1(t,I) - param.k_min]);
+            % Get delayed agents. They will be getting karma
+            d = get_d(I, p_i);
 
-        % Agent bidding max karma passes and pays karma bidded
-        [m_p, p_i] = multi_max(m);
-        p = I(p_i);
+            % Update karma
+            if t < param.tot_num_inter
+                [k_p, k_d] = get_karma_payments(m_p, d, k_bid_1(t,:), param);
+                k_bid_1(t+1,:) = k_bid_1(t,:);
+                k_bid_1(t+1,p) = k_bid_1(t+1,p) - k_p;
+                k_bid_1(t+1,d) = k_bid_1(t+1,d) + k_d;
+            end
 
-        % Agents incur cost equal to their urgency, except passing agent
-        c_bid_1(t,I) = u;
-        c_bid_1(t,p) = 0;
+            %% Bid 1 if urgent policy
+            % Agents bid 1, if they have it and they are urgent
+            m = min([ones(1, param.I_size); k_bid_1_u(t,I) - param.k_min]);
+            m(u == 0) = 0;
 
-        % Get delayed agents. They will be getting karma
-        d = get_d(I, p_i);
+            % Agent bidding max karma passes and pays karma bidded
+            [m_p, p_i] = multi_max(m);
+            p = I(p_i);
 
-        % Update karma
-        if t < param.num_iter
-            [k_p, k_d] = get_karma_payments(m_p, d, k_bid_1(t,:), param);
-            k_bid_1(t+1,:) = k_bid_1(t,:);
-            k_bid_1(t+1,p) = k_bid_1(t+1,p) - k_p;
-            k_bid_1(t+1,d) = k_bid_1(t+1,d) + k_d;
-        end
+            % Agents incur cost equal to their urgency, except passing agent
+            c_bid_1_u(t,I) = u;
+            c_bid_1_u(t,p) = 0;
 
-        %% Bid 1 if urgent policy
-        % Agents bid 1, if they have it and they are urgent
-        m = min([ones(1, param.I_size); k_bid_1_u(t,I) - param.k_min]);
-        m(u == 0) = 0;
+            % Get delayed agents. They will be getting karma
+            d = get_d(I, p_i);
 
-        % Agent bidding max karma passes and pays karma bidded
-        [m_p, p_i] = multi_max(m);
-        p = I(p_i);
+            % Update karma
+            if t < param.tot_num_inter
+                [k_p, k_d] = get_karma_payments(m_p, d, k_bid_1_u(t,:), param);
+                k_bid_1_u(t+1,:) = k_bid_1_u(t,:);
+                k_bid_1_u(t+1,p) = k_bid_1_u(t+1,p) - k_p;
+                k_bid_1_u(t+1,d) = k_bid_1_u(t+1,d) + k_d;
+            end
 
-        % Agents incur cost equal to their urgency, except passing agent
-        c_bid_1_u(t,I) = u;
-        c_bid_1_u(t,p) = 0;
+            %% Bid all always policy
+            % Agents simply bid all their karma, less the minimum allowed level (if
+            % applicable)
+            m = k_bid_all(t,I) - param.k_min;
 
-        % Get delayed agents. They will be getting karma
-        d = get_d(I, p_i);
+            % Agent bidding max karma passes and pays karma bidded
+            [m_p, p_i] = multi_max(m);
+            p = I(p_i);
 
-        % Update karma
-        if t < param.num_iter
-            [k_p, k_d] = get_karma_payments(m_p, d, k_bid_1_u(t,:), param);
-            k_bid_1_u(t+1,:) = k_bid_1_u(t,:);
-            k_bid_1_u(t+1,p) = k_bid_1_u(t+1,p) - k_p;
-            k_bid_1_u(t+1,d) = k_bid_1_u(t+1,d) + k_d;
-        end
+            % Agents incur cost equal to their urgency, except passing agent
+            c_bid_all(t,I) = u;
+            c_bid_all(t,p) = 0;
 
-        %% Bid all always policy
-        % Agents simply bid all their karma, less the minimum allowed level (if
-        % applicable)
-        m = k_bid_all(t,I) - param.k_min;
+            % Get delayed agents. They will be getting karma
+            d = get_d(I, p_i);
 
-        % Agent bidding max karma passes and pays karma bidded
-        [m_p, p_i] = multi_max(m);
-        p = I(p_i);
+            % Update karma
+            if t < param.tot_num_inter
+                [k_p, k_d] = get_karma_payments(m_p, d, k_bid_all(t,:), param);
+                k_bid_all(t+1,:) = k_bid_all(t,:);
+                k_bid_all(t+1,p) = k_bid_all(t+1,p) - k_p;
+                k_bid_all(t+1,d) = k_bid_all(t+1,d) + k_d;
+            end
 
-        % Agents incur cost equal to their urgency, except passing agent
-        c_bid_all(t,I) = u;
-        c_bid_all(t,p) = 0;
+            %% Bid all if urgent policy
+            % Agents bid all their karma, less the minimum allowed level (if
+            % applicable), if they are urgent
+            m = k_bid_all_u(t,I) - param.k_min;
+            m(u == 0) = 0;
 
-        % Get delayed agents. They will be getting karma
-        d = get_d(I, p_i);
+            % Agent bidding max karma passes and pays karma bidded
+            [m_p, p_i] = multi_max(m);
+            p = I(p_i);
 
-        % Update karma
-        if t < param.num_iter
-            [k_p, k_d] = get_karma_payments(m_p, d, k_bid_all(t,:), param);
-            k_bid_all(t+1,:) = k_bid_all(t,:);
-            k_bid_all(t+1,p) = k_bid_all(t+1,p) - k_p;
-            k_bid_all(t+1,d) = k_bid_all(t+1,d) + k_d;
-        end
+            % Agents incur cost equal to their urgency, except passing agent
+            c_bid_all_u(t,I) = u;
+            c_bid_all_u(t,p) = 0;
 
-        %% Bid all if urgent policy
-        % Agents bid all their karma, less the minimum allowed level (if
-        % applicable), if they are urgent
-        m = k_bid_all_u(t,I) - param.k_min;
-        m(u == 0) = 0;
+            % Get delayed agents. They will be getting karma
+            d = get_d(I, p_i);
 
-        % Agent bidding max karma passes and pays karma bidded
-        [m_p, p_i] = multi_max(m);
-        p = I(p_i);
-
-        % Agents incur cost equal to their urgency, except passing agent
-        c_bid_all_u(t,I) = u;
-        c_bid_all_u(t,p) = 0;
-
-        % Get delayed agents. They will be getting karma
-        d = get_d(I, p_i);
-
-        % Update karma
-        if t < param.num_iter
-            [k_p, k_d] = get_karma_payments(m_p, d, k_bid_all_u(t,:), param);
-            k_bid_all_u(t+1,:) = k_bid_all_u(t,:);
-            k_bid_all_u(t+1,p) = k_bid_all_u(t+1,p) - k_p;
-            k_bid_all_u(t+1,d) = k_bid_all_u(t+1,d) + k_d;
+            % Update karma
+            if t < param.tot_num_inter
+                [k_p, k_d] = get_karma_payments(m_p, d, k_bid_all_u(t,:), param);
+                k_bid_all_u(t+1,:) = k_bid_all_u(t,:);
+                k_bid_all_u(t+1,p) = k_bid_all_u(t+1,p) - k_p;
+                k_bid_all_u(t+1,d) = k_bid_all_u(t+1,d) + k_d;
+            end
         end
     end
 end
 
 %% Perfromance measures
-% Cumulative costs per agent at each time step
-c_rand_cumsum = cumsum(c_rand);
-c_1_cumsum = cumsum(c_1);
-c_2_cumsum = cumsum(c_2);
-c_1_2_cumsum = cumsum(c_1_2);
+% Accumulated costs per agent at each time step
+a_rand = get_accumulated_cost(c_rand, param);
+a_1 = get_accumulated_cost(c_1, param);
+a_2 = get_accumulated_cost(c_2, param);
+a_1_2 = get_accumulated_cost(c_1_2, param);
 if control.lim_mem_policies
-    c_lim_mem_cumsum = cell(param.lim_mem_num_steps, 1);
+    a_lim_mem = cell(param.lim_mem_num_steps, 1);
     for i = 1 : param.lim_mem_num_steps
-        c_lim_mem_cumsum{i} = cumsum(c_lim_mem{i});
+        a_lim_mem{i} = get_accumulated_cost(c_lim_mem{i}, param);
     end
 end
 if control.karma_heuristic_policies
-    c_bid_1_cumsum = cumsum(c_bid_1);
-    c_bid_1_u_cumsum = cumsum(c_bid_1_u);
-    c_bid_all_cumsum = cumsum(c_bid_all);
-    c_bid_all_u_cumsum = cumsum(c_bid_all_u);
+    a_bid_1 = get_accumulated_cost(c_bid_1, param);
+    a_bid_1_u = get_accumulated_cost(c_bid_1_u, param);
+    a_bid_all = get_accumulated_cost(c_bid_all, param);
+    a_bid_all_u = get_accumulated_cost(c_bid_all_u, param);
 end
 
 % If number of interactions per agent is fixed, true time is interprated as
 % the time after which all agents have participated in an interaction
 if param.same_num_inter
-    actual_t = param.num_inter_in_N : param.num_inter_in_N : param.num_iter;
+    actual_t = param.num_inter_in_N : param.num_inter_in_N : param.tot_num_inter;
     num_inter = num_inter(actual_t,:);
-    c_rand_cumsum = c_rand_cumsum(actual_t,:);
-    c_1_cumsum = c_1_cumsum(actual_t,:);
-    c_2_cumsum = c_2_cumsum(actual_t,:);
-    c_1_2_cumsum = c_1_2_cumsum(actual_t,:);
+    a_rand = a_rand(actual_t,:);
+    a_1 = a_1(actual_t,:);
+    a_2 = a_2(actual_t,:);
+    a_1_2 = a_1_2(actual_t,:);
     if control.lim_mem_policies
         for i = 1 : param.lim_mem_num_steps
-            c_lim_mem_cumsum{i} = c_lim_mem_cumsum{i}(actual_t,:);
+            a_lim_mem{i} = a_lim_mem{i}(actual_t,:);
         end
     end
     if control.karma_heuristic_policies
-        c_bid_1_cumsum = c_bid_1_cumsum(actual_t,:);
-        c_bid_1_u_cumsum = c_bid_1_u_cumsum(actual_t,:);
-        c_bid_all_cumsum = c_bid_all_cumsum(actual_t,:);
-        c_bid_all_u_cumsum = c_bid_all_u_cumsum(actual_t,:);
+        a_bid_1 = a_bid_1(actual_t,:);
+        a_bid_1_u = a_bid_1_u(actual_t,:);
+        a_bid_all = a_bid_all(actual_t,:);
+        a_bid_all_u = a_bid_all_u(actual_t,:);
     end
 end
 
-% Cumulative costs per agent at each time step, normalized by their
+% Accumulated costs per agent at each time step, normalized by their
 % respective number of interactions
 % Note that nan can result if agent(s) were never in an intersection, which
 % is handled later by using 'nan---' functions (which ignore nan's)
-c_rand_cumsum_norm = c_rand_cumsum ./ num_inter;
-c_1_cumsum_norm = c_1_cumsum ./ num_inter;
-c_2_cumsum_norm = c_2_cumsum ./ num_inter;
-c_1_2_cumsum_norm = c_1_2_cumsum ./ num_inter;
+a_rand_norm = a_rand ./ num_inter;
+a_1_norm = a_1 ./ num_inter;
+a_2_norm = a_2 ./ num_inter;
+a_1_2_norm = a_1_2 ./ num_inter;
 if control.lim_mem_policies
-    c_lim_mem_cumsum_norm = cell(param.lim_mem_num_steps, 1);
+    a_lim_mem_norm = cell(param.lim_mem_num_steps, 1);
     for i = 1 : param.lim_mem_num_steps
-        c_lim_mem_cumsum_norm{i} = c_lim_mem_cumsum{i} ./ num_inter;
+        a_lim_mem_norm{i} = a_lim_mem{i} ./ num_inter;
     end
 end
 if control.karma_heuristic_policies
-    c_bid_1_cumsum_norm = c_bid_1_cumsum ./ num_inter;
-    c_bid_1_u_cumsum_norm = c_bid_1_u_cumsum ./ num_inter;
-    c_bid_all_cumsum_norm = c_bid_all_cumsum ./ num_inter;
-    c_bid_all_u_cumsum_norm = c_bid_all_u_cumsum ./ num_inter;
+    a_bid_1_norm = a_bid_1 ./ num_inter;
+    a_bid_1_u_norm = a_bid_1_u ./ num_inter;
+    a_bid_all_norm = a_bid_all ./ num_inter;
+    a_bid_all_u_norm = a_bid_all_u ./ num_inter;
 end
 
 % Inefficiency vs. time
-W1_rand = nanmean(c_rand_cumsum, 2);
-W1_1 = nanmean(c_1_cumsum, 2);
-W1_2 = nanmean(c_2_cumsum, 2);
-W1_1_2 = nanmean(c_1_2_cumsum, 2);
+W1_rand = nanmean(a_rand, 2);
+W1_1 = nanmean(a_1, 2);
+W1_2 = nanmean(a_2, 2);
+W1_1_2 = nanmean(a_1_2, 2);
 if control.lim_mem_policies
     W1_lim_mem = cell(param.lim_mem_num_steps, 1);
     for i = 1 : param.lim_mem_num_steps
-        W1_lim_mem{i} = nanmean(c_lim_mem_cumsum{i}, 2);
+        W1_lim_mem{i} = nanmean(a_lim_mem{i}, 2);
     end
 end
 if control.karma_heuristic_policies
-    W1_bid_1 = nanmean(c_bid_1_cumsum, 2);
-    W1_bid_1_u = nanmean(c_bid_1_u_cumsum, 2);
-    W1_bid_all = nanmean(c_bid_all_cumsum, 2);
-    W1_bid_all_u = nanmean(c_bid_all_u_cumsum, 2);
+    W1_bid_1 = nanmean(a_bid_1, 2);
+    W1_bid_1_u = nanmean(a_bid_1_u, 2);
+    W1_bid_all = nanmean(a_bid_all, 2);
+    W1_bid_all_u = nanmean(a_bid_all_u, 2);
 end
 
 % Normalized inefficiency vs. time
-W1_rand_norm = nanmean(c_rand_cumsum_norm, 2);
-W1_1_norm = nanmean(c_1_cumsum_norm, 2);
-W1_2_norm = nanmean(c_2_cumsum_norm, 2);
-W1_1_2_norm = nanmean(c_1_2_cumsum_norm, 2);
+W1_rand_norm = nanmean(a_rand_norm, 2);
+W1_1_norm = nanmean(a_1_norm, 2);
+W1_2_norm = nanmean(a_2_norm, 2);
+W1_1_2_norm = nanmean(a_1_2_norm, 2);
 if control.lim_mem_policies
     W1_lim_mem_norm = cell(param.lim_mem_num_steps, 1);
     for i = 1 : param.lim_mem_num_steps
-        W1_lim_mem_norm{i} = nanmean(c_lim_mem_cumsum_norm{i}, 2);
+        W1_lim_mem_norm{i} = nanmean(a_lim_mem_norm{i}, 2);
     end
 end
 if control.karma_heuristic_policies
-    W1_bid_1_norm = nanmean(c_bid_1_cumsum_norm, 2);
-    W1_bid_1_u_norm = nanmean(c_bid_1_u_cumsum_norm, 2);
-    W1_bid_all_norm = nanmean(c_bid_all_cumsum_norm, 2);
-    W1_bid_all_u_norm = nanmean(c_bid_all_u_cumsum_norm, 2);
+    W1_bid_1_norm = nanmean(a_bid_1_norm, 2);
+    W1_bid_1_u_norm = nanmean(a_bid_1_u_norm, 2);
+    W1_bid_all_norm = nanmean(a_bid_all_norm, 2);
+    W1_bid_all_u_norm = nanmean(a_bid_all_u_norm, 2);
 end
 
 % Unfairness vs. time
-W2_rand = nanvar(c_rand_cumsum, [], 2);
-W2_1 = nanvar(c_1_cumsum, [], 2);
-W2_2 = nanvar(c_2_cumsum, [], 2);
-W2_1_2 = nanvar(c_1_2_cumsum, [], 2);
+W2_rand = nanvar(a_rand, [], 2);
+W2_1 = nanvar(a_1, [], 2);
+W2_2 = nanvar(a_2, [], 2);
+W2_1_2 = nanvar(a_1_2, [], 2);
 if control.lim_mem_policies
     W2_lim_mem = cell(param.lim_mem_num_steps, 1);
     for i = 1 : param.lim_mem_num_steps
-        W2_lim_mem{i} = nanvar(c_lim_mem_cumsum{i}, [], 2);
+        W2_lim_mem{i} = nanvar(a_lim_mem{i}, [], 2);
     end
 end
 if control.karma_heuristic_policies
-    W2_bid_1 = nanvar(c_bid_1_cumsum, [], 2);
-    W2_bid_1_u = nanvar(c_bid_1_u_cumsum, [], 2);
-    W2_bid_all = nanvar(c_bid_all_cumsum, [], 2);
-    W2_bid_all_u = nanvar(c_bid_all_u_cumsum, [], 2);
+    W2_bid_1 = nanvar(a_bid_1, [], 2);
+    W2_bid_1_u = nanvar(a_bid_1_u, [], 2);
+    W2_bid_all = nanvar(a_bid_all, [], 2);
+    W2_bid_all_u = nanvar(a_bid_all_u, [], 2);
 end
 
 % Normalized unfairness vs. time
-W2_rand_norm = nanvar(c_rand_cumsum_norm, [], 2);
-W2_1_norm = nanvar(c_1_cumsum_norm, [], 2);
-W2_2_norm = nanvar(c_2_cumsum_norm, [], 2);
-W2_1_2_norm = nanvar(c_1_2_cumsum_norm, [], 2);
+W2_rand_norm = nanvar(a_rand_norm, [], 2);
+W2_1_norm = nanvar(a_1_norm, [], 2);
+W2_2_norm = nanvar(a_2_norm, [], 2);
+W2_1_2_norm = nanvar(a_1_2_norm, [], 2);
 if control.lim_mem_policies
     W2_lim_mem_norm = cell(param.lim_mem_num_steps, 1);
     for i = 1 : param.lim_mem_num_steps
-        W2_lim_mem_norm{i} = nanvar(c_lim_mem_cumsum_norm{i}, [], 2);
+        W2_lim_mem_norm{i} = nanvar(a_lim_mem_norm{i}, [], 2);
     end
 end
 if control.karma_heuristic_policies
-    W2_bid_1_norm = nanvar(c_bid_1_cumsum_norm, [], 2);
-    W2_bid_1_u_norm = nanvar(c_bid_1_u_cumsum_norm, [], 2);
-    W2_bid_all_norm = nanvar(c_bid_all_cumsum_norm, [], 2);
-    W2_bid_all_u_norm = nanvar(c_bid_all_u_cumsum_norm, [], 2);
+    W2_bid_1_norm = nanvar(a_bid_1_norm, [], 2);
+    W2_bid_1_u_norm = nanvar(a_bid_1_u_norm, [], 2);
+    W2_bid_all_norm = nanvar(a_bid_all_norm, [], 2);
+    W2_bid_all_u_norm = nanvar(a_bid_all_u_norm, [], 2);
 end
 
 % Standardized accumulated costs, i.e. accumultated costs brought to zero
 % mean and unit std-dev. Required for autocorrelation and allows to
 % investigate 'mixing' of policies
-c_rand_cumsum_std = standardize(c_rand_cumsum, W1_rand, W2_rand);
-c_1_cumsum_std = standardize(c_1_cumsum, W1_1, W2_1);
-c_2_cumsum_std = standardize(c_2_cumsum, W1_2, W2_2);
-c_1_2_cumsum_std = standardize(c_1_2_cumsum, W1_1_2, W2_1_2);
+a_rand_std = standardize(a_rand, W1_rand, W2_rand);
+a_1_std = standardize(a_1, W1_1, W2_1);
+a_2_std = standardize(a_2, W1_2, W2_2);
+a_1_2_std = standardize(a_1_2, W1_1_2, W2_1_2);
 if control.lim_mem_policies
-    c_lim_mem_cumsum_std = cell(param.lim_mem_num_steps, 1);
+    a_lim_mem_std = cell(param.lim_mem_num_steps, 1);
     for i = 1 : param.lim_mem_num_steps
-        c_lim_mem_cumsum_std{i} = standardize(c_lim_mem_cumsum{i}, W1_lim_mem{i}, W2_lim_mem{i});
+        a_lim_mem_std{i} = standardize(a_lim_mem{i}, W1_lim_mem{i}, W2_lim_mem{i});
     end
 end
 if control.karma_heuristic_policies
-    c_bid_1_cumsum_std = standardize(c_bid_1_cumsum, W1_bid_1, W2_bid_1);
-    c_bid_1_u_cumsum_std = standardize(c_bid_1_u_cumsum, W1_bid_1_u, W2_bid_1_u);
-    c_bid_all_cumsum_std = standardize(c_bid_all_cumsum, W1_bid_all, W2_bid_all);
-    c_bid_all_u_cumsum_std = standardize(c_bid_all_u_cumsum, W1_bid_all_u, W2_bid_all_u);
+    a_bid_1_std = standardize(a_bid_1, W1_bid_1, W2_bid_1);
+    a_bid_1_u_std = standardize(a_bid_1_u, W1_bid_1_u, W2_bid_1_u);
+    a_bid_all_std = standardize(a_bid_all, W1_bid_all, W2_bid_all);
+    a_bid_all_u_std = standardize(a_bid_all_u, W1_bid_all_u, W2_bid_all_u);
 end
 
 %% Autocorrelation of accumulated cost
 % Provides indication on how well population cost 'mixes' with time
 if control.compute_autocorrelation
     fprintf('Computing autocorrelation for baseline-random\n');
-    [c_rand_cumsum_acorr, acorr_tau] = autocorrelation(c_rand_cumsum_std);
+    [c_rand_cumsum_acorr, acorr_tau] = autocorrelation(a_rand_std);
     fprintf('Computing autocorrelation for centralized-urgency\n');
-    c_1_cumsum_acorr = autocorrelation(c_1_cumsum_std);
+    c_1_cumsum_acorr = autocorrelation(a_1_std);
     fprintf('Computing autocorrelation for centralized-cost\n');
-    c_2_cumsum_acorr = autocorrelation(c_2_cumsum_std);
+    c_2_cumsum_acorr = autocorrelation(a_2_std);
     fprintf('Computing autocorrelation for centralized-urgency-then-cost\n');
-    c_1_2_cumsum_acorr = autocorrelation(c_1_2_cumsum_std);
+    c_1_2_cumsum_acorr = autocorrelation(a_1_2_std);
     if control.lim_mem_policies
         c_lim_mem_cumsum_acorr = cell(param.lim_mem_num_steps, 1);
         for i = 1 : param.lim_mem_num_steps
             fprintf('Computing autocorrelation for centralized-cost-mem-%d\n', param.lim_mem_steps(i));
-            c_lim_mem_cumsum_acorr{i} = autocorrelation(c_lim_mem_cumsum_std{i});
+            c_lim_mem_cumsum_acorr{i} = autocorrelation(a_lim_mem_std{i});
         end
     end
     if control.karma_heuristic_policies
         fprintf('Computing autocorrelation for bid-1-always\n');
-        c_bid_1_cumsum_acorr = autocorrelation(c_bid_1_cumsum_std);
+        c_bid_1_cumsum_acorr = autocorrelation(a_bid_1_std);
         fprintf('Computing autocorrelation for bid-1-if-urgent\n');
-        c_bid_1_u_cumsum_acorr = autocorrelation(c_bid_1_u_cumsum_std);
+        c_bid_1_u_cumsum_acorr = autocorrelation(a_bid_1_u_std);
         fprintf('Computing autocorrelation for bid-all-always\n');
-        c_bid_all_cumsum_acorr = autocorrelation(c_bid_all_cumsum_std);
+        c_bid_all_cumsum_acorr = autocorrelation(a_bid_all_std);
         fprintf('Computing autocorrelation for bid-all-if-urgent\n');
-        c_bid_all_u_cumsum_acorr = autocorrelation(c_bid_all_u_cumsum_std);
+        c_bid_all_u_cumsum_acorr = autocorrelation(a_bid_all_u_std);
     end
 end
 
@@ -648,13 +663,13 @@ lgd.Interpreter = 'latex';
 lgd.FontSize = 14;
 lgd.Location = 'bestoutside';
 
-%% Cumulative cost plot - Gives indication on how fast variance grows
+%% Accumulated cost plot - Gives indication on how fast variance grows
 figure(fg);
 fg = fg + 1;
 fig = gcf;
 fig.Position = [mod(fg,2)*default_width, 0, default_width, screenheight];
 subplot(2,2,1);
-plot(c_rand_cumsum);
+plot(a_rand);
 hold on;
 plot(W1_rand, 'Linewidth', 3);
 axes = gca;
@@ -670,10 +685,10 @@ axes.XLabel.Interpreter = 'latex';
 axes.XLabel.String = 'Time period';
 axes.XLabel.FontSize = 12;
 axes.YLabel.Interpreter = 'latex';
-axes.YLabel.String = 'Cumulative cost';
+axes.YLabel.String = 'Accumulated cost';
 axes.YLabel.FontSize = 12;
 subplot(2,2,2);
-plot(c_1_cumsum);
+plot(a_1);
 hold on;
 plot(W1_1, 'Linewidth', 3);
 axes = gca;
@@ -689,10 +704,10 @@ axes.XLabel.Interpreter = 'latex';
 axes.XLabel.String = 'Time period';
 axes.XLabel.FontSize = 12;
 axes.YLabel.Interpreter = 'latex';
-axes.YLabel.String = 'Cumulative cost';
+axes.YLabel.String = 'Accumulated cost';
 axes.YLabel.FontSize = 12;
 subplot(2,2,3);
-plot(c_2_cumsum);
+plot(a_2);
 hold on;
 plot(W1_2, 'Linewidth', 3);
 axes = gca;
@@ -708,10 +723,10 @@ axes.XLabel.Interpreter = 'latex';
 axes.XLabel.String = 'Time period';
 axes.XLabel.FontSize = 12;
 axes.YLabel.Interpreter = 'latex';
-axes.YLabel.String = 'Cumulative cost';
+axes.YLabel.String = 'Accumulated cost';
 axes.YLabel.FontSize = 12;
 subplot(2,2,4);
-plot(c_1_2_cumsum);
+plot(a_1_2);
 hold on;
 plot(W1_1_2, 'Linewidth', 3);
 axes = gca;
@@ -727,10 +742,10 @@ axes.XLabel.Interpreter = 'latex';
 axes.XLabel.String = 'Time period';
 axes.XLabel.FontSize = 12;
 axes.YLabel.Interpreter = 'latex';
-axes.YLabel.String = 'Cumulative cost';
+axes.YLabel.String = 'Accumulated cost';
 axes.YLabel.FontSize = 12;
 
-%% Cumulative cost plot for limited memory policies
+%% Accumulated cost plot for limited memory policies
 if control.lim_mem_policies
     figure(fg);
     fg = fg + 1;
@@ -740,7 +755,7 @@ if control.lim_mem_policies
     num_rows = ceil(param.lim_mem_num_steps / num_cols);
     for i = 1 : param.lim_mem_num_steps
         subplot(num_rows,num_cols,i);
-        plot(c_lim_mem_cumsum{i});
+        plot(a_lim_mem{i});
         hold on;
         plot(W1_lim_mem{i}, 'Linewidth', 3);
         axes = gca;
@@ -756,19 +771,19 @@ if control.lim_mem_policies
         axes.XLabel.String = 'Time period';
         axes.XLabel.FontSize = 12;
         axes.YLabel.Interpreter = 'latex';
-        axes.YLabel.String = 'Cumulative cost';
+        axes.YLabel.String = 'Accumulated cost';
         axes.YLabel.FontSize = 12;
     end
 end
 
-%% Cumulative cost plot for heuristic karma policies
+%% Accumulated cost plot for heuristic karma policies
 if control.karma_heuristic_policies
     figure(fg);
     fg = fg + 1;
     fig = gcf;
     fig.Position = [mod(fg,2)*default_width, 0, default_width, screenheight];
     subplot(2,2,1);
-    plot(c_bid_1_cumsum);
+    plot(a_bid_1);
     hold on;
     plot(W1_bid_1, 'Linewidth', 3);
     axes = gca;
@@ -784,10 +799,10 @@ if control.karma_heuristic_policies
     axes.XLabel.String = 'Time period';
     axes.XLabel.FontSize = 12;
     axes.YLabel.Interpreter = 'latex';
-    axes.YLabel.String = 'Cumulative cost';
+    axes.YLabel.String = 'Accumulated cost';
     axes.YLabel.FontSize = 12;
     subplot(2,2,2);
-    plot(c_bid_1_u_cumsum);
+    plot(a_bid_1_u);
     hold on;
     plot(W1_bid_1_u, 'Linewidth', 3);
     axes = gca;
@@ -803,10 +818,10 @@ if control.karma_heuristic_policies
     axes.XLabel.String = 'Time period';
     axes.XLabel.FontSize = 12;
     axes.YLabel.Interpreter = 'latex';
-    axes.YLabel.String = 'Cumulative cost';
+    axes.YLabel.String = 'Accumulated cost';
     axes.YLabel.FontSize = 12;
     subplot(2,2,3);
-    plot(c_bid_all_cumsum);
+    plot(a_bid_all);
     hold on;
     plot(W1_bid_all, 'Linewidth', 3);
     axes = gca;
@@ -822,10 +837,10 @@ if control.karma_heuristic_policies
     axes.XLabel.String = 'Time period';
     axes.XLabel.FontSize = 12;
     axes.YLabel.Interpreter = 'latex';
-    axes.YLabel.String = 'Cumulative cost';
+    axes.YLabel.String = 'Accumulated cost';
     axes.YLabel.FontSize = 12;
     subplot(2,2,4);
-    plot(c_bid_all_u_cumsum);
+    plot(a_bid_all_u);
     hold on;
     plot(W1_bid_all_u, 'Linewidth', 3);
     axes = gca;
@@ -841,11 +856,11 @@ if control.karma_heuristic_policies
     axes.XLabel.String = 'Time period';
     axes.XLabel.FontSize = 12;
     axes.YLabel.Interpreter = 'latex';
-    axes.YLabel.String = 'Cumulative cost';
+    axes.YLabel.String = 'Accumulated cost';
     axes.YLabel.FontSize = 12;
 end
 
-%% Unfairness vs. time for cumulative cost
+%% Unfairness vs. time for accumulated cost
 figure(fg);
 fg = fg + 1;
 fig = gcf;
@@ -886,13 +901,13 @@ lgd.Interpreter = 'latex';
 lgd.FontSize = 12;
 lgd.Location = 'bestoutside';
 
-%% Normalized cumulative cost plot
+%% Normalized accumulated cost plot
 figure(fg);
 fg = fg + 1;
 fig = gcf;
 fig.Position = [mod(fg,2)*default_width, 0, default_width, screenheight];
 subplot(2,2,1);
-plot(c_rand_cumsum_norm);
+plot(a_rand_norm);
 hold on;
 plot(W1_rand_norm, 'Linewidth', 3);
 axes = gca;
@@ -908,10 +923,10 @@ axes.XLabel.Interpreter = 'latex';
 axes.XLabel.String = 'Time period';
 axes.XLabel.FontSize = 12;
 axes.YLabel.Interpreter = 'latex';
-axes.YLabel.String = 'Normalized cumulative cost';
+axes.YLabel.String = 'Normalized accumulated cost';
 axes.YLabel.FontSize = 12;
 subplot(2,2,2);
-plot(c_1_cumsum_norm);
+plot(a_1_norm);
 hold on;
 plot(W1_1_norm, 'Linewidth', 3);
 axes = gca;
@@ -927,10 +942,10 @@ axes.XLabel.Interpreter = 'latex';
 axes.XLabel.String = 'Time period';
 axes.XLabel.FontSize = 12;
 axes.YLabel.Interpreter = 'latex';
-axes.YLabel.String = 'Normalized cumulative cost';
+axes.YLabel.String = 'Normalized accumulated cost';
 axes.YLabel.FontSize = 12;
 subplot(2,2,3);
-plot(c_2_cumsum_norm);
+plot(a_2_norm);
 hold on;
 plot(W1_2_norm, 'Linewidth', 3);
 axes = gca;
@@ -946,10 +961,10 @@ axes.XLabel.Interpreter = 'latex';
 axes.XLabel.String = 'Time period';
 axes.XLabel.FontSize = 12;
 axes.YLabel.Interpreter = 'latex';
-axes.YLabel.String = 'Normalized cumulative cost';
+axes.YLabel.String = 'Normalized accumulated cost';
 axes.YLabel.FontSize = 12;
 subplot(2,2,4);
-plot(c_1_2_cumsum_norm);
+plot(a_1_2_norm);
 hold on;
 plot(W1_1_2_norm, 'Linewidth', 3);
 axes = gca;
@@ -965,10 +980,10 @@ axes.XLabel.Interpreter = 'latex';
 axes.XLabel.String = 'Time period';
 axes.XLabel.FontSize = 12;
 axes.YLabel.Interpreter = 'latex';
-axes.YLabel.String = 'Normalized cumulative cost';
+axes.YLabel.String = 'Normalized accumulated cost';
 axes.YLabel.FontSize = 12;
 
-%% Normalized cumulative cost plot for limited memory policies
+%% Normalized accumulated cost plot for limited memory policies
 if control.lim_mem_policies
     figure(fg);
     fg = fg + 1;
@@ -976,7 +991,7 @@ if control.lim_mem_policies
     fig.Position = [0, 0, screenwidth, screenheight];
     for i = 1 : param.lim_mem_num_steps
         subplot(num_rows,num_cols,i);
-        plot(c_lim_mem_cumsum_norm{i});
+        plot(a_lim_mem_norm{i});
         hold on;
         plot(W1_lim_mem_norm{i}, 'Linewidth', 3);
         axes = gca;
@@ -992,19 +1007,19 @@ if control.lim_mem_policies
         axes.XLabel.String = 'Time period';
         axes.XLabel.FontSize = 12;
         axes.YLabel.Interpreter = 'latex';
-        axes.YLabel.String = 'Normalized cumulative cost';
+        axes.YLabel.String = 'Normalized accumulated cost';
         axes.YLabel.FontSize = 12;
     end
 end
 
-%% Normalized cumulative cost plot for heuristic karma policies
+%% Normalized accumulated cost plot for heuristic karma policies
 if control.karma_heuristic_policies
     figure(fg);
     fg = fg + 1;
     fig = gcf;
     fig.Position = [mod(fg,2)*default_width, 0, default_width, screenheight];
     subplot(2,2,1);
-    plot(c_bid_1_cumsum_norm);
+    plot(a_bid_1_norm);
     hold on;
     plot(W1_bid_1_norm, 'Linewidth', 3);
     axes = gca;
@@ -1020,10 +1035,10 @@ if control.karma_heuristic_policies
     axes.XLabel.String = 'Time period';
     axes.XLabel.FontSize = 12;
     axes.YLabel.Interpreter = 'latex';
-    axes.YLabel.String = 'Normalized cumulative cost';
+    axes.YLabel.String = 'Normalized accumulated cost';
     axes.YLabel.FontSize = 12;
     subplot(2,2,2);
-    plot(c_bid_1_u_cumsum_norm);
+    plot(a_bid_1_u_norm);
     hold on;
     plot(W1_bid_1_u_norm, 'Linewidth', 3);
     axes = gca;
@@ -1039,10 +1054,10 @@ if control.karma_heuristic_policies
     axes.XLabel.String = 'Time period';
     axes.XLabel.FontSize = 12;
     axes.YLabel.Interpreter = 'latex';
-    axes.YLabel.String = 'Normalized cumulative cost';
+    axes.YLabel.String = 'Normalized accumulated cost';
     axes.YLabel.FontSize = 12;
     subplot(2,2,3);
-    plot(c_bid_all_cumsum_norm);
+    plot(a_bid_all_norm);
     hold on;
     plot(W1_bid_all_norm, 'Linewidth', 3);
     axes = gca;
@@ -1058,10 +1073,10 @@ if control.karma_heuristic_policies
     axes.XLabel.String = 'Time period';
     axes.XLabel.FontSize = 12;
     axes.YLabel.Interpreter = 'latex';
-    axes.YLabel.String = 'Normalized cumulative cost';
+    axes.YLabel.String = 'Normalized accumulated cost';
     axes.YLabel.FontSize = 12;
     subplot(2,2,4);
-    plot(c_bid_all_u_cumsum_norm);
+    plot(a_bid_all_u_norm);
     hold on;
     plot(W1_bid_all_u_norm, 'Linewidth', 3);
     axes = gca;
@@ -1077,11 +1092,11 @@ if control.karma_heuristic_policies
     axes.XLabel.String = 'Time period';
     axes.XLabel.FontSize = 12;
     axes.YLabel.Interpreter = 'latex';
-    axes.YLabel.String = 'Normalized cumulative cost';
+    axes.YLabel.String = 'Normalized accumulated cost';
     axes.YLabel.FontSize = 12;
 end
 
-%% Normalized unfairness vs. time (for normalized cumulative cost)
+%% Normalized unfairness vs. time (for normalized accumulated cost)
 figure(fg);
 fg = fg + 1;
 fig = gcf;
@@ -1147,13 +1162,13 @@ axes.YLabel.Interpreter = 'latex';
 axes.YLabel.String = 'Number of interactions';
 axes.YLabel.FontSize = 14;
 
-%% Standardized cumulative cost plot
+%% Standardized accumulated cost plot
 figure(fg);
 fg = fg + 1;
 fig = gcf;
 fig.Position = [mod(fg,2)*default_width, 0, default_width, screenheight];
 subplot(2,2,1);
-plot(c_rand_cumsum_std);
+plot(a_rand_std);
 axes = gca;
 axis tight;
 axes.Title.Interpreter = 'latex';
@@ -1167,10 +1182,10 @@ axes.XLabel.Interpreter = 'latex';
 axes.XLabel.String = 'Time period';
 axes.XLabel.FontSize = 12;
 axes.YLabel.Interpreter = 'latex';
-axes.YLabel.String = 'Standardized cumulative cost';
+axes.YLabel.String = 'Standardized accumulated cost';
 axes.YLabel.FontSize = 12;
 subplot(2,2,2);
-plot(c_1_cumsum_std);
+plot(a_1_std);
 axes = gca;
 axis tight;
 axes.Title.Interpreter = 'latex';
@@ -1184,10 +1199,10 @@ axes.XLabel.Interpreter = 'latex';
 axes.XLabel.String = 'Time period';
 axes.XLabel.FontSize = 12;
 axes.YLabel.Interpreter = 'latex';
-axes.YLabel.String = 'Standardized cumulative cost';
+axes.YLabel.String = 'Standardized accumulated cost';
 axes.YLabel.FontSize = 12;
 subplot(2,2,3);
-plot(c_2_cumsum_std);
+plot(a_2_std);
 axes = gca;
 axis tight;
 axes.Title.Interpreter = 'latex';
@@ -1201,10 +1216,10 @@ axes.XLabel.Interpreter = 'latex';
 axes.XLabel.String = 'Time period';
 axes.XLabel.FontSize = 12;
 axes.YLabel.Interpreter = 'latex';
-axes.YLabel.String = 'Standardized cumulative cost';
+axes.YLabel.String = 'Standardized accumulated cost';
 axes.YLabel.FontSize = 12;
 subplot(2,2,4);
-plot(c_1_2_cumsum_std);
+plot(a_1_2_std);
 axes = gca;
 axis tight;
 axes.Title.Interpreter = 'latex';
@@ -1218,10 +1233,10 @@ axes.XLabel.Interpreter = 'latex';
 axes.XLabel.String = 'Time period';
 axes.XLabel.FontSize = 12;
 axes.YLabel.Interpreter = 'latex';
-axes.YLabel.String = 'Standardized cumulative cost';
+axes.YLabel.String = 'Standardized accumulated cost';
 axes.YLabel.FontSize = 12;
 
-%% Standardized cumulative cost plot for limited memory policies
+%% Standardized accumulated cost plot for limited memory policies
 if control.lim_mem_policies
     figure(fg);
     fg = fg + 1;
@@ -1229,7 +1244,7 @@ if control.lim_mem_policies
     fig.Position = [0, 0, screenwidth, screenheight];
     for i = 1 : param.lim_mem_num_steps
         subplot(num_rows,num_cols,i);
-        plot(c_lim_mem_cumsum_std{i});
+        plot(a_lim_mem_std{i});
         axes = gca;
         axis tight;
         axes.Title.Interpreter = 'latex';
@@ -1243,19 +1258,19 @@ if control.lim_mem_policies
         axes.XLabel.String = 'Time period';
         axes.XLabel.FontSize = 12;
         axes.YLabel.Interpreter = 'latex';
-        axes.YLabel.String = 'Standardized cumulative cost';
+        axes.YLabel.String = 'Standardized accumulated cost';
         axes.YLabel.FontSize = 12;
     end
 end
 
-%% Standardized cumulative cost plot for heuristic karma policies
+%% Standardized accumulated cost plot for heuristic karma policies
 if control.karma_heuristic_policies
     figure(fg);
     fg = fg + 1;
     fig = gcf;
     fig.Position = [mod(fg,2)*default_width, 0, default_width, screenheight];
     subplot(2,2,1);
-    plot(c_bid_1_cumsum_std);
+    plot(a_bid_1_std);
     axes = gca;
     axis tight;
     axes.Title.Interpreter = 'latex';
@@ -1269,10 +1284,10 @@ if control.karma_heuristic_policies
     axes.XLabel.String = 'Time period';
     axes.XLabel.FontSize = 12;
     axes.YLabel.Interpreter = 'latex';
-    axes.YLabel.String = 'Standardized cumulative cost';
+    axes.YLabel.String = 'Standardized accumulated cost';
     axes.YLabel.FontSize = 12;
     subplot(2,2,2);
-    plot(c_bid_1_u_cumsum_std);
+    plot(a_bid_1_u_std);
     axes = gca;
     axis tight;
     axes.Title.Interpreter = 'latex';
@@ -1286,10 +1301,10 @@ if control.karma_heuristic_policies
     axes.XLabel.String = 'Time period';
     axes.XLabel.FontSize = 12;
     axes.YLabel.Interpreter = 'latex';
-    axes.YLabel.String = 'Standardized cumulative cost';
+    axes.YLabel.String = 'Standardized accumulated cost';
     axes.YLabel.FontSize = 12;
     subplot(2,2,3);
-    plot(c_bid_all_cumsum_std);
+    plot(a_bid_all_std);
     axes = gca;
     axis tight;
     axes.Title.Interpreter = 'latex';
@@ -1303,10 +1318,10 @@ if control.karma_heuristic_policies
     axes.XLabel.String = 'Time period';
     axes.XLabel.FontSize = 12;
     axes.YLabel.Interpreter = 'latex';
-    axes.YLabel.String = 'Standardized cumulative cost';
+    axes.YLabel.String = 'Standardized accumulated cost';
     axes.YLabel.FontSize = 12;
     subplot(2,2,4);
-    plot(c_bid_all_u_cumsum_std);
+    plot(a_bid_all_u_std);
     axes = gca;
     axis tight;
     axes.Title.Interpreter = 'latex';
@@ -1320,7 +1335,7 @@ if control.karma_heuristic_policies
     axes.XLabel.String = 'Time period';
     axes.XLabel.FontSize = 12;
     axes.YLabel.Interpreter = 'latex';
-    axes.YLabel.String = 'Standardized cumulative cost';
+    axes.YLabel.String = 'Standardized accumulated cost';
     axes.YLabel.FontSize = 12;
 end
 
@@ -1388,7 +1403,7 @@ end
 % axes.YAxis.TickLabelInterpreter = 'latex';
 % axes.YAxis.FontSize = 10;
 % axes.XLabel.Interpreter = 'latex';
-% axes.XLabel.String = 'Cumulative cost';
+% axes.XLabel.String = 'Accumulated cost';
 % axes.XLabel.FontSize = 12;
 % axes.YLabel.Interpreter = 'latex';
 % axes.YLabel.String = 'Frequency';
@@ -1408,7 +1423,7 @@ end
 % axes.YAxis.TickLabelInterpreter = 'latex';
 % axes.YAxis.FontSize = 10;
 % axes.XLabel.Interpreter = 'latex';
-% axes.XLabel.String = 'Cumulative cost';
+% axes.XLabel.String = 'Accumulated cost';
 % axes.XLabel.FontSize = 12;
 % axes.YLabel.Interpreter = 'latex';
 % axes.YLabel.String = 'Frequency';
@@ -1428,7 +1443,7 @@ end
 % axes.YAxis.TickLabelInterpreter = 'latex';
 % axes.YAxis.FontSize = 10;
 % axes.XLabel.Interpreter = 'latex';
-% axes.XLabel.String = 'Cumulative cost';
+% axes.XLabel.String = 'Accumulated cost';
 % axes.XLabel.FontSize = 12;
 % axes.YLabel.Interpreter = 'latex';
 % axes.YLabel.String = 'Frequency';
@@ -1448,7 +1463,7 @@ end
 % axes.YAxis.TickLabelInterpreter = 'latex';
 % axes.YAxis.FontSize = 10;
 % axes.XLabel.Interpreter = 'latex';
-% axes.XLabel.String = 'Cumulative cost';
+% axes.XLabel.String = 'Accumulated cost';
 % axes.XLabel.FontSize = 12;
 % axes.YLabel.Interpreter = 'latex';
 % axes.YLabel.String = 'Frequency';
@@ -1468,7 +1483,7 @@ end
 % axes.YAxis.TickLabelInterpreter = 'latex';
 % axes.YAxis.FontSize = 10;
 % axes.XLabel.Interpreter = 'latex';
-% axes.XLabel.String = 'Cumulative cost';
+% axes.XLabel.String = 'Accumulated cost';
 % axes.XLabel.FontSize = 12;
 % axes.YLabel.Interpreter = 'latex';
 % axes.YLabel.String = 'Frequency';
@@ -1488,7 +1503,7 @@ end
 % axes.YAxis.TickLabelInterpreter = 'latex';
 % axes.YAxis.FontSize = 10;
 % axes.XLabel.Interpreter = 'latex';
-% axes.XLabel.String = 'Cumulative cost';
+% axes.XLabel.String = 'Accumulated cost';
 % axes.XLabel.FontSize = 12;
 % axes.YLabel.Interpreter = 'latex';
 % axes.YLabel.String = 'Frequency';
@@ -1533,7 +1548,7 @@ end
 % axes.YAxis.TickLabelInterpreter = 'latex';
 % axes.YAxis.FontSize = 10;
 % axes.XLabel.Interpreter = 'latex';
-% axes.XLabel.String = 'Normalized cumulative cost';
+% axes.XLabel.String = 'Normalized accumulated cost';
 % axes.XLabel.FontSize = 12;
 % axes.YLabel.Interpreter = 'latex';
 % axes.YLabel.String = 'Frequency';
@@ -1552,7 +1567,7 @@ end
 % axes.YAxis.TickLabelInterpreter = 'latex';
 % axes.YAxis.FontSize = 10;
 % axes.XLabel.Interpreter = 'latex';
-% axes.XLabel.String = 'Normalized cumulative cost';
+% axes.XLabel.String = 'Normalized accumulated cost';
 % axes.XLabel.FontSize = 12;
 % axes.YLabel.Interpreter = 'latex';
 % axes.YLabel.String = 'Frequency';
@@ -1571,7 +1586,7 @@ end
 % axes.YAxis.TickLabelInterpreter = 'latex';
 % axes.YAxis.FontSize = 10;
 % axes.XLabel.Interpreter = 'latex';
-% axes.XLabel.String = 'Normalized cumulative cost';
+% axes.XLabel.String = 'Normalized accumulated cost';
 % axes.XLabel.FontSize = 12;
 % axes.YLabel.Interpreter = 'latex';
 % axes.YLabel.String = 'Frequency';
@@ -1590,7 +1605,7 @@ end
 % axes.YAxis.TickLabelInterpreter = 'latex';
 % axes.YAxis.FontSize = 10;
 % axes.XLabel.Interpreter = 'latex';
-% axes.XLabel.String = 'Normalized cumulative cost';
+% axes.XLabel.String = 'Normalized accumulated cost';
 % axes.XLabel.FontSize = 12;
 % axes.YLabel.Interpreter = 'latex';
 % axes.YLabel.String = 'Frequency';
@@ -1609,7 +1624,7 @@ end
 % axes.YAxis.TickLabelInterpreter = 'latex';
 % axes.YAxis.FontSize = 10;
 % axes.XLabel.Interpreter = 'latex';
-% axes.XLabel.String = 'Normalized cumulative cost';
+% axes.XLabel.String = 'Normalized accumulated cost';
 % axes.XLabel.FontSize = 12;
 % axes.YLabel.Interpreter = 'latex';
 % axes.YLabel.String = 'Frequency';
@@ -1628,7 +1643,7 @@ end
 % axes.YAxis.TickLabelInterpreter = 'latex';
 % axes.YAxis.FontSize = 10;
 % axes.XLabel.Interpreter = 'latex';
-% axes.XLabel.String = 'Normalized cumulative cost';
+% axes.XLabel.String = 'Normalized accumulated cost';
 % axes.XLabel.FontSize = 12;
 % axes.YLabel.Interpreter = 'latex';
 % axes.YLabel.String = 'Frequency';
@@ -1681,6 +1696,11 @@ function [k_p, k_d] = get_karma_payments(m_p, d, curr_k, param)
     % delayed agents for which karma will saturate. This is the final
     % total paid by passing agent
     k_p = sum(k_d);
+end
+
+% Gets accumulated costs counting in warm-up period reset
+function a = get_accumulated_cost(c, param)
+    a = [cumsum(c(1:param.t_warm_up,:)); cumsum(c(param.t_warm_up+1:end,:))];
 end
 
 % Standardizes input distribution given mean and variance vectors

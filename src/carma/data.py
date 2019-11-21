@@ -170,6 +170,11 @@ def carma1_main():
             datae.append(val)
         data.append(datae)
 
+        # EE
+        print('W1: %f' % datae[0])
+        print('W1_norm: %f' % datae[1])
+        print('W2_norm: %f' % datae[2])
+
         print('Creating reports...')
         if do_reports:
             r = make_figures(exp_name, exp, history)

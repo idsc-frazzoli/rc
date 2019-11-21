@@ -246,17 +246,17 @@ with r.plot('equilibria') as pylab:
 #      0.15: [0.0, 1.0, 2.0, 2.0, 3.0, 4.0, 4.9, 5.9, 6.9, 7.9, 8.9, 9.8, 11.7],
 #      0.55: [0.0, 1.0, 1.0, 2.0, 2.8, 3.5, 4.0, 4.6, 5.3, 5.7, 6.7, 7.9, 10.6]}
 
-with r.plot('equilibria_pure') as pylab:
-    from .policy_agent import equilibria_pure
-    for alpha in sorted(equilibria_pure):
-        policy = equilibria_pure[alpha]
-        color = color_for_alpha(alpha)
-        pylab.plot(policy, '-*', label=' α = %.2f (pure)' % alpha, color=color)
-
-    pylab.xlabel('karma')
-    pylab.ylabel('expected value of message ')
-    pylab.title('Visualization of Nash Equilibria (mixed strategies)')
-    pylab.legend(loc=9, bbox_to_anchor=(0.5, -0.1), ncol=4)
+# with r.plot('equilibria_pure') as pylab:
+#     from .policy_agent import equilibria_pure
+#     for alpha in sorted(equilibria_pure):
+#         policy = equilibria_pure[alpha]
+#         color = color_for_alpha(alpha)
+#         pylab.plot(policy, '-*', label=' α = %.2f (pure)' % alpha, color=color)
+#
+#     pylab.xlabel('karma')
+#     pylab.ylabel('expected value of message ')
+#     pylab.title('Visualization of Nash Equilibria (mixed strategies)')
+#     pylab.legend(loc=9, bbox_to_anchor=(0.5, -0.1), ncol=4)
 
 fn = 'quick.html'
 r.to_html(fn)

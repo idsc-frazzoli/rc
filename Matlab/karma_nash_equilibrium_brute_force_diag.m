@@ -61,12 +61,16 @@ const.max_iter = 1000;
 % denotes probability of transmitting message k(j) when karma level is
 % k(i). Note that rows must sum to 1
 % Initialize to identity
-% policy = cell(const.num_k, 1);
-% for i_k_i = 1 : const.num_k
-%     policy{i_k_i} = zeros(1, i_k_i);
-%     policy{i_k_i}(i_k_i) = 1;
-% end
-load('policy.mat');
+policy = cell(const.num_k, 1);
+for i_k_i = 1 : const.num_k
+    policy{i_k_i} = zeros(1, i_k_i);
+    policy{i_k_i}(i_k_i) = 1;
+end
+policy{2} = zeros(1, 2);
+policy{2}(1) = 1;
+policy{3} = zeros(1, 3);
+policy{3}(1) = 1;
+% load('policy.mat');
 
 % Indicate to user where we are
 fprintf("Policy: %d", const.k(policy{1}==1));
