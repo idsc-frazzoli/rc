@@ -15,13 +15,13 @@ rng(0);
 
 %% Code control bits
 % Autocorrelation takes long time to compute
-control.compute_autocorrelation = false;
+control.compute_autocorrelation = true;
 
 % Flag to simulate centralized limited memory policies
 control.lim_mem_policies = true;
 
 % Flag to simulate heuristic karma policies
-control.karma_heuristic_policies = false;
+control.karma_heuristic_policies = true;
 
 %% Parameters
 param = load_parameters();
@@ -139,7 +139,7 @@ for day = 1 : param.num_days
         %% CENTRALIZED POLICIES %%
         %% Centralized policy 1 - minimize W1, coin-flip if tie
         % Find agent(s) with max urgency, which are candidates for passing
-        [~, p_i] = multi_maxes(u);
+        [~, p_i] = func.multi_maxes(u);
         p_max_u = I(p_i);
 
         % Now choose an agent uniformly at random if there are multiple.
@@ -161,7 +161,7 @@ for day = 1 : param.num_days
         else
             a_u = sum(c_2(param.t_warm_up+1:t,I)) + u;
         end
-        [~, p_i] = multi_max(a_u);
+        [~, p_i] = func.multi_max(a_u);
         p = I(p_i);
 
         % Agents incur cost equal to their urgency, except passing agent
@@ -183,7 +183,7 @@ for day = 1 : param.num_days
             else
                 a_u = sum(c_1_2(param.t_warm_up+1:t,p_max_u)) + u(p_ind);
             end
-            [~, p_i] = multi_max(a_u);
+            [~, p_i] = func.multi_max(a_u);
             p = p_max_u(p_i);
         else
             p = p_max_u;
@@ -201,7 +201,7 @@ for day = 1 : param.num_days
                 % Agent with maximum accumulated cost in memory (counting current
                 % urgency) passes
                 a_u = sum(c_in_mem{i}(:,I)) + u;
-                [~, p_i] = multi_max(a_u);
+                [~, p_i] = func.multi_max(a_u);
                 p = I(p_i);
 
                 % Agents incur cost equal to their urgency, except passing agent
@@ -221,7 +221,7 @@ for day = 1 : param.num_days
             m = min([ones(1, param.I_size); k_bid_1(t,I) - param.k_min]);
 
             % Agent bidding max karma passes and pays karma bidded
-            [m_p, p_i] = multi_max(m);
+            [m_p, p_i] = func.multi_max(m);
             p = I(p_i);
 
             % Agents incur cost equal to their urgency, except passing agent
@@ -229,11 +229,11 @@ for day = 1 : param.num_days
             c_bid_1(t,p) = 0;
 
             % Get delayed agents. They will be getting karma
-            d = get_d(I, p_i);
+            d = func.get_d(I, p_i);
 
             % Update karma
             if t < param.tot_num_inter
-                [k_p, k_d] = get_karma_payments(m_p, d, k_bid_1(t,:), param);
+                [k_p, k_d] = func.get_karma_payments(m_p, d, k_bid_1(t,:), param);
                 k_bid_1(t+1,:) = k_bid_1(t,:);
                 k_bid_1(t+1,p) = k_bid_1(t+1,p) - k_p;
                 k_bid_1(t+1,d) = k_bid_1(t+1,d) + k_d;
@@ -245,7 +245,7 @@ for day = 1 : param.num_days
             m(u == 0) = 0;
 
             % Agent bidding max karma passes and pays karma bidded
-            [m_p, p_i] = multi_max(m);
+            [m_p, p_i] = func.multi_max(m);
             p = I(p_i);
 
             % Agents incur cost equal to their urgency, except passing agent
@@ -253,11 +253,11 @@ for day = 1 : param.num_days
             c_bid_1_u(t,p) = 0;
 
             % Get delayed agents. They will be getting karma
-            d = get_d(I, p_i);
+            d = func.get_d(I, p_i);
 
             % Update karma
             if t < param.tot_num_inter
-                [k_p, k_d] = get_karma_payments(m_p, d, k_bid_1_u(t,:), param);
+                [k_p, k_d] = func.get_karma_payments(m_p, d, k_bid_1_u(t,:), param);
                 k_bid_1_u(t+1,:) = k_bid_1_u(t,:);
                 k_bid_1_u(t+1,p) = k_bid_1_u(t+1,p) - k_p;
                 k_bid_1_u(t+1,d) = k_bid_1_u(t+1,d) + k_d;
@@ -269,7 +269,7 @@ for day = 1 : param.num_days
             m = k_bid_all(t,I) - param.k_min;
 
             % Agent bidding max karma passes and pays karma bidded
-            [m_p, p_i] = multi_max(m);
+            [m_p, p_i] = func.multi_max(m);
             p = I(p_i);
 
             % Agents incur cost equal to their urgency, except passing agent
@@ -277,11 +277,11 @@ for day = 1 : param.num_days
             c_bid_all(t,p) = 0;
 
             % Get delayed agents. They will be getting karma
-            d = get_d(I, p_i);
+            d = func.get_d(I, p_i);
 
             % Update karma
             if t < param.tot_num_inter
-                [k_p, k_d] = get_karma_payments(m_p, d, k_bid_all(t,:), param);
+                [k_p, k_d] = func.get_karma_payments(m_p, d, k_bid_all(t,:), param);
                 k_bid_all(t+1,:) = k_bid_all(t,:);
                 k_bid_all(t+1,p) = k_bid_all(t+1,p) - k_p;
                 k_bid_all(t+1,d) = k_bid_all(t+1,d) + k_d;
@@ -294,7 +294,7 @@ for day = 1 : param.num_days
             m(u == 0) = 0;
 
             % Agent bidding max karma passes and pays karma bidded
-            [m_p, p_i] = multi_max(m);
+            [m_p, p_i] = func.multi_max(m);
             p = I(p_i);
 
             % Agents incur cost equal to their urgency, except passing agent
@@ -302,11 +302,11 @@ for day = 1 : param.num_days
             c_bid_all_u(t,p) = 0;
 
             % Get delayed agents. They will be getting karma
-            d = get_d(I, p_i);
+            d = func.get_d(I, p_i);
 
             % Update karma
             if t < param.tot_num_inter
-                [k_p, k_d] = get_karma_payments(m_p, d, k_bid_all_u(t,:), param);
+                [k_p, k_d] = func.get_karma_payments(m_p, d, k_bid_all_u(t,:), param);
                 k_bid_all_u(t+1,:) = k_bid_all_u(t,:);
                 k_bid_all_u(t+1,p) = k_bid_all_u(t+1,p) - k_p;
                 k_bid_all_u(t+1,d) = k_bid_all_u(t+1,d) + k_d;
@@ -317,21 +317,21 @@ end
 
 %% Perfromance measures
 % Accumulated costs per agent at each time step
-a_rand = get_accumulated_cost(c_rand, param);
-a_1 = get_accumulated_cost(c_1, param);
-a_2 = get_accumulated_cost(c_2, param);
-a_1_2 = get_accumulated_cost(c_1_2, param);
+a_rand = func.get_accumulated_cost(c_rand, param);
+a_1 = func.get_accumulated_cost(c_1, param);
+a_2 = func.get_accumulated_cost(c_2, param);
+a_1_2 = func.get_accumulated_cost(c_1_2, param);
 if control.lim_mem_policies
     a_lim_mem = cell(param.lim_mem_num_steps, 1);
     for i = 1 : param.lim_mem_num_steps
-        a_lim_mem{i} = get_accumulated_cost(c_lim_mem{i}, param);
+        a_lim_mem{i} = func.get_accumulated_cost(c_lim_mem{i}, param);
     end
 end
 if control.karma_heuristic_policies
-    a_bid_1 = get_accumulated_cost(c_bid_1, param);
-    a_bid_1_u = get_accumulated_cost(c_bid_1_u, param);
-    a_bid_all = get_accumulated_cost(c_bid_all, param);
-    a_bid_all_u = get_accumulated_cost(c_bid_all_u, param);
+    a_bid_1 = func.get_accumulated_cost(c_bid_1, param);
+    a_bid_1_u = func.get_accumulated_cost(c_bid_1_u, param);
+    a_bid_all = func.get_accumulated_cost(c_bid_all, param);
+    a_bid_all_u = func.get_accumulated_cost(c_bid_all_u, param);
 end
 
 % If number of interactions per agent is fixed, true time is interprated as
@@ -452,50 +452,50 @@ end
 % Standardized accumulated costs, i.e. accumultated costs brought to zero
 % mean and unit std-dev. Required for autocorrelation and allows to
 % investigate 'mixing' of policies
-a_rand_std = standardize(a_rand, W1_rand, W2_rand);
-a_1_std = standardize(a_1, W1_1, W2_1);
-a_2_std = standardize(a_2, W1_2, W2_2);
-a_1_2_std = standardize(a_1_2, W1_1_2, W2_1_2);
+a_rand_std = func.standardize(a_rand, W1_rand, W2_rand);
+a_1_std = func.standardize(a_1, W1_1, W2_1);
+a_2_std = func.standardize(a_2, W1_2, W2_2);
+a_1_2_std = func.standardize(a_1_2, W1_1_2, W2_1_2);
 if control.lim_mem_policies
     a_lim_mem_std = cell(param.lim_mem_num_steps, 1);
     for i = 1 : param.lim_mem_num_steps
-        a_lim_mem_std{i} = standardize(a_lim_mem{i}, W1_lim_mem{i}, W2_lim_mem{i});
+        a_lim_mem_std{i} = func.standardize(a_lim_mem{i}, W1_lim_mem{i}, W2_lim_mem{i});
     end
 end
 if control.karma_heuristic_policies
-    a_bid_1_std = standardize(a_bid_1, W1_bid_1, W2_bid_1);
-    a_bid_1_u_std = standardize(a_bid_1_u, W1_bid_1_u, W2_bid_1_u);
-    a_bid_all_std = standardize(a_bid_all, W1_bid_all, W2_bid_all);
-    a_bid_all_u_std = standardize(a_bid_all_u, W1_bid_all_u, W2_bid_all_u);
+    a_bid_1_std = func.standardize(a_bid_1, W1_bid_1, W2_bid_1);
+    a_bid_1_u_std = func.standardize(a_bid_1_u, W1_bid_1_u, W2_bid_1_u);
+    a_bid_all_std = func.standardize(a_bid_all, W1_bid_all, W2_bid_all);
+    a_bid_all_u_std = func.standardize(a_bid_all_u, W1_bid_all_u, W2_bid_all_u);
 end
 
 %% Autocorrelation of accumulated cost
 % Provides indication on how well population cost 'mixes' with time
 if control.compute_autocorrelation
     fprintf('Computing autocorrelation for baseline-random\n');
-    [c_rand_cumsum_acorr, acorr_tau] = autocorrelation(a_rand_std);
+    [a_rand_acorr, acorr_tau] = func.autocorrelation(a_rand_std);
     fprintf('Computing autocorrelation for centralized-urgency\n');
-    c_1_cumsum_acorr = autocorrelation(a_1_std);
+    a_1_acorr = func.autocorrelation(a_1_std);
     fprintf('Computing autocorrelation for centralized-cost\n');
-    c_2_cumsum_acorr = autocorrelation(a_2_std);
+    a_2_acorr = func.autocorrelation(a_2_std);
     fprintf('Computing autocorrelation for centralized-urgency-then-cost\n');
-    c_1_2_cumsum_acorr = autocorrelation(a_1_2_std);
+    a_1_2_acorr = func.autocorrelation(a_1_2_std);
     if control.lim_mem_policies
-        c_lim_mem_cumsum_acorr = cell(param.lim_mem_num_steps, 1);
+        a_lim_mem_acorr = cell(param.lim_mem_num_steps, 1);
         for i = 1 : param.lim_mem_num_steps
             fprintf('Computing autocorrelation for centralized-cost-mem-%d\n', param.lim_mem_steps(i));
-            c_lim_mem_cumsum_acorr{i} = autocorrelation(a_lim_mem_std{i});
+            a_lim_mem_acorr{i} = func.autocorrelation(a_lim_mem_std{i});
         end
     end
     if control.karma_heuristic_policies
         fprintf('Computing autocorrelation for bid-1-always\n');
-        c_bid_1_cumsum_acorr = autocorrelation(a_bid_1_std);
+        a_bid_1_acorr = func.autocorrelation(a_bid_1_std);
         fprintf('Computing autocorrelation for bid-1-if-urgent\n');
-        c_bid_1_u_cumsum_acorr = autocorrelation(a_bid_1_u_std);
+        a_bid_1_u_acorr = func.autocorrelation(a_bid_1_u_std);
         fprintf('Computing autocorrelation for bid-all-always\n');
-        c_bid_all_cumsum_acorr = autocorrelation(a_bid_all_std);
+        a_bid_all_acorr = func.autocorrelation(a_bid_all_std);
         fprintf('Computing autocorrelation for bid-all-if-urgent\n');
-        c_bid_all_u_cumsum_acorr = autocorrelation(a_bid_all_u_std);
+        a_bid_all_u_acorr = func.autocorrelation(a_bid_all_u_std);
     end
 end
 
@@ -567,7 +567,7 @@ if control.karma_heuristic_policies
     lgd_text = [lgd_text, "bid-all-if-urgent"];
 end
 axes = gca;
-axis_semi_tight(axes, 1.2);
+func.axis_semi_tight(axes, 1.2);
 axes.Title.Interpreter = 'latex';
 axes.Title.String = 'Performance Comparison';
 axes.Title.FontSize = 18;
@@ -644,7 +644,7 @@ if control.karma_heuristic_policies
     p.MarkerFaceColor = p.Color;
 end
 axes = gca;
-axis_semi_tight(axes, 1.2);
+func.axis_semi_tight(axes, 1.2);
 axes.Title.Interpreter = 'latex';
 axes.Title.String = 'Performance Comparison';
 axes.Title.FontSize = 18;
@@ -1345,23 +1345,23 @@ if control.compute_autocorrelation
     fg = fg + 1;
     fig = gcf;
     fig.Position = [0, 0, screenwidth, screenheight];
-    plot(acorr_tau, c_rand_cumsum_acorr, 'LineWidth', 2);
+    plot(acorr_tau, a_rand_acorr, 'LineWidth', 2);
     hold on;
-    plot(acorr_tau, c_1_cumsum_acorr, 'LineWidth', 2);
-    plot(acorr_tau, c_2_cumsum_acorr, 'LineWidth', 2);
-    plot(acorr_tau, c_1_2_cumsum_acorr, 'LineWidth', 2);
+    plot(acorr_tau, a_1_acorr, 'LineWidth', 2);
+    plot(acorr_tau, a_2_acorr, 'LineWidth', 2);
+    plot(acorr_tau, a_1_2_acorr, 'LineWidth', 2);
     if control.lim_mem_policies
         for i = 1 : param.lim_mem_num_steps
-            plot(acorr_tau, c_lim_mem_cumsum_acorr{i}, '--');
+            plot(acorr_tau, a_lim_mem_acorr{i}, '--');
         end
     end
     if control.karma_heuristic_policies
-        plot(acorr_tau, c_bid_1_cumsum_acorr, '-.');
-        plot(acorr_tau, c_bid_1_u_cumsum_acorr, '-.');
-        plot(acorr_tau, c_bid_all_cumsum_acorr, '-.');
-        plot(acorr_tau, c_bid_all_u_cumsum_acorr, '-.');
+        plot(acorr_tau, a_bid_1_acorr, '-.');
+        plot(acorr_tau, a_bid_1_u_acorr, '-.');
+        plot(acorr_tau, a_bid_all_acorr, '-.');
+        plot(acorr_tau, a_bid_all_u_acorr, '-.');
     end
-    stem(0, c_rand_cumsum_acorr(acorr_tau == 0));
+    stem(0, a_rand_acorr(acorr_tau == 0));
     axes = gca;
     axis tight;
     axes.Title.Interpreter = 'latex';
@@ -1383,398 +1383,5 @@ if control.compute_autocorrelation
     lgd.Location = 'bestoutside';
 end
 
-% %% Histograms of accumulated costs
-% figure(fg);
-% fg = fg + 1;
-% fig = gcf;
-% fig.Position = [mod(fg,2)*default_width, 0, default_width, screenheight];
-% subplot(4,2,1);
-% [values, counts] = count_values(c_rand_cumsum(end,:));
-% stem(values, counts);
-% hold on;
-% stem(W1_rand(end), max(counts), 'Linewidth', 3, 'Marker', 'none');
-% axes = gca;
-% axis tight;
-% axes.Title.Interpreter = 'latex';
-% axes.Title.String = 'baseline-random';
-% axes.Title.FontSize = 16;
-% axes.XAxis.TickLabelInterpreter = 'latex';
-% axes.XAxis.FontSize = 10;
-% axes.YAxis.TickLabelInterpreter = 'latex';
-% axes.YAxis.FontSize = 10;
-% axes.XLabel.Interpreter = 'latex';
-% axes.XLabel.String = 'Accumulated cost';
-% axes.XLabel.FontSize = 12;
-% axes.YLabel.Interpreter = 'latex';
-% axes.YLabel.String = 'Frequency';
-% axes.YLabel.FontSize = 12;
-% subplot(4,2,2);
-% [values, counts] = count_values(c_1_cumsum(end,:));
-% stem(values, counts);
-% hold on;
-% stem(W1_1(end), max(counts), 'Linewidth', 3, 'Marker', 'none');
-% axes = gca;
-% axis tight;
-% axes.Title.Interpreter = 'latex';
-% axes.Title.String = 'centralized-urgency';
-% axes.Title.FontSize = 16;
-% axes.XAxis.TickLabelInterpreter = 'latex';
-% axes.XAxis.FontSize = 10;
-% axes.YAxis.TickLabelInterpreter = 'latex';
-% axes.YAxis.FontSize = 10;
-% axes.XLabel.Interpreter = 'latex';
-% axes.XLabel.String = 'Accumulated cost';
-% axes.XLabel.FontSize = 12;
-% axes.YLabel.Interpreter = 'latex';
-% axes.YLabel.String = 'Frequency';
-% axes.YLabel.FontSize = 12;
-% subplot(4,2,3);
-% [values, counts] = count_values(c_2_cumsum(end,:));
-% stem(values, counts);
-% hold on;
-% stem(W1_2(end), max(counts), 'Linewidth', 3, 'Marker', 'none');
-% axes = gca;
-% axis tight;
-% axes.Title.Interpreter = 'latex';
-% axes.Title.String = 'centralized-cost';
-% axes.Title.FontSize = 16;
-% axes.XAxis.TickLabelInterpreter = 'latex';
-% axes.XAxis.FontSize = 10;
-% axes.YAxis.TickLabelInterpreter = 'latex';
-% axes.YAxis.FontSize = 10;
-% axes.XLabel.Interpreter = 'latex';
-% axes.XLabel.String = 'Accumulated cost';
-% axes.XLabel.FontSize = 12;
-% axes.YLabel.Interpreter = 'latex';
-% axes.YLabel.String = 'Frequency';
-% axes.YLabel.FontSize = 12;
-% subplot(4,2,4);
-% [values, counts] = count_values(c_1_2_cumsum(end,:));
-% stem(values, counts);
-% hold on;
-% stem(W1_1_2(end), max(counts), 'Linewidth', 3, 'Marker', 'none');
-% axes = gca;
-% axis tight;
-% axes.Title.Interpreter = 'latex';
-% axes.Title.String = 'centralized-urgency-then-cost';
-% axes.Title.FontSize = 16;
-% axes.XAxis.TickLabelInterpreter = 'latex';
-% axes.XAxis.FontSize = 10;
-% axes.YAxis.TickLabelInterpreter = 'latex';
-% axes.YAxis.FontSize = 10;
-% axes.XLabel.Interpreter = 'latex';
-% axes.XLabel.String = 'Accumulated cost';
-% axes.XLabel.FontSize = 12;
-% axes.YLabel.Interpreter = 'latex';
-% axes.YLabel.String = 'Frequency';
-% axes.YLabel.FontSize = 12;
-% subplot(4,2,5);
-% [values, counts] = count_values(c_bid_all_cumsum(end,:));
-% stem(values, counts);
-% hold on;
-% stem(W1_bid_all(end), max(counts), 'Linewidth', 3, 'Marker', 'none');
-% axes = gca;
-% axis tight;
-% axes.Title.Interpreter = 'latex';
-% axes.Title.String = 'bid-all-always';
-% axes.Title.FontSize = 16;
-% axes.XAxis.TickLabelInterpreter = 'latex';
-% axes.XAxis.FontSize = 10;
-% axes.YAxis.TickLabelInterpreter = 'latex';
-% axes.YAxis.FontSize = 10;
-% axes.XLabel.Interpreter = 'latex';
-% axes.XLabel.String = 'Accumulated cost';
-% axes.XLabel.FontSize = 12;
-% axes.YLabel.Interpreter = 'latex';
-% axes.YLabel.String = 'Frequency';
-% axes.YLabel.FontSize = 12;
-% subplot(4,2,6);
-% [values, counts] = count_values(c_bid_all_u_cumsum(end,:));
-% stem(values, counts);
-% hold on;
-% stem(W1_bid_all_u(end), max(counts), 'Linewidth', 3, 'Marker', 'none');
-% axes = gca;
-% axis tight;
-% axes.Title.Interpreter = 'latex';
-% axes.Title.String = 'bid-all-if-urgent';
-% axes.Title.FontSize = 16;
-% axes.XAxis.TickLabelInterpreter = 'latex';
-% axes.XAxis.FontSize = 10;
-% axes.YAxis.TickLabelInterpreter = 'latex';
-% axes.YAxis.FontSize = 10;
-% axes.XLabel.Interpreter = 'latex';
-% axes.XLabel.String = 'Accumulated cost';
-% axes.XLabel.FontSize = 12;
-% axes.YLabel.Interpreter = 'latex';
-% axes.YLabel.String = 'Frequency';
-% axes.YLabel.FontSize = 12;
-% subplot(4,2,[7 8]);
-% [values, counts] = count_values(num_inter(end,:));
-% stem(values, counts);
-% hold on;
-% stem(mean_num_inter(end), max(counts), 'Linewidth', 3, 'Marker', 'none');
-% axes = gca;
-% axis tight;
-% axes.Title.Interpreter = 'latex';
-% axes.Title.String = 'Number of interactions per agent';
-% axes.Title.FontSize = 16;
-% axes.XAxis.TickLabelInterpreter = 'latex';
-% axes.XAxis.FontSize = 10;
-% axes.YAxis.TickLabelInterpreter = 'latex';
-% axes.YAxis.FontSize = 10;
-% axes.XLabel.Interpreter = 'latex';
-% axes.XLabel.String = 'Number of interactions';
-% axes.XLabel.FontSize = 12;
-% axes.YLabel.Interpreter = 'latex';
-% axes.YLabel.String = 'Frequency';
-% axes.YLabel.FontSize = 12;
-
-% %% Histograms of normalized accumulated costs
-% figure(fg);
-% fg = fg + 1;
-% fig = gcf;
-% fig.Position = [mod(fg,2)*default_width, 0, default_width, screenheight];
-% subplot(3,2,1);
-% h = histogram(c_rand_cumsum_norm(end,:));
-% hold on;
-% stem(W1_rand_norm(end), max(h.Values), 'Linewidth', 3, 'Marker', 'none');
-% axes = gca;
-% axis tight;
-% axes.Title.Interpreter = 'latex';
-% axes.Title.String = 'baseline-random';
-% axes.Title.FontSize = 16;
-% axes.XAxis.TickLabelInterpreter = 'latex';
-% axes.XAxis.FontSize = 10;
-% axes.YAxis.TickLabelInterpreter = 'latex';
-% axes.YAxis.FontSize = 10;
-% axes.XLabel.Interpreter = 'latex';
-% axes.XLabel.String = 'Normalized accumulated cost';
-% axes.XLabel.FontSize = 12;
-% axes.YLabel.Interpreter = 'latex';
-% axes.YLabel.String = 'Frequency';
-% axes.YLabel.FontSize = 12;
-% subplot(3,2,2);
-% h = histogram(c_1_cumsum_norm(end,:));
-% hold on;
-% stem(W1_1_norm(end), max(h.Values), 'Linewidth', 3, 'Marker', 'none');
-% axes = gca;
-% axis tight;
-% axes.Title.Interpreter = 'latex';
-% axes.Title.String = 'centralized-urgency';
-% axes.Title.FontSize = 16;
-% axes.XAxis.TickLabelInterpreter = 'latex';
-% axes.XAxis.FontSize = 10;
-% axes.YAxis.TickLabelInterpreter = 'latex';
-% axes.YAxis.FontSize = 10;
-% axes.XLabel.Interpreter = 'latex';
-% axes.XLabel.String = 'Normalized accumulated cost';
-% axes.XLabel.FontSize = 12;
-% axes.YLabel.Interpreter = 'latex';
-% axes.YLabel.String = 'Frequency';
-% axes.YLabel.FontSize = 12;
-% subplot(3,2,3);
-% h = histogram(c_2_cumsum_norm(end,:));
-% hold on;
-% stem(W1_2_norm(end), max(h.Values), 'Linewidth', 3, 'Marker', 'none');
-% axes = gca;
-% axis tight;
-% axes.Title.Interpreter = 'latex';
-% axes.Title.String = 'centralized-cost';
-% axes.Title.FontSize = 16;
-% axes.XAxis.TickLabelInterpreter = 'latex';
-% axes.XAxis.FontSize = 10;
-% axes.YAxis.TickLabelInterpreter = 'latex';
-% axes.YAxis.FontSize = 10;
-% axes.XLabel.Interpreter = 'latex';
-% axes.XLabel.String = 'Normalized accumulated cost';
-% axes.XLabel.FontSize = 12;
-% axes.YLabel.Interpreter = 'latex';
-% axes.YLabel.String = 'Frequency';
-% axes.YLabel.FontSize = 12;
-% subplot(3,2,4);
-% h = histogram(c_1_2_cumsum_norm(end,:));
-% hold on;
-% stem(W1_1_2_norm(end), max(h.Values), 'Linewidth', 3, 'Marker', 'none');
-% axes = gca;
-% axis tight;
-% axes.Title.Interpreter = 'latex';
-% axes.Title.String = 'centralized-urgency-then-cost';
-% axes.Title.FontSize = 16;
-% axes.XAxis.TickLabelInterpreter = 'latex';
-% axes.XAxis.FontSize = 10;
-% axes.YAxis.TickLabelInterpreter = 'latex';
-% axes.YAxis.FontSize = 10;
-% axes.XLabel.Interpreter = 'latex';
-% axes.XLabel.String = 'Normalized accumulated cost';
-% axes.XLabel.FontSize = 12;
-% axes.YLabel.Interpreter = 'latex';
-% axes.YLabel.String = 'Frequency';
-% axes.YLabel.FontSize = 12;
-% subplot(3,2,5);
-% h = histogram(c_bid_all_cumsum_norm(end,:));
-% hold on;
-% stem(W1_bid_all_norm(end), max(h.Values), 'Linewidth', 3, 'Marker', 'none');
-% axes = gca;
-% axis tight;
-% axes.Title.Interpreter = 'latex';
-% axes.Title.String = 'bid-all-always';
-% axes.Title.FontSize = 16;
-% axes.XAxis.TickLabelInterpreter = 'latex';
-% axes.XAxis.FontSize = 10;
-% axes.YAxis.TickLabelInterpreter = 'latex';
-% axes.YAxis.FontSize = 10;
-% axes.XLabel.Interpreter = 'latex';
-% axes.XLabel.String = 'Normalized accumulated cost';
-% axes.XLabel.FontSize = 12;
-% axes.YLabel.Interpreter = 'latex';
-% axes.YLabel.String = 'Frequency';
-% axes.YLabel.FontSize = 12;
-% subplot(3,2,6);
-% h = histogram(c_bid_all_u_cumsum_norm(end,:));
-% hold on;
-% stem(W1_bid_all_u_norm(end), max(h.Values), 'Linewidth', 3, 'Marker', 'none');
-% axes = gca;
-% axis tight;
-% axes.Title.Interpreter = 'latex';
-% axes.Title.String = 'bid-all-if-urgent';
-% axes.Title.FontSize = 16;
-% axes.XAxis.TickLabelInterpreter = 'latex';
-% axes.XAxis.FontSize = 10;
-% axes.YAxis.TickLabelInterpreter = 'latex';
-% axes.YAxis.FontSize = 10;
-% axes.XLabel.Interpreter = 'latex';
-% axes.XLabel.String = 'Normalized accumulated cost';
-% axes.XLabel.FontSize = 12;
-% axes.YLabel.Interpreter = 'latex';
-% axes.YLabel.String = 'Frequency';
-% axes.YLabel.FontSize = 12;
-
 %% Inform user when done
 fprintf('DONE\n\n');
-
-%% Helper functions
-% Returns all maximizers (if there are multiple)
-function [max_v, max_i] = multi_maxes(input)
-    [max_v, max_i] = max(input);
-    input(max_i) = -realmax;
-    [next_max_v, next_max_i] = max(input);
-    while next_max_v == max_v
-        max_i = [max_i, next_max_i];
-        input(next_max_i) = -realmax;
-        [next_max_v, next_max_i] = max(input);
-    end
-end
-
-% Checks if there are multiple maximizers and returns one uniformly at
-% random
-function [max_v, max_i] = multi_max(input)
-    % Get maximizers
-    [max_v, max_i] = multi_maxes(input);
-    % Choose one uniformly at random if there are multiple
-    num_max = length(max_i);
-    if num_max > 1
-        max_i = max_i(ceil(rand(1) * num_max));
-    end
-end
-
-% Gets delayed agents given index of passing agent
-function d = get_d(I, p_i)    
-    d = I;
-    d(p_i) = [];
-end
-
-% Gets karma paid by passing agent to delayed agents
-function [k_p, k_d] = get_karma_payments(m_p, d, curr_k, param)
-    % Distribute karma evenly over delayed agents. If an agent will max
-    % out their karma, tough luck!
-    k_p_per_d = floor(m_p / param.num_d);
-    k_d = zeros(1, param.num_d);
-    for i = 1 : param.num_d
-        k_d(i) = min([k_p_per_d, param.k_max - curr_k(d(i))]);
-    end
-    % Sum back the total karma distributed, which takes into account
-    % delayed agents for which karma will saturate. This is the final
-    % total paid by passing agent
-    k_p = sum(k_d);
-end
-
-% Gets accumulated costs counting in warm-up period reset
-function a = get_accumulated_cost(c, param)
-    a = [cumsum(c(1:param.t_warm_up,:)); cumsum(c(param.t_warm_up+1:end,:))];
-end
-
-% Standardizes input distribution given mean and variance vectors
-function output = standardize(input, input_mean, input_var)
-    output = (input - input_mean) ./ sqrt(input_var);
-    output(isnan(output)) = 0;
-end
-
-% Computes the autocorrelation of signal
-function [acorr, tau] = autocorrelation(input)
-    T = size(input, 1);
-    N = size(input, 2);
-    center_t = ceil(T / 2);
-    tau = -center_t + 1 : 1 : center_t;
-    mult_mat = input * input.';
-    acorr = zeros(1, T);
-    % Salvage symmetry of autocorrelation about zero and calculate it for
-    % positive time shifts only
-    tau_0_i = find(tau == 0);
-    for i = tau_0_i : T
-        acorr(i) = sum(diag(mult_mat, tau(i)));
-    end
-    for i = 1 : tau_0_i - 1
-        acorr(i) = acorr(end-i);
-    end
-    acorr = acorr ./ ((T - abs(tau)) * N);
-end
-
-% Computes the correlation of a signal over time
-function [corr, tau] = correlation(input)
-    T = size(input, 1);
-    center_t = ceil(T / 2);
-    tau = -center_t + 1 : 1 : center_t;
-    center_signal = input(center_t,:);
-    corr = center_signal * input.';
-end
-
-% This is a 'custom' histogram-like function that lets us plot histogram as
-% a stem plot
-function [values, counts] = count_values(input)
-    values = unique(input);
-    values = sort(values);
-    counts = zeros(size(values));
-    for i = 1 : length(values)
-        counts(i) = sum(input == values(i));
-    end
-end
-
-% Sets axis limit 'scale' above/below min-max values
-function axis_semi_tight(ax, scale)
-    axis tight; % Set axis tight
-    % x limits
-    xl = xlim(ax); % Get tight axis limits
-    range = xl(2) - xl(1); % Get tight axis range
-    sc_range = scale * range; % Scale range
-    xl(1) = xl(1) - (sc_range - range) / 2; % New xmin
-    xl(2) = xl(1) + sc_range; % New xmax
-    xlim(ax, xl);
-    % y limits
-    yl = ylim(ax); % Get tight axis limits
-    range = yl(2) - yl(1); % Get tight axis range
-    sc_range = scale * range; % Scale range
-    yl(1) = yl(1) - (sc_range - range) / 2; % New ymin
-    yl(2) = yl(1) + sc_range; % New ymax
-    ylim(ax, yl);
-end
-
-% Sets y-axis limit 'scale' above/below min-max values
-function y_semi_tight(ax, scale)
-    axis tight; % Set axis tight
-    yl = ylim(ax); % Get tight axis limits
-    range = yl(2) - yl(1); % Get tight axis range
-    sc_range = scale * range; % Scale range
-    yl(1) = yl(1) - (sc_range - range) / 2; % New ymin
-    yl(2) = yl(1) + sc_range; % New ymax
-    ylim(ax, yl);
-end

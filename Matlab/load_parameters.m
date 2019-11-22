@@ -18,14 +18,14 @@ param.num_d = param.I_size - param.num_p;
 param.num_days = 10000;
 
 % Number of interactions per day
-param.num_inter_per_day = 10;
+param.num_inter_per_day = 1;
 
 % Total number of interactions in simulation
 param.tot_num_inter = param.num_days * param.num_inter_per_day;
 
 % This flag ensures number of interactions is the same at the end of the
 % simulation; i.e. cycles through agents when picking interaction pairs
-param.same_num_inter = true;
+param.same_num_inter = false;
 
 % If number of interactions is to be the same, make sure there is a whole
 % number of interaction pairs in N, as well as a whole number of
