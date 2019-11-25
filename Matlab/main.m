@@ -161,6 +161,9 @@ for day = 1 : param.num_days
         else
             a_u = sum(c_2(param.t_warm_up+1:t,I)) + u;
         end
+        if param.centralized_cost_norm
+            a_u = a_u ./ num_inter(t,I);
+        end
         [~, p_i] = func.multi_max(a_u);
         p = I(p_i);
 
@@ -183,6 +186,9 @@ for day = 1 : param.num_days
             else
                 a_u = sum(c_1_2(param.t_warm_up+1:t,p_max_u)) + u(p_ind);
             end
+            if param.centralized_cost_norm
+                a_u = a_u ./ num_inter(t,p_max_u);
+            end
             [~, p_i] = func.multi_max(a_u);
             p = p_max_u(p_i);
         else
@@ -201,6 +207,9 @@ for day = 1 : param.num_days
                 % Agent with maximum accumulated cost in memory (counting current
                 % urgency) passes
                 a_u = sum(c_in_mem{i}(:,I)) + u;
+                if param.centralized_cost_norm
+                    a_u = a_u ./ min([num_inter(t,I); param.lim_mem_steps(i) * ones(1, param.I_size)]);
+                end
                 [~, p_i] = func.multi_max(a_u);
                 p = I(p_i);
 
@@ -358,23 +367,24 @@ end
 
 % Accumulated costs per agent at each time step, normalized by their
 % respective number of interactions
-% Note that nan can result if agent(s) were never in an intersection, which
-% is handled later by using 'nan---' functions (which ignore nan's)
-a_rand_norm = a_rand ./ num_inter;
-a_1_norm = a_1 ./ num_inter;
-a_2_norm = a_2 ./ num_inter;
-a_1_2_norm = a_1_2 ./ num_inter;
+% Zeros in number of interactions are replaces by 1 to avoid division by 0
+num_inter_div = num_inter;
+num_inter_div(num_inter_div == 0) = 1;
+a_rand_norm = a_rand ./ num_inter_div;
+a_1_norm = a_1 ./ num_inter_div;
+a_2_norm = a_2 ./ num_inter_div;
+a_1_2_norm = a_1_2 ./ num_inter_div;
 if control.lim_mem_policies
     a_lim_mem_norm = cell(param.lim_mem_num_steps, 1);
     for i = 1 : param.lim_mem_num_steps
-        a_lim_mem_norm{i} = a_lim_mem{i} ./ num_inter;
+        a_lim_mem_norm{i} = a_lim_mem{i} ./ num_inter_div;
     end
 end
 if control.karma_heuristic_policies
-    a_bid_1_norm = a_bid_1 ./ num_inter;
-    a_bid_1_u_norm = a_bid_1_u ./ num_inter;
-    a_bid_all_norm = a_bid_all ./ num_inter;
-    a_bid_all_u_norm = a_bid_all_u ./ num_inter;
+    a_bid_1_norm = a_bid_1 ./ num_inter_div;
+    a_bid_1_u_norm = a_bid_1_u ./ num_inter_div;
+    a_bid_all_norm = a_bid_all ./ num_inter_div;
+    a_bid_all_u_norm = a_bid_all_u ./ num_inter_div;
 end
 
 % Inefficiency vs. time
@@ -449,24 +459,122 @@ if control.karma_heuristic_policies
     W2_bid_all_u_norm = nanvar(a_bid_all_u_norm, [], 2);
 end
 
-% Standardized accumulated costs, i.e. accumultated costs brought to zero
-% mean and unit std-dev. Required for autocorrelation and allows to
-% investigate 'mixing' of policies
-a_rand_std = func.standardize(a_rand, W1_rand, W2_rand);
-a_1_std = func.standardize(a_1, W1_1, W2_1);
-a_2_std = func.standardize(a_2, W1_2, W2_2);
-a_1_2_std = func.standardize(a_1_2, W1_1_2, W2_1_2);
-if control.lim_mem_policies
-    a_lim_mem_std = cell(param.lim_mem_num_steps, 1);
-    for i = 1 : param.lim_mem_num_steps
-        a_lim_mem_std{i} = func.standardize(a_lim_mem{i}, W1_lim_mem{i}, W2_lim_mem{i});
-    end
-end
-if control.karma_heuristic_policies
-    a_bid_1_std = func.standardize(a_bid_1, W1_bid_1, W2_bid_1);
-    a_bid_1_u_std = func.standardize(a_bid_1_u, W1_bid_1_u, W2_bid_1_u);
-    a_bid_all_std = func.standardize(a_bid_all, W1_bid_all, W2_bid_all);
-    a_bid_all_u_std = func.standardize(a_bid_all_u, W1_bid_all_u, W2_bid_all_u);
+% Standardized accumulated costs. Standardization method is a parameter.
+% Required for autocorrelation and allows to investigate 'mixing' ability
+% of policies
+switch param.standardization_method
+    % 0-mean 1-variance standardization
+    case 0
+        if param.centralized_cost_norm
+            a_rand_std = func.standardize_mean_var(a_rand_norm, W1_rand_norm, W2_rand_norm);
+            a_1_std = func.standardize_mean_var(a_1_norm, W1_1_norm, W2_1_norm);
+            a_2_std = func.standardize_mean_var(a_2_norm, W1_2_norm, W2_2_norm);
+            a_1_2_std = func.standardize_mean_var(a_1_2_norm, W1_1_2_norm, W2_1_2_norm);
+            if control.lim_mem_policies
+                a_lim_mem_std = cell(param.lim_mem_num_steps, 1);
+                for i = 1 : param.lim_mem_num_steps
+                    a_lim_mem_std{i} = func.standardize_mean_var(a_lim_mem_norm{i}, W1_lim_mem_norm{i}, W2_lim_mem_norm{i});
+                end
+            end
+            if control.karma_heuristic_policies
+                a_bid_1_std = func.standardize_mean_var(a_bid_1_norm, W1_bid_1_norm, W2_bid_1_norm);
+                a_bid_1_u_std = func.standardize_mean_var(a_bid_1_u_norm, W1_bid_1_u_norm, W2_bid_1_u_norm);
+                a_bid_all_std = func.standardize_mean_var(a_bid_all_norm, W1_bid_all_norm, W2_bid_all_norm);
+                a_bid_all_u_std = func.standardize_mean_var(a_bid_all_u_norm, W1_bid_all_u_norm, W2_bid_all_u_norm);
+            end
+        else
+            a_rand_std = func.standardize_mean_var(a_rand, W1_rand, W2_rand);
+            a_1_std = func.standardize_mean_var(a_1, W1_1, W2_1);
+            a_2_std = func.standardize_mean_var(a_2, W1_2, W2_2);
+            a_1_2_std = func.standardize_mean_var(a_1_2, W1_1_2, W2_1_2);
+            if control.lim_mem_policies
+                a_lim_mem_std = cell(param.lim_mem_num_steps, 1);
+                for i = 1 : param.lim_mem_num_steps
+                    a_lim_mem_std{i} = func.standardize_mean_var(a_lim_mem{i}, W1_lim_mem{i}, W2_lim_mem{i});
+                end
+            end
+            if control.karma_heuristic_policies
+                a_bid_1_std = func.standardize_mean_var(a_bid_1, W1_bid_1, W2_bid_1);
+                a_bid_1_u_std = func.standardize_mean_var(a_bid_1_u, W1_bid_1_u, W2_bid_1_u);
+                a_bid_all_std = func.standardize_mean_var(a_bid_all, W1_bid_all, W2_bid_all);
+                a_bid_all_u_std = func.standardize_mean_var(a_bid_all_u, W1_bid_all_u, W2_bid_all_u);
+            end
+        end
+    % Order ranking standardization
+    case 1
+        if param.centralized_cost_norm
+            a_rand_std = func.order_rank(a_rand_norm);
+            a_1_std = func.order_rank(a_1_norm);
+            a_2_std = func.order_rank(a_2_norm);
+            a_1_2_std = func.order_rank(a_1_2_norm);
+            if control.lim_mem_policies
+                a_lim_mem_std = cell(param.lim_mem_num_steps, 1);
+                for i = 1 : param.lim_mem_num_steps
+                    a_lim_mem_std{i} = func.order_rank(a_lim_mem_norm{i});
+                end
+            end
+            if control.karma_heuristic_policies
+                a_bid_1_std = func.order_rank(a_bid_1_norm);
+                a_bid_1_u_std = func.order_rank(a_bid_1_u_norm);
+                a_bid_all_std = func.order_rank(a_bid_all_norm);
+                a_bid_all_u_std = func.order_rank(a_bid_all_u_norm);
+            end
+        else
+            a_rand_std = func.order_rank(a_rand);
+            a_1_std = func.order_rank(a_1);
+            a_2_std = func.order_rank(a_2);
+            a_1_2_std = func.order_rank(a_1_2);
+            if control.lim_mem_policies
+                a_lim_mem_std = cell(param.lim_mem_num_steps, 1);
+                for i = 1 : param.lim_mem_num_steps
+                    a_lim_mem_std{i} = func.order_rank(a_lim_mem{i});
+                end
+            end
+            if control.karma_heuristic_policies
+                a_bid_1_std = func.order_rank(a_bid_1);
+                a_bid_1_u_std = func.order_rank(a_bid_1_u);
+                a_bid_all_std = func.order_rank(a_bid_all);
+                a_bid_all_u_std = func.order_rank(a_bid_all_u);
+            end
+        end
+    % normalized order ranking standardization, i.e. order ranking scaled
+    % between 0-1
+    case 2
+        if param.centralized_cost_norm
+            a_rand_std = func.order_rank_norm(a_rand_norm);
+            a_1_std = func.order_rank_norm(a_1_norm);
+            a_2_std = func.order_rank_norm(a_2_norm);
+            a_1_2_std = func.order_rank_norm(a_1_2_norm);
+            if control.lim_mem_policies
+                a_lim_mem_std = cell(param.lim_mem_num_steps, 1);
+                for i = 1 : param.lim_mem_num_steps
+                    a_lim_mem_std{i} = func.order_rank_norm(a_lim_mem_norm{i});
+                end
+            end
+            if control.karma_heuristic_policies
+                a_bid_1_std = func.order_rank_norm(a_bid_1_norm);
+                a_bid_1_u_std = func.order_rank_norm(a_bid_1_u_norm);
+                a_bid_all_std = func.order_rank_norm(a_bid_all_norm);
+                a_bid_all_u_std = func.order_rank_norm(a_bid_all_u_norm);
+            end
+        else
+            a_rand_std = func.order_rank_norm(a_rand);
+            a_1_std = func.order_rank_norm(a_1);
+            a_2_std = func.order_rank_norm(a_2);
+            a_1_2_std = func.order_rank_norm(a_1_2);
+            if control.lim_mem_policies
+                a_lim_mem_std = cell(param.lim_mem_num_steps, 1);
+                for i = 1 : param.lim_mem_num_steps
+                    a_lim_mem_std{i} = func.order_rank_norm(a_lim_mem{i});
+                end
+            end
+            if control.karma_heuristic_policies
+                a_bid_1_std = func.order_rank_norm(a_bid_1);
+                a_bid_1_u_std = func.order_rank_norm(a_bid_1_u);
+                a_bid_all_std = func.order_rank_norm(a_bid_all);
+                a_bid_all_u_std = func.order_rank_norm(a_bid_all_u);
+            end
+        end
 end
 
 %% Autocorrelation of accumulated cost
@@ -1361,9 +1469,11 @@ if control.compute_autocorrelation
         plot(acorr_tau, a_bid_all_acorr, '-.');
         plot(acorr_tau, a_bid_all_u_acorr, '-.');
     end
-    stem(0, a_rand_acorr(acorr_tau == 0));
-    axes = gca;
     axis tight;
+    axes = gca;
+    yl = ylim(axes);
+    stem(0, a_rand_acorr(acorr_tau == 0));
+    ylim(axes, yl);
     axes.Title.Interpreter = 'latex';
     axes.Title.String = 'Autocorrelation of accumulated costs';
     axes.Title.FontSize = 18;

@@ -52,8 +52,32 @@ classdef func
         end
 
         % Standardizes input distribution given mean and variance vectors
-        function output = standardize(input, input_mean, input_var)
+        function output = standardize_mean_var(input, input_mean, input_var)
             output = (input - input_mean) ./ sqrt(input_var);
+            output(isnan(output)) = 0;
+        end
+        
+        % Computes the oder ranking of the input
+        function output = order_rank(input)
+            output = zeros(size(input));
+            for i = 1 : size(input, 1)
+                output(i,:) = tiedrank(input(i,:));
+            end
+            output(isnan(output)) = 0;
+        end
+        
+        % Computes the normalized oder ranking of the input, which is
+        % scaled between 0 and 1
+        function output = order_rank_norm(input)
+            output = zeros(size(input));
+            min_v = 1;
+            max_v = size(output, 2);
+            for i = 1 : size(input, 1)
+                output(i,:) = tiedrank(input(i,:));
+%                 min_v = nanmin(output(i,:));
+%                 max_v = nanmax(output(i,:));
+                output(i,:) = (output(i,:) - min_v) / (max_v - min_v);
+            end
             output(isnan(output)) = 0;
         end
         

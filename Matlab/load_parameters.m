@@ -48,6 +48,17 @@ param.t_warm_up = param.warm_up_days * param.num_inter_per_day;
 % Total expected number of interactions per agent
 param.num_inter_per_agent = param.tot_num_inter / (param.N / param.I_size);
 
+% Centralized cost policies - optimize based on accumulated cost or
+% normalized accumulated cost
+param.centralized_cost_norm = true;
+
+% Standardization method for accumulated cost
+% 0 => 0-mean 1-variance standardization
+% 1 => order ranking standardization
+% 2 => normalized order ranking standardization, i.e. order ranking scaled
+% between 0-1
+param.standardization_method = 2;
+
 % Limited memory policies steps
 param.lim_mem_steps = 2.^(0 : ceil(log2(param.num_inter_per_agent)));
 
