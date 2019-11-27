@@ -79,7 +79,8 @@ classdef ne_func
                 % Expectation over u_i
                 % Can skip u_i = 0 since cost will be zero
                 for u_i = param.U
-                    p_u_i = 0.5;
+                    %p_u_i = 0.5;
+                    p_u_i = 1;
                     % Expectation over m_i - comes from policy_i
                     for i_m_i = 1 : i_k_i
                         if u_i == 0
@@ -132,7 +133,7 @@ classdef ne_func
         end
 
         % Gets rho matrix
-        function rho = get_rho(policy, D, theta, const, param)
+        function rho = get_rho(policy, D, theta, const, param, ne_param)
             rho = cell(const.num_k, 1);
             for i_k_i = 1 : const.num_k
                 rho{i_k_i} = zeros(1, i_k_i);
@@ -178,7 +179,7 @@ classdef ne_func
 
                                 p = p_u_j * p_k_j * p_m_j;
                                 rho{i_k_i}(i_m_i) = rho{i_k_i}(i_m_i)...
-                                    + p * (c_now + const.alpha * c_future);
+                                    + p * (c_now + ne_param.alpha * c_future);
                             end
                         end
                     end
@@ -216,6 +217,31 @@ classdef ne_func
                 input(next_min_i) = realmax;
                 [next_min_v, next_min_i] = min(input);
             end
+        end
+        
+        % Plot policy
+        function plot_policy(fg, position, policy, const, title, colormap)
+            policy_mat = nan(const.num_k);
+            for i_k_i = 1 : const.num_k
+                policy_mat(i_k_i,1:i_k_i) = policy{i_k_i};
+            end
+            policy_mat(policy_mat == 0) = nan;
+            figure(fg);
+            fig = gcf;
+            fig.Position = position;
+            h = heatmap(policy_mat.', 'ColorbarVisible','off');
+            h.YDisplayData = flipud(h.YDisplayData);
+            h.Title = title;
+            h.XLabel = 'Karma';
+            h.YLabel = 'Message';
+            h.FontName = 'Ubuntu';
+            h.FontSize = 12;
+            if exist('colormap', 'var')
+                h.Colormap = colormap;
+            end
+            h.ColorLimits = [0 1];
+            h.CellLabelFormat = '%.2f';
+            drawnow;
         end
     end
 end
