@@ -2,8 +2,20 @@ function param = load_parameters()
 % Population size
 param.N = 200;
 
-% Discrete urgency level
-param.U = 3;
+% Vector of all urgency values
+param.U = [0; 3];
+
+% Vector of probabilities of urgency values. This must sum to 1
+param.p_U = [0.5; 0.5];
+
+% Number of urgency values
+param.num_U = length(param.U);
+
+% Low urgency
+param.u_low = min(param.U);
+
+% High urgency
+param.u_high = max(param.U);
 
 % Number of agents in one intersection
 param.I_size = 2;

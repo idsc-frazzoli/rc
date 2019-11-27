@@ -94,7 +94,7 @@ num_inter = zeros(param.tot_num_inter, param.N);
 for day = 1 : param.num_days
     % Pick urgency in {0,U} uniformly at random for all agents. Urgency
     % stays constant for agents per day
-    u_today = round(rand(1, param.N)) * param.U;
+    u_today = round(rand(1, param.N)) * param.u_high;
     
     for inter = 1 : param.num_inter_per_day
         t = (day - 1) * param.num_inter_per_day + inter;
