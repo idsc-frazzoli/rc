@@ -497,5 +497,53 @@ classdef ne_func
             end
             drawnow;
         end
+        
+        % Plot utility theta
+        function plot_theta(fg, position, theta, ne_param, title)
+            figure(fg);
+            fig = gcf;
+            fig.Position = position;
+            plot(ne_param.k, -theta, '-x', 'LineWidth', 2);
+            axes = gca;
+            axis tight;
+            axes.Title.FontName = 'ubuntu';
+            axes.Title.String = title;
+            axes.Title.FontSize = 12;
+            axes.XAxis.FontSize = 10;
+            axes.YAxis.FontSize = 10;
+            axes.XLabel.FontName = 'ubuntu';
+            axes.XLabel.String = 'Karma';
+            axes.XLabel.FontSize = 12;
+            axes.YLabel.FontName = 'ubuntu';
+            axes.YLabel.String = 'Utility';
+            axes.YLabel.FontSize = 12;
+            drawnow;
+        end
+        
+        % Plot theta D for state implementation
+        function plot_theta_states(fg, position, theta, ne_param, title)
+            figure(fg);
+            fig = gcf;
+            fig.Position = position;
+            for i_u_i = 1 : ne_param.num_U
+                base_i = (i_u_i - 1) * ne_param.num_k;
+                subplot(1,ne_param.num_U,i_u_i);
+                plot(ne_param.k, -theta(base_i+1:base_i+ne_param.num_k), '-x', 'LineWidth', 2);
+                axes = gca;
+                axis tight;
+                axes.Title.FontName = 'ubuntu';
+                axes.Title.String = [title, ' for u = ', num2str(ne_param.U(i_u_i))];
+                axes.Title.FontSize = 12;
+                axes.XAxis.FontSize = 10;
+                axes.YAxis.FontSize = 10;
+                axes.XLabel.FontName = 'ubuntu';
+                axes.XLabel.String = 'Karma';
+                axes.XLabel.FontSize = 12;
+                axes.YLabel.FontName = 'ubuntu';
+                axes.YLabel.String = 'Utility';
+                axes.YLabel.FontSize = 12;
+            end
+            drawnow;
+        end
     end
 end

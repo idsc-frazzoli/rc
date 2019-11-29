@@ -6,7 +6,7 @@ param.N = 200;
 param.U = [0; 3];
 
 % Vector of probabilities of urgency values. This must sum to 1
-param.p_U = [0.5; 0.5];
+param.p_U = [0.1; 0.9];
 
 % Number of urgency values
 param.num_U = length(param.U);

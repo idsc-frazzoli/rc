@@ -64,6 +64,11 @@ ne_func.plot_policy_states(policy_plot_fg, policy_plot_pos, policy, ne_param, po
 % Note: All entries are non-negative and vector sums to 1
 % Initialize to uniform distribution
 D = 1 / ne_param.num_states * ones(ne_param.num_states, 1);
+% D = zeros(ne_param.num_states, 1);
+% for i_u_i = 1 : ne_param.num_U
+%     base_i = (i_u_i - 1) * ne_param.num_k;
+%     D(base_i+1:base_i+ne_param.num_k) = ne_param.p_U(i_u_i) / ne_param.num_k * ones(ne_param.num_k, 1);
+% end
 
 %% Step 1: Get (D,T) pair corresponding to NE policy guess
 % Step 1.1: Get T for when all agents play policy and stationary
@@ -104,6 +109,11 @@ c_i = ne_func.get_c_states(policy_i, policy, D, ne_param);
 T_i = ne_func.get_T_states(policy_i, policy, D, ne_param);
 % Step 2.3: Get expected utility for agent i playing policy_i
 theta_i = (eye(ne_param.num_states) - ne_param.alpha * T_i) \ c_i;
+% Plot expected utility
+theta_plot_fg = 3;
+theta_plot_pos = [default_width, default_height / 3, default_width, default_height];
+theta_plot_title = 'Current NE Expected Utility';
+ne_func.plot_theta_states(theta_plot_fg, theta_plot_pos, theta_i, ne_param, theta_plot_title);
 % Step 2.4: Get the expected cost matrix for agent i as per the messages
 % they would transmit, given current expected utility theta_i
 rho_i = ne_func.get_rho_states(policy, D, theta_i, ne_param);
@@ -131,7 +141,7 @@ while policy_i_error > ne_param.policy_tol && num_policy_iter < ne_param.policy_
     policy_i = policy_i_next;
 end
 % Plot best response policy
-policy_i_plot_fg = 3;
+policy_i_plot_fg = 4;
 policy_i_plot_pos = [default_width, 2 * default_height, default_width, default_height];
 policy_i_plot_title = 'Best Response Policy';
 ne_func.plot_policy_states(policy_i_plot_fg, policy_i_plot_pos, policy_i, ne_param, policy_i_plot_title, RedColormap);
@@ -175,6 +185,10 @@ while policy_error > ne_param.policy_tol && num_iter < ne_param.ne_policy_max_it
     % distribution is D
     % Re-initialize D to uniform distribution first
     D = 1 / ne_param.num_states * ones(ne_param.num_states, 1);
+%     for i_u_i = 1 : ne_param.num_U
+%         base_i = (i_u_i - 1) * ne_param.num_k;
+%         D(base_i+1:base_i+ne_param.num_k) = ne_param.p_U(i_u_i) / ne_param.num_k * ones(ne_param.num_k, 1);
+%     end
     T = ne_func.get_T_states(policy, policy, D, ne_param);
 
     % Step 3-1.2: Get stattionary distribution D from T
@@ -207,6 +221,8 @@ while policy_error > ne_param.policy_tol && num_iter < ne_param.ne_policy_max_it
     T_i = ne_func.get_T_states(policy_i, policy, D, ne_param);
     % Step 3-2.3: Get expected utility for agent i playing policy_i
     theta_i = (eye(ne_param.num_states) - ne_param.alpha * T_i) \ c_i;
+    % Plot expected utility
+    ne_func.plot_theta_states(theta_plot_fg, theta_plot_pos, theta_i, ne_param, theta_plot_title);
     % Step 3-2.4: Get the expected cost matrix for agent i as per the messages
     % they would transmit, given current expected utility theta_i
     rho_i = ne_func.get_rho_states(policy, D, theta_i, ne_param);
