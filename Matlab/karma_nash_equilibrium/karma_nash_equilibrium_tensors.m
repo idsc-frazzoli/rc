@@ -18,22 +18,25 @@ ne_param = load_ne_parameters();
 
 %% Step 0: 
 D_up_u = ne_param.p_U;
-gamma_down_mi_mj_up_oi = zeros(ne_param.num_K, ne_param.num_K, ne_param.num_O);
-for i_mi = 1 : ne_param.num_K
-    for i_mj = 1 : ne_param.num_K
-        if i_mi > i_mj  % Agent i wins
-            gamma_down_mi_mj_up_oi(i_mi,i_mj,1) = 1;
-        elseif i_mi < i_mj % Agent j wins
-            gamma_down_mi_mj_up_oi(i_mi,i_mj,2) = 1;
-        else % Tie
-            gamma_down_mi_mj_up_oi(i_mi,i_mj,1) = 0.5;
-            gamma_down_mi_mj_up_oi(i_mi,i_mj,2) = 0.5;
+c_down_ui_mi_mj = zeros(ne_param.num_U, ne_param.num_K, ne_param.num_K);
+for i_ui = 1 : ne_param.num_U
+    for i_mi = 1 : ne_param.num_K
+        for i_mj = 1 : ne_param.num_K
+            if i_mi > i_mj
+                % Agent i wins for sure
+                c_down_ui_mi_mj(i_ui,i_mi,i_mj) = 0;
+            elseif i_mi < i_mj
+                % Agent i loses for sure
+                c_down_ui_mi_mj(i_ui,i_mi,i_mj) = ne_param.U(i_ui);
+            else
+                % 50-50 chances of agent i winning or losing
+                c_down_ui_mi_mj(i_ui,i_mi,i_mj) = 0.5 * ne_param.U(i_ui);
+            end
         end
     end
 end
-c_down_ui_oi = ne_param.U * ne_param.O.';
-phi_down_ki_mi_kj_mj_oi_up_kin...
-    = zeros(ne_param.num_K, ne_param.num_K, ne_param.num_K, ne_param.num_K, ne_param.num_O, ne_param.num_K);
+phi_down_ki_mi_kj_mj_up_kin...
+    = zeros(ne_param.num_K, ne_param.num_K, ne_param.num_K, ne_param.num_K, ne_param.num_K);
 for i_ki = 1 : ne_param.num_K
     ki = ne_param.K(i_ki);
     for i_mi = 1 : i_ki
@@ -43,20 +46,34 @@ for i_ki = 1 : ne_param.num_K
             for i_mj = 1 : i_kj
                 mj = ne_param.K(i_mj);
                 
-                % Next karma if agent i wins
-                kin = ki - min([mi, ne_param.k_max - kj]);
-                i_kin = ne_param.K == kin;
-                phi_down_ki_mi_kj_mj_oi_up_kin(i_ki,i_mi,i_kj,i_mj,1,i_kin) = 1;
-                
-                % Next karma if agent i loses
-                kin = min([ki + mj, ne_param.k_max]);
-                i_kin = ne_param.K == kin;
-                phi_down_ki_mi_kj_mj_oi_up_kin(i_ki,i_mi,i_kj,i_mj,2,i_kin) = 1;
+                if mi > mj
+                    % Agent i wins for sure
+                    kin = ki - min([mi, ne_param.k_max - kj]);
+                    i_kin = ne_param.K == kin;
+                    phi_down_ki_mi_kj_mj_up_kin(i_ki,i_mi,i_kj,i_mj,i_kin) = 1;
+                elseif mi < mj
+                    % Agent i loses for sure
+                    kin = min([ki + mj, ne_param.k_max]);
+                    i_kin = ne_param.K == kin;
+                    phi_down_ki_mi_kj_mj_up_kin(i_ki,i_mi,i_kj,i_mj,i_kin) = 1;
+                else
+                    % 50-50 chances of agent i winning or losing
+                    kin_win = ki - min([mi, ne_param.k_max - kj]);
+                    i_kin_win = ne_param.K == kin_win;
+                    kin_lose = min([ki + mj, ne_param.k_max]);
+                    if kin_win == kin_lose
+                        phi_down_ki_mi_kj_mj_up_kin(i_ki,i_mi,i_kj,i_mj,i_kin_win) = 1;
+                    else
+                        i_kin_lose = ne_param.K == kin_lose;
+                        phi_down_ki_mi_kj_mj_up_kin(i_ki,i_mi,i_kj,i_mj,i_kin_win) = 0.5;
+                        phi_down_ki_mi_kj_mj_up_kin(i_ki,i_mi,i_kj,i_mj,i_kin_lose) = 0.5;
+                    end
+                end
             end
         end
     end
 end
-phi_down_ki_mi_kj_mj_oi_up_uin_kin = permute(outer(phi_down_ki_mi_kj_mj_oi_up_kin, D_up_u, 6, 1), [1 2 3 4 5 7 6]);
+phi_down_ki_mi_kj_mj_up_uin_kin = permute(outer(D_up_u, phi_down_ki_mi_kj_mj_up_kin), [2 3 4 5 1 6]);
 
 %% Step 1
 pi_down_u_k_up_m = zeros(ne_param.num_U, ne_param.num_K, ne_param.num_K);
@@ -78,8 +95,7 @@ ne_func.plot_policy_tensors(policy_plot_fg, policy_plot_pos, pi_down_u_k_up_m, n
 
 %% Step 2
 % 2.1
-T_down_ki_mi_kj_mj_up_uin_kin = permute(dot2(permute(phi_down_ki_mi_kj_mj_oi_up_uin_kin, [1 3 6 7 2 4 5]), gamma_down_mi_mj_up_oi, 7, 3), [1 5 2 6 3 4]);
-T_down_ki_mi_uj_kj_up_uin_kin = permute(squeeze(dot2(permute(T_down_ki_mi_kj_mj_up_uin_kin, [1 2 5 6 3 4]), permute(pi_down_u_k_up_m, [2 3 1]), 6, 2)), [1 2 6 5 3 4]);
+T_down_ki_mi_uj_kj_up_uin_kin = permute(squeeze(dot2(permute(phi_down_ki_mi_kj_mj_up_uin_kin, [1 2 5 6 3 4]), permute(pi_down_u_k_up_m, [2 3 1]), 6, 2)), [1 2 6 5 3 4]);
 T_down_ui_ki_uj_kj_up_uin_kin = permute(squeeze(dot2(permute(T_down_ki_mi_uj_kj_up_uin_kin, [3 4 5 6 1 2]), permute(pi_down_u_k_up_m, [2 3 1]), 6, 2)), [6 5 1 2 3 4]);
 
 % 2.2
@@ -113,7 +129,6 @@ ne_func.plot_D_tensors(D_plot_fg, D_plot_pos, D_up_u_k, ne_param, D_plot_title);
 
 %% Step 3
 % 3.1
-c_down_ui_mi_mj = squeeze(dot2(c_down_ui_oi, permute(gamma_down_mi_mj_up_oi, [3 1 2]), 2, 1));
 D_up_mj = squeeze(dot2(reshape(D_up_u_k, [], 1), reshape(pi_down_u_k_up_m, [], ne_param.num_K), 1, 1));
 q_down_ui_mi = dot2(D_up_mj, c_down_ui_mi_mj, 2, 3);
 q_down_ui_ki_mi = permute(outer(ones(ne_param.num_K, 1), q_down_ui_mi), [2 1 3]);
@@ -238,7 +253,7 @@ fprintf('\n\n');
 while policy_error > ne_param.policy_tol && num_ne_iter < ne_param.ne_policy_max_iter
     %% Step 5.2
     % 5.2.1
-    T_down_ki_mi_uj_kj_up_uin_kin = permute(squeeze(dot2(permute(T_down_ki_mi_kj_mj_up_uin_kin, [1 2 5 6 3 4]), permute(pi_down_u_k_up_m, [2 3 1]), 6, 2)), [1 2 6 5 3 4]);
+    T_down_ki_mi_uj_kj_up_uin_kin = permute(squeeze(dot2(permute(phi_down_ki_mi_kj_mj_up_uin_kin, [1 2 5 6 3 4]), permute(pi_down_u_k_up_m, [2 3 1]), 6, 2)), [1 2 6 5 3 4]);
     T_down_ui_ki_uj_kj_up_uin_kin = permute(squeeze(dot2(permute(T_down_ki_mi_uj_kj_up_uin_kin, [3 4 5 6 1 2]), permute(pi_down_u_k_up_m, [2 3 1]), 6, 2)), [6 5 1 2 3 4]);
 
     % 5.2.2
