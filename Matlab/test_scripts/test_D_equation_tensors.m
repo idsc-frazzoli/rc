@@ -53,7 +53,6 @@ for i = 1 : num_trials
         D_init(Nk+1:end,i) = 0.9 * 1 / Nk * ones(Nk, 1);
     else
         D_init(:,i) = rand(Nx, 1);
-        D_init(:,i) = D_init(:,i) / sum(D_init(:,i));
     end
     D_init(:,i) = D_init(:,i) / sum(D_init(:,i));
     D_curr = D_init(:,i);

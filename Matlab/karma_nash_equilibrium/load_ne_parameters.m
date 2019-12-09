@@ -26,6 +26,9 @@ ne_param.num_K = length(ne_param.K);
 % Maximum karma
 ne_param.k_max = param.k_max;
 
+% Average karma
+ne_param.k_ave = param.k_ave;
+
 % Vector of all outcome values
 ne_param.O = [0; 1];
 
@@ -73,7 +76,7 @@ end
 ne_param.num_X = ne_param.num_U * ne_param.num_K;
 
 % Alpha
-ne_param.alpha = 0.7;
+ne_param.alpha = 0.8;
 
 % Tolerance for convergence of (D,T) pair
 ne_param.D_T_tol = 1e-4;

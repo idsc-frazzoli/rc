@@ -78,48 +78,17 @@ ne_func.plot_policy_tensors(policy_plot_fg, policy_plot_pos, pi_down_u_k_up_m, n
 
 %% Step 2
 % 2.1
-T_down_ki_mi_kj_mj_up_uin_kin = zeros(ne_param.num_K, ne_param.num_K, ne_param.num_K, ne_param.num_K, ne_param.num_U, ne_param.num_K);
-for i_ki = 1 : ne_param.num_K
-    for i_kj = 1 : ne_param.num_K
-        for i_uin = 1 : ne_param.num_U
-            for i_kin = 1 : ne_param.num_K
-                T_down_ki_mi_kj_mj_up_uin_kin(i_ki,:,i_kj,:,i_uin,i_kin) = dot2(gamma_down_mi_mj_up_oi, squeeze(phi_down_ki_mi_kj_mj_oi_up_uin_kin(i_ki,:,i_kj,:,:,i_uin,i_kin)), 3, 3);
-            end
-        end
-    end
-end
-T_down_ki_mi_uj_kj_up_uin_kin = zeros(ne_param.num_K, ne_param.num_K, ne_param.num_U, ne_param.num_K, ne_param.num_U, ne_param.num_K);
-for i_ki = 1 : ne_param.num_K
-    for i_mi = 1 : ne_param.num_K
-        for i_uj = 1 : ne_param.num_U
-            for i_uin = 1 : ne_param.num_U
-                for i_kin = 1 : ne_param.num_K
-                    T_down_ki_mi_uj_kj_up_uin_kin(i_ki,i_mi,i_uj,:,i_uin,i_kin) = dot2(squeeze(pi_down_u_k_up_m(i_uj,:,:)), squeeze(T_down_ki_mi_kj_mj_up_uin_kin(i_ki,i_mi,:,:,i_uin,i_kin)), 2, 2);
-                end
-            end
-        end
-    end
-end
-T_down_ui_ki_uj_kj_up_uin_kin = zeros(ne_param.num_U, ne_param.num_K, ne_param.num_U, ne_param.num_K, ne_param.num_U, ne_param.num_K);
-for i_ui = 1 : ne_param.num_U
-    for i_uj = 1 : ne_param.num_U
-        for i_kj = 1 : ne_param.num_K
-            for i_uin = 1 : ne_param.num_U
-                for i_kin = 1 : ne_param.num_K
-                    T_down_ui_ki_uj_kj_up_uin_kin(i_ui,:,i_uj,i_kj,i_uin,i_kin) = dot2(squeeze(pi_down_u_k_up_m(i_ui,:,:)), squeeze(T_down_ki_mi_uj_kj_up_uin_kin(:,:,i_uj,i_kj,i_uin,i_kin)), 2, 2);
-                end
-            end
-        end
-    end
-end
+T_down_ki_mi_kj_mj_up_uin_kin = permute(dot2(permute(phi_down_ki_mi_kj_mj_oi_up_uin_kin, [1 3 6 7 2 4 5]), gamma_down_mi_mj_up_oi, 7, 3), [1 5 2 6 3 4]);
+T_down_ki_mi_uj_kj_up_uin_kin = permute(squeeze(dot2(permute(T_down_ki_mi_kj_mj_up_uin_kin, [1 2 5 6 3 4]), permute(pi_down_u_k_up_m, [2 3 1]), 6, 2)), [1 2 6 5 3 4]);
+T_down_ui_ki_uj_kj_up_uin_kin = permute(squeeze(dot2(permute(T_down_ki_mi_uj_kj_up_uin_kin, [3 4 5 6 1 2]), permute(pi_down_u_k_up_m, [2 3 1]), 6, 2)), [6 5 1 2 3 4]);
 
 % 2.2
-% D_up_u_k = D_up_u * 1 / ne_param.num_K * ones(1, ne_param.num_K);
-D_up_u_k = D_up_u * 1 / (floor(ne_param.num_K / 4)) * [ones(1, floor(ne_param.num_K / 4)), zeros(1, ne_param.num_K - floor(ne_param.num_K / 4))];
-% D_up_u_k = zeros(ne_param.num_U, ne_param.num_K);
-% D_up_u_k(:,7) = D_up_u;
-%D_up_u_k = 1 / (ne_param.num_U * ne_param.num_K) * ones(ne_param.num_U, ne_param.num_K);
-%D_up_u_k = rand(ne_param.num_U, ne_param.num_K);
+i_kave = find(ne_param.K == ne_param.k_ave);
+D_up_k = zeros(ne_param.num_K, 1);
+D_up_k(i_kave) = 1;
+% i_kave2 = find(ne_param.K == ne_param.k_ave * 2);
+% D_up_k = [1 / i_kave2 * ones(i_kave2, 1); zeros(ne_param.num_K - i_kave2, 1)];
+D_up_u_k = D_up_u * D_up_k.';
 D_up_u_k = D_up_u_k / sum(D_up_u_k(:));
 T_down_ui_ki_up_uin_kin = squeeze(dot2(reshape(D_up_u_k, [], 1), reshape(T_down_ui_ki_uj_kj_up_uin_kin, ne_param.num_U, ne_param.num_K, [], ne_param.num_U, ne_param.num_K), 1, 3));
 D_up_u_k_next = squeeze(dot2(reshape(T_down_ui_ki_up_uin_kin, [], ne_param.num_U, ne_param.num_K), reshape(D_up_u_k, [], 1), 1, 1));
@@ -144,19 +113,12 @@ ne_func.plot_D_tensors(D_plot_fg, D_plot_pos, D_up_u_k, ne_param, D_plot_title);
 
 %% Step 3
 % 3.1
-c_down_ui_mi_mj = zeros(ne_param.num_U, ne_param.num_K, ne_param.num_K);
-for i_ui = 1 : ne_param.num_U
-    c_down_ui_mi_mj(i_ui,:,:) = dot2(gamma_down_mi_mj_up_oi, c_down_ui_oi(i_ui,:), 3, 2);
-end
+c_down_ui_mi_mj = squeeze(dot2(c_down_ui_oi, permute(gamma_down_mi_mj_up_oi, [3 1 2]), 2, 1));
 D_up_mj = squeeze(dot2(reshape(D_up_u_k, [], 1), reshape(pi_down_u_k_up_m, [], ne_param.num_K), 1, 1));
-q_down_ui_ki_mi = zeros(ne_param.num_U, ne_param.num_K, ne_param.num_K);
-for i_ki = 1 : ne_param.num_K
-    q_down_ui_ki_mi(:,i_ki,:) = dot2(D_up_mj, c_down_ui_mi_mj, 2, 3);
-end
-T_down_ui_ki_mi_up_uin_kin = zeros(ne_param.num_U, ne_param.num_K, ne_param.num_K, ne_param.num_U, ne_param.num_K);
-for i_ui = 1 : ne_param.num_U
-    T_down_ui_ki_mi_up_uin_kin(i_ui,:,:,:,:) = dot2(reshape(D_up_u_k, [], 1), reshape(T_down_ki_mi_uj_kj_up_uin_kin, ne_param.num_K, ne_param.num_K, [], ne_param.num_U, ne_param.num_K), 1, 3);
-end
+q_down_ui_mi = dot2(D_up_mj, c_down_ui_mi_mj, 2, 3);
+q_down_ui_ki_mi = permute(outer(ones(ne_param.num_K, 1), q_down_ui_mi), [2 1 3]);
+T_down_ki_mi_up_uin_kin = squeeze(dot2(reshape(D_up_u_k, [], 1), reshape(T_down_ki_mi_uj_kj_up_uin_kin, ne_param.num_K, ne_param.num_K, [], ne_param.num_U, ne_param.num_K), 1, 3));
+T_down_ui_ki_mi_up_uin_kin = outer(ones(ne_param.num_U, 1), T_down_ki_mi_up_uin_kin);
 q_down_ui_ki = dot2(pi_down_u_k_up_m, q_down_ui_ki_mi, 3, 3);
 
 % 3.2
@@ -263,9 +225,9 @@ for i_ui = 1 : ne_param.num_U
         [~, max_i] = max(pi_down_u_k_up_m(i_ui,i_ki,:));
         policy_hist_end(i_xi) = ne_param.K(max_i);
         if i_xi == 1
-            fprintf('Iteration %d policy:\t%d', num_ne_iter, policy_hist_end(i_xi));
+            fprintf('Iteration %d policy:\n%d', num_ne_iter, policy_hist_end(i_xi));
         elseif mod(i_xi - 1, ne_param.num_K) == 0
-            fprintf('\n\t\t\t\t\t%d', policy_hist_end(i_xi));
+            fprintf('\n%d', policy_hist_end(i_xi));
         else
             fprintf('->%d', policy_hist_end(i_xi));
         end
@@ -276,36 +238,14 @@ fprintf('\n\n');
 while policy_error > ne_param.policy_tol && num_ne_iter < ne_param.ne_policy_max_iter
     %% Step 5.2
     % 5.2.1
-    for i_ki = 1 : ne_param.num_K
-        for i_mi = 1 : ne_param.num_K
-            for i_uj = 1 : ne_param.num_U
-                for i_uin = 1 : ne_param.num_U
-                    for i_kin = 1 : ne_param.num_K
-                        T_down_ki_mi_uj_kj_up_uin_kin(i_ki,i_mi,i_uj,:,i_uin,i_kin) = dot2(squeeze(pi_down_u_k_up_m(i_uj,:,:)), squeeze(T_down_ki_mi_kj_mj_up_uin_kin(i_ki,i_mi,:,:,i_uin,i_kin)), 2, 2);
-                    end
-                end
-            end
-        end
-    end
-    for i_ui = 1 : ne_param.num_U
-        for i_uj = 1 : ne_param.num_U
-            for i_kj = 1 : ne_param.num_K
-                for i_uin = 1 : ne_param.num_U
-                    for i_kin = 1 : ne_param.num_K
-                        T_down_ui_ki_uj_kj_up_uin_kin(i_ui,:,i_uj,i_kj,i_uin,i_kin) = dot2(squeeze(pi_down_u_k_up_m(i_ui,:,:)), squeeze(T_down_ki_mi_uj_kj_up_uin_kin(:,:,i_uj,i_kj,i_uin,i_kin)), 2, 2);
-                    end
-                end
-            end
-        end
-    end
+    T_down_ki_mi_uj_kj_up_uin_kin = permute(squeeze(dot2(permute(T_down_ki_mi_kj_mj_up_uin_kin, [1 2 5 6 3 4]), permute(pi_down_u_k_up_m, [2 3 1]), 6, 2)), [1 2 6 5 3 4]);
+    T_down_ui_ki_uj_kj_up_uin_kin = permute(squeeze(dot2(permute(T_down_ki_mi_uj_kj_up_uin_kin, [3 4 5 6 1 2]), permute(pi_down_u_k_up_m, [2 3 1]), 6, 2)), [6 5 1 2 3 4]);
 
     % 5.2.2
-%     D_up_u_k = D_up_u * 1 / ne_param.num_K * ones(1, ne_param.num_K);
-    D_up_u_k = D_up_u * 1 / (floor(ne_param.num_K / 4)) * [ones(1, floor(ne_param.num_K / 4)), zeros(1, ne_param.num_K - floor(ne_param.num_K / 4))];
-%     D_up_u_k = zeros(ne_param.num_U, ne_param.num_K);
-%     D_up_u_k(:,7) = D_up_u;
-    %D_up_u_k = 1 / (ne_param.num_U * ne_param.num_K) * ones(ne_param.num_U, ne_param.num_K);
-    %D_up_u_k = rand(ne_param.num_U, ne_param.num_K);
+    D_up_k = zeros(ne_param.num_K, 1);
+    D_up_k(i_kave) = 1;
+%     D_up_k = [1 / i_kave2 * ones(i_kave2, 1); zeros(ne_param.num_K - i_kave2, 1)];
+    D_up_u_k = D_up_u * D_up_k.';
     D_up_u_k = D_up_u_k / sum(D_up_u_k(:));
     T_down_ui_ki_up_uin_kin = squeeze(dot2(reshape(D_up_u_k, [], 1), reshape(T_down_ui_ki_uj_kj_up_uin_kin, ne_param.num_U, ne_param.num_K, [], ne_param.num_U, ne_param.num_K), 1, 3));
     D_up_u_k_next = squeeze(dot2(reshape(T_down_ui_ki_up_uin_kin, [], ne_param.num_U, ne_param.num_K), reshape(D_up_u_k, [], 1), 1, 1));
@@ -330,12 +270,10 @@ while policy_error > ne_param.policy_tol && num_ne_iter < ne_param.ne_policy_max
     %% Step 5.3
     % 5.3.1
     D_up_mj = squeeze(dot2(reshape(D_up_u_k, [], 1), reshape(pi_down_u_k_up_m, [], ne_param.num_K), 1, 1));
-    for i_ki = 1 : ne_param.num_K
-        q_down_ui_ki_mi(:,i_ki,:) = dot2(D_up_mj, c_down_ui_mi_mj, 2, 3);
-    end
-    for i_ui = 1 : ne_param.num_U
-        T_down_ui_ki_mi_up_uin_kin(i_ui,:,:,:,:) = dot2(reshape(D_up_u_k, [], 1), reshape(T_down_ki_mi_uj_kj_up_uin_kin, ne_param.num_K, ne_param.num_K, [], ne_param.num_U, ne_param.num_K), 1, 3);
-    end
+    q_down_ui_mi = dot2(D_up_mj, c_down_ui_mi_mj, 2, 3);
+    q_down_ui_ki_mi = permute(outer(ones(ne_param.num_K, 1), q_down_ui_mi), [2 1 3]);
+    T_down_ki_mi_up_uin_kin = squeeze(dot2(reshape(D_up_u_k, [], 1), reshape(T_down_ki_mi_uj_kj_up_uin_kin, ne_param.num_K, ne_param.num_K, [], ne_param.num_U, ne_param.num_K), 1, 3));
+    T_down_ui_ki_mi_up_uin_kin = outer(ones(ne_param.num_U, 1), T_down_ki_mi_up_uin_kin);
     q_down_ui_ki = dot2(pi_down_u_k_up_m, q_down_ui_ki_mi, 3, 3);
 
     % 5.3.2
@@ -438,16 +376,31 @@ while policy_error > ne_param.policy_tol && num_ne_iter < ne_param.ne_policy_max
             [~, max_i] = max(pi_down_u_k_up_m(i_ui,i_ki,:));
             policy_hist_end(i_xi) = ne_param.K(max_i);
             if i_xi == 1
-                fprintf('Iteration %d policy:\t%d', num_ne_iter, policy_hist_end(i_xi));
+                fprintf('Iteration %d policy:\n%d', num_ne_iter, policy_hist_end(i_xi));
             elseif mod(i_xi - 1, ne_param.num_K) == 0
-                fprintf('\n\t\t\t\t\t%d', policy_hist_end(i_xi));
+                fprintf('\n%d', policy_hist_end(i_xi));
             else
                 fprintf('->%d', policy_hist_end(i_xi));
             end
         end
     end
+    % Detect a limit cycle
+    limit_cycle = false;
+    for policy_hist_i = 1 : size(policy_hist, 1)
+        if isequal(policy_hist(policy_hist_i,:), policy_hist_end)
+            % Limit cycle found
+            limit_cycle = true;
+            policy_limit_cycle = policy_hist(policy_hist_i:end,:);
+            policy_limit_cycle_code = policy_limit_cycle * repmat((1 : ne_param.num_K).', ne_param.num_U, 1);
+            break;
+        end
+    end
     policy_hist = [policy_hist; policy_hist_end];
     fprintf('\n\n');
+    if ne_param.tau == 1 && limit_cycle && size(policy_limit_cycle, 1) > 1
+        fprintf('Limit cycle found!\n\n');
+        break;
+    end
 end
 
 if ~ne_param.plot
