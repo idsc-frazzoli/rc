@@ -3,12 +3,12 @@ classdef ne_func
     methods(Static)
         % Gets karma transition matrix
         function T = get_T(policy_i, policy_j, D, ne_param)
-            % T is the transition probability matrix with num_k x num_k entries.
+            % T is the transition probability matrix with num_K x num_K entries.
             % Entry T(i_k_i,i_next_k_i) denotes probability of agent i's karma
-            % level transitioning from k(i_k_i) to k(i_next_k_i).
-            T = zeros(ne_param.num_k);
-            for i_k_i = 1 : ne_param.num_k
-                for i_next_k_i = 1 : ne_param.num_k
+            % level transitioning from K(i_k_i) to K(i_next_k_i).
+            T = zeros(ne_param.num_K);
+            for i_k_i = 1 : ne_param.num_K
+                for i_next_k_i = 1 : ne_param.num_K
                     % Expectation over u_i
                     for i_u_i = 1 : ne_param.num_U
                         u_i = ne_param.U(i_u_i);
@@ -16,7 +16,7 @@ classdef ne_func
                         % Expectation over m_i - comes from policy_i
                         for i_m_i = 1 : i_k_i
                             if u_i == 0
-                                p_m_i = (ne_param.k(i_m_i) == 0);
+                                p_m_i = (ne_param.K(i_m_i) == 0);
                             else
                                 p_m_i = policy_i{i_k_i}(i_m_i);
                             end
@@ -28,7 +28,7 @@ classdef ne_func
                                 u_j = ne_param.U(i_u_j);
                                 p_u_j = ne_param.p_U(i_u_j);
                                 % Expectation over k_j
-                                for i_k_j = 1 : ne_param.num_k
+                                for i_k_j = 1 : ne_param.num_K
                                     p_k_j = D(i_k_j);
                                     if p_k_j == 0
                                         continue;
@@ -36,7 +36,7 @@ classdef ne_func
                                     % Expectation over m_j - comes from policy_j
                                     for i_m_j = 1 : i_k_j
                                         if u_j == 0
-                                            p_m_j = (ne_param.k(i_m_j) == 0);
+                                            p_m_j = (ne_param.K(i_m_j) == 0);
                                         else
                                             p_m_j = policy_j{i_k_j}(i_m_j);
                                         end
@@ -51,7 +51,7 @@ classdef ne_func
                                         k_next = ne_param.k_next{i_k_i,i_k_j}{i_m_i,i_m_j};
                                         p = p_u_i * p_m_i * p_u_j * p_k_j * p_m_j;
                                         T(i_k_i,i_next_k_i) = T(i_k_i,i_next_k_i)...
-                                            + p * 1 / length(k_next) * sum((k_next == ne_param.k(i_next_k_i)));
+                                            + p * 1 / length(k_next) * sum((k_next == ne_param.K(i_next_k_i)));
                                     end
                                 end
                             end
@@ -64,21 +64,21 @@ classdef ne_func
         % Gets karma transition matrix for state implementation
         function T = get_T_states(policy_i, policy_j, D, ne_param)
             % T is the transition probability matrix with
-            % num_states x num_states entries.
+            % num_X x num_X entries.
             % Entry T(i_x_i,i_next_x_i) denotes probability of agent i's
             % state transitioning from x(i_x_i) to x(i_next_x_i)
-            % State [u_i = U(i_u_i), k_i = k(i_k_i)] corresponds to
-            % x((i_u_i-1)*num_k+i_k_i), i.e. the first num_k rows/cols are
-            % 'non-urgent' states and the next num_k rows/cols are 'urgent'
+            % State [u_i = U(i_u_i), k_i = K(i_k_i)] corresponds to
+            % x((i_u_i-1)*num_K+i_k_i), i.e. the first num_K rows/cols are
+            % 'non-urgent' states and the next num_K rows/cols are 'urgent'
             % states (for binary urgency)
-            T = zeros(ne_param.num_states);
+            T = zeros(ne_param.num_X);
             for i_u_i = 1 : ne_param.num_U
-                base_i = (i_u_i - 1) * ne_param.num_k;
-                for i_k_i = 1 : ne_param.num_k
+                base_i = (i_u_i - 1) * ne_param.num_K;
+                for i_k_i = 1 : ne_param.num_K
                     for i_next_u_i = 1 : ne_param.num_U
                         p_next_u_i = ne_param.p_U(i_next_u_i);
-                        base_next_i = (i_next_u_i - 1) * ne_param.num_k;
-                        for i_next_k_i = 1 : ne_param.num_k
+                        base_next_i = (i_next_u_i - 1) * ne_param.num_K;
+                        for i_next_k_i = 1 : ne_param.num_K
                             % Expectation over m_i - comes from policy_i
                             for i_m_i = 1 : i_k_i
                                 p_m_i = policy_i{base_i+i_k_i}(i_m_i);
@@ -87,8 +87,8 @@ classdef ne_func
                                 end
                                 % Expectation over [u_j, k_j]
                                 for i_u_j = 1 : ne_param.num_U
-                                    base_j = (i_u_j - 1) * ne_param.num_k;
-                                    for i_k_j = 1 : ne_param.num_k
+                                    base_j = (i_u_j - 1) * ne_param.num_K;
+                                    for i_k_j = 1 : ne_param.num_K
                                         p_u_k_j = D(base_j+i_k_j);
                                         if p_u_k_j == 0
                                             continue;
@@ -108,7 +108,7 @@ classdef ne_func
                                             p = p_next_u_i * p_m_i * p_u_k_j * p_m_j;
                                             T(base_i+i_k_i,base_next_i+i_next_k_i) =...
                                                 T(base_i+i_k_i,base_next_i+i_next_k_i)...
-                                                + p * 1 / length(k_next) * sum((k_next == ne_param.k(i_next_k_i)));
+                                                + p * 1 / length(k_next) * sum((k_next == ne_param.K(i_next_k_i)));
                                         end
                                     end
                                 end
@@ -135,8 +135,8 @@ classdef ne_func
         
         % Gets current stage cost
         function c = get_c(policy_i, policy_j, D, ne_param)
-            c = zeros(ne_param.num_k, 1);
-            for i_k_i = 1 : ne_param.num_k
+            c = zeros(ne_param.num_K, 1);
+            for i_k_i = 1 : ne_param.num_K
                 % Expectation over u_i
                 % Can skip u_i = 0 since cost will be zero
                 for u_i = ne_param.u_high
@@ -145,20 +145,20 @@ classdef ne_func
                     % Expectation over m_i - comes from policy_i
                     for i_m_i = 1 : i_k_i
                         if u_i == 0
-                            p_m_i = (ne_param.k(i_m_i) == 0);
+                            p_m_i = (ne_param.K(i_m_i) == 0);
                         else
                             p_m_i = policy_i{i_k_i}(i_m_i);
                         end
                         if p_m_i == 0
                             continue;
                         end
-                        m_i = ne_param.k(i_m_i);
+                        m_i = ne_param.K(i_m_i);
                         % Expectation over u_j
                         for i_u_j = 1 : ne_param.num_U
                             u_j = ne_param.U(i_u_j);
                             p_u_j = ne_param.p_U(i_u_j);
                             % Expectation over k_j
-                            for i_k_j = 1 : ne_param.num_k
+                            for i_k_j = 1 : ne_param.num_K
                                 p_k_j = D(i_k_j);
                                 if p_k_j == 0
                                     continue;
@@ -166,14 +166,14 @@ classdef ne_func
                                 % Expectation over m_j - comes from policy_j
                                 for i_m_j = 1 : i_k_j
                                     if u_j == 0
-                                        p_m_j = (ne_param.k(i_m_j) == 0);
+                                        p_m_j = (ne_param.K(i_m_j) == 0);
                                     else
                                         p_m_j = policy_j{i_k_j}(i_m_j);
                                     end
                                     if p_m_j == 0
                                         continue;
                                     end
-                                    m_j = ne_param.k(i_m_j);
+                                    m_j = ne_param.K(i_m_j);
 
                                     % This is where the magic happens
                                     if m_i < m_j
@@ -196,22 +196,22 @@ classdef ne_func
 
         % Gets current stage cost for state implementation
         function c = get_c_states(policy_i, policy_j, D, ne_param)
-            c = zeros(ne_param.num_states, 1);
+            c = zeros(ne_param.num_X, 1);
             for i_u_i = 1 : ne_param.num_U
                 u_i = ne_param.U(i_u_i);
-                base_i = (i_u_i - 1) * ne_param.num_k;
-                for i_k_i = 1 : ne_param.num_k
+                base_i = (i_u_i - 1) * ne_param.num_K;
+                for i_k_i = 1 : ne_param.num_K
                     % Expectation over m_i - comes from policy_i
                     for i_m_i = 1 : i_k_i
                         p_m_i = policy_i{base_i+i_k_i}(i_m_i);
                         if p_m_i == 0
                             continue;
                         end
-                        m_i = ne_param.k(i_m_i);
+                        m_i = ne_param.K(i_m_i);
                         % Expectation over [u_j, k_j]
                         for i_u_j = 1 : ne_param.num_U
-                            base_j = (i_u_j - 1) * ne_param.num_k;
-                            for i_k_j = 1 : ne_param.num_k
+                            base_j = (i_u_j - 1) * ne_param.num_K;
+                            for i_k_j = 1 : ne_param.num_K
                                 p_u_k_j = D(base_j+i_k_j);
                                 if p_u_k_j == 0
                                     continue;
@@ -222,7 +222,7 @@ classdef ne_func
                                     if p_m_j == 0
                                         continue;
                                     end
-                                    m_j = ne_param.k(i_m_j);
+                                    m_j = ne_param.K(i_m_j);
 
                                     % This is where the magic happens
                                     if m_i < m_j
@@ -246,29 +246,29 @@ classdef ne_func
         
         % Gets rho matrix
         function rho = get_rho(policy, D, theta, ne_param)
-            rho = cell(ne_param.num_k, 1);
-            for i_k_i = 1 : ne_param.num_k
+            rho = cell(ne_param.num_K, 1);
+            for i_k_i = 1 : ne_param.num_K
                 rho{i_k_i} = zeros(1, i_k_i);
                 for i_m_i = 1 : i_k_i
-                    m_i = ne_param.k(i_m_i);
+                    m_i = ne_param.K(i_m_i);
                     % Expectation over u_j
                     for i_u_j = 1 : ne_param.num_U
                         u_j = ne_param.U(i_u_j);
                         p_u_j = ne_param.p_U(i_u_j);
                         % Expectation over k_j
-                        for i_k_j = 1 : ne_param.num_k
+                        for i_k_j = 1 : ne_param.num_K
                             p_k_j = D(i_k_j);
                             % Expectation over m_j
                             for i_m_j = 1 : i_k_j
                                 if u_j == 0
-                                    p_m_j = (ne_param.k(i_m_j) == 0);
+                                    p_m_j = (ne_param.K(i_m_j) == 0);
                                 else
                                     p_m_j = policy{i_k_j}(i_m_j);
                                 end
                                 if p_m_j == 0
                                     continue;
                                 end
-                                m_j = ne_param.k(i_m_j);
+                                m_j = ne_param.K(i_m_j);
 
                                 % This is where the magic happens
                                 % Current stage cost
@@ -285,9 +285,9 @@ classdef ne_func
                                 % probable next karma levels are attainable
                                 % (when bids are the same)
                                 k_next = ne_param.k_next{i_k_i,i_k_j}{i_m_i,i_m_j};
-                                c_future = theta(ne_param.k == k_next(1)) / length(k_next);
+                                c_future = theta(ne_param.K == k_next(1)) / length(k_next);
                                 for i = 2 : length(k_next)
-                                    c_future = c_future + theta(ne_param.k == k_next(i)) / length(k_next);
+                                    c_future = c_future + theta(ne_param.K == k_next(i)) / length(k_next);
                                 end
 
                                 p = p_u_j * p_k_j * p_m_j;
@@ -302,18 +302,18 @@ classdef ne_func
         
         % Gets rho matrix for state implementation
         function rho = get_rho_states(policy, D, theta, ne_param)
-            rho = cell(ne_param.num_states, 1);
+            rho = cell(ne_param.num_X, 1);
             for i_u_i = 1 : ne_param.num_U
                 u_i = ne_param.U(i_u_i);
-                base_i = (i_u_i - 1) * ne_param.num_k;
-                for i_k_i = 1 : ne_param.num_k
+                base_i = (i_u_i - 1) * ne_param.num_K;
+                for i_k_i = 1 : ne_param.num_K
                     rho{base_i+i_k_i} = zeros(1, i_k_i);
                     for i_m_i = 1 : i_k_i
-                        m_i = ne_param.k(i_m_i);
+                        m_i = ne_param.K(i_m_i);
                         % Expectation over [u_j, k_j]
                         for i_u_j = 1 : ne_param.num_U
-                            base_j = (i_u_j - 1) * ne_param.num_k;
-                            for i_k_j = 1 : ne_param.num_k
+                            base_j = (i_u_j - 1) * ne_param.num_K;
+                            for i_k_j = 1 : ne_param.num_K
                                 p_u_k_j = D(base_j+i_k_j);
                                 % Expectation over m_j
                                 for i_m_j = 1 : i_k_j
@@ -321,7 +321,7 @@ classdef ne_func
                                     if p_m_j == 0
                                         continue;
                                     end
-                                    m_j = ne_param.k(i_m_j);
+                                    m_j = ne_param.K(i_m_j);
 
                                     % This is where the magic happens
                                     % Current stage cost
@@ -342,10 +342,10 @@ classdef ne_func
                                     c_future = 0;
                                     for i_next_u_i = 1 : ne_param.num_U
                                         p_next_u_i = ne_param.p_U(i_next_u_i);
-                                        base_next_i = (i_next_u_i - 1) * ne_param.num_k;
+                                        base_next_i = (i_next_u_i - 1) * ne_param.num_K;
                                         for i = 1 : num_next_k_i
                                             p_next_k_i = 1 / num_next_k_i;
-                                            i_next_k_i = find(ne_param.k == next_k_i(i));
+                                            i_next_k_i = find(ne_param.K == next_k_i(i));
                                             p_next_i = p_next_u_i * p_next_k_i;
                                             c_future = c_future + p_next_i * theta(base_next_i+i_next_k_i);
                                         end
@@ -398,15 +398,15 @@ classdef ne_func
         
         % Plot policy
         function plot_policy(fg, position, policy, ne_param, title, colormap)
-            policy_mat = nan(ne_param.num_k);
-            for i_k_i = 1 : ne_param.num_k
+            policy_mat = nan(ne_param.num_K);
+            for i_k_i = 1 : ne_param.num_K
                 policy_mat(i_k_i,1:i_k_i) = policy{i_k_i};
             end
             policy_mat(policy_mat == 0) = nan;
             figure(fg);
             fig = gcf;
             fig.Position = position;
-            h = heatmap(ne_param.k, ne_param.k, policy_mat.', 'ColorbarVisible','off');
+            h = heatmap(ne_param.K, ne_param.K, policy_mat.', 'ColorbarVisible','off');
             h.YDisplayData = flipud(h.YDisplayData);
             h.Title = title;
             h.XLabel = 'Karma';
@@ -427,16 +427,41 @@ classdef ne_func
             fig = gcf;
             fig.Position = position;
             for i_u_i = 1 : ne_param.num_U
-                base_i = (i_u_i - 1) * ne_param.num_k;
-                policy_mat = nan(ne_param.num_k);
-                for i_k_i = 1 : ne_param.num_k
+                base_i = (i_u_i - 1) * ne_param.num_K;
+                policy_mat = nan(ne_param.num_K);
+                for i_k_i = 1 : ne_param.num_K
                     policy_mat(i_k_i,1:i_k_i) = policy{base_i+i_k_i};
                 end
                 policy_mat(policy_mat == 0) = nan;
                 subplot(1,ne_param.num_U,i_u_i);
-                h = heatmap(ne_param.k, ne_param.k, policy_mat.', 'ColorbarVisible','off');
+                h = heatmap(ne_param.K, ne_param.K, policy_mat.', 'ColorbarVisible','off');
                 h.YDisplayData = flipud(h.YDisplayData);
                 h.Title = [title, ' for u = ', num2str(ne_param.U(i_u_i))];
+                h.XLabel = 'Karma';
+                h.YLabel = 'Message';
+                h.FontName = 'Ubuntu';
+                h.FontSize = 10;
+                if exist('colormap', 'var')
+                    h.Colormap = colormap;
+                end
+                h.ColorLimits = [0 1];
+                h.CellLabelFormat = '%.2f';
+            end
+            drawnow;
+        end
+        
+        % Plot policy for tensor implementation
+        function plot_policy_tensors(fg, position, policy, ne_param, title, colormap)
+            figure(fg);
+            fig = gcf;
+            fig.Position = position;
+            for i_ui = 1 : ne_param.num_U
+                policy_mat = squeeze(policy(i_ui,:,:));
+                policy_mat(policy_mat == 0) = nan;
+                subplot(1,ne_param.num_U,i_ui);
+                h = heatmap(ne_param.K, ne_param.K, policy_mat.', 'ColorbarVisible','off');
+                h.YDisplayData = flipud(h.YDisplayData);
+                h.Title = [title, ' for u = ', num2str(ne_param.U(i_ui))];
                 h.XLabel = 'Karma';
                 h.YLabel = 'Message';
                 h.FontName = 'Ubuntu';
@@ -455,7 +480,7 @@ classdef ne_func
             figure(fg);
             fig = gcf;
             fig.Position = position;
-            bar(ne_param.k, D);
+            bar(ne_param.K, D);
             axes = gca;
             axis tight;
             axes.Title.FontName = 'ubuntu';
@@ -478,13 +503,38 @@ classdef ne_func
             fig = gcf;
             fig.Position = position;
             for i_u_i = 1 : ne_param.num_U
-                base_i = (i_u_i - 1) * ne_param.num_k;
+                base_i = (i_u_i - 1) * ne_param.num_K;
                 subplot(1,ne_param.num_U,i_u_i);
-                bar(ne_param.k, D(base_i+1:base_i+ne_param.num_k));
+                bar(ne_param.K, D(base_i+1:base_i+ne_param.num_K));
                 axes = gca;
                 axis tight;
                 axes.Title.FontName = 'ubuntu';
                 axes.Title.String = [title, ' for u = ', num2str(ne_param.U(i_u_i))];
+                axes.Title.FontSize = 12;
+                axes.XAxis.FontSize = 10;
+                axes.YAxis.FontSize = 10;
+                axes.XLabel.FontName = 'ubuntu';
+                axes.XLabel.String = 'Karma';
+                axes.XLabel.FontSize = 12;
+                axes.YLabel.FontName = 'ubuntu';
+                axes.YLabel.String = 'Probability';
+                axes.YLabel.FontSize = 12;
+            end
+            drawnow;
+        end
+        
+        % Plot stationary distribution D for tensor implementation
+        function plot_D_tensors(fg, position, D, ne_param, title)
+            figure(fg);
+            fig = gcf;
+            fig.Position = position;
+            for i_ui = 1 : ne_param.num_U
+                subplot(1,ne_param.num_U,i_ui);
+                bar(ne_param.K, D(i_ui,:));
+                axes = gca;
+                axis tight;
+                axes.Title.FontName = 'ubuntu';
+                axes.Title.String = [title, ' for u = ', num2str(ne_param.U(i_ui))];
                 axes.Title.FontSize = 12;
                 axes.XAxis.FontSize = 10;
                 axes.YAxis.FontSize = 10;
@@ -503,7 +553,7 @@ classdef ne_func
             figure(fg);
             fig = gcf;
             fig.Position = position;
-            plot(ne_param.k, -theta, '-x', 'LineWidth', 2);
+            plot(ne_param.K, -theta, '-x', 'LineWidth', 2);
             axes = gca;
             axis tight;
             axes.Title.FontName = 'ubuntu';
@@ -520,19 +570,44 @@ classdef ne_func
             drawnow;
         end
         
-        % Plot theta D for state implementation
+        % Plot utility theta for state implementation
         function plot_theta_states(fg, position, theta, ne_param, title)
             figure(fg);
             fig = gcf;
             fig.Position = position;
             for i_u_i = 1 : ne_param.num_U
-                base_i = (i_u_i - 1) * ne_param.num_k;
+                base_i = (i_u_i - 1) * ne_param.num_K;
                 subplot(1,ne_param.num_U,i_u_i);
-                plot(ne_param.k, -theta(base_i+1:base_i+ne_param.num_k), '-x', 'LineWidth', 2);
+                plot(ne_param.K, -theta(base_i+1:base_i+ne_param.num_K), '-x', 'LineWidth', 2);
                 axes = gca;
                 axis tight;
                 axes.Title.FontName = 'ubuntu';
                 axes.Title.String = [title, ' for u = ', num2str(ne_param.U(i_u_i))];
+                axes.Title.FontSize = 12;
+                axes.XAxis.FontSize = 10;
+                axes.YAxis.FontSize = 10;
+                axes.XLabel.FontName = 'ubuntu';
+                axes.XLabel.String = 'Karma';
+                axes.XLabel.FontSize = 12;
+                axes.YLabel.FontName = 'ubuntu';
+                axes.YLabel.String = 'Utility';
+                axes.YLabel.FontSize = 12;
+            end
+            drawnow;
+        end
+        
+        % Plot expected infinite horizon cost V for tensor implementation
+        function plot_V_tensors(fg, position, V, ne_param, title)
+            figure(fg);
+            fig = gcf;
+            fig.Position = position;
+            for i_ui = 1 : ne_param.num_U
+                subplot(1,ne_param.num_U,i_ui);
+                plot(ne_param.K, -V(i_ui,:), '-x', 'LineWidth', 2);
+                axes = gca;
+                axis tight;
+                axes.Title.FontName = 'ubuntu';
+                axes.Title.String = [title, ' for u = ', num2str(ne_param.U(i_ui))];
                 axes.Title.FontSize = 12;
                 axes.XAxis.FontSize = 10;
                 axes.YAxis.FontSize = 10;

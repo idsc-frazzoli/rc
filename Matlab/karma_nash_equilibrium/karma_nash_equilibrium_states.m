@@ -19,23 +19,23 @@ ne_param = load_ne_parameters();
 %% Step 0: Initialization
 % Step 0.1: NE policy matrix for non-zero urgency guess
 % Parametrized as a cell matrix. Row i in cell corresponds to policy for
-% karma level k(i) and has only i columns since agents cannot bid more than
+% karma level K(i) and has only i columns since agents cannot bid more than
 % their karma. Column j in row i denotes probability of transmitting
-% message k(j) when karma level is k(i)
+% message K(j) when karma level is K(i)
 % Note 1: All entries are non-negative and rows sum to 1
 % Note 2: NE policy for urgency 0 is to bid 0 karma always. This is
 % hardcoded in algorithm and not parametrized
 % Initialize to uniform distribution
-policy = cell(ne_param.num_states, 1);
+policy = cell(ne_param.num_X, 1);
 % for i_u_i = 1 : ne_param.num_U
-%     base_i = (i_u_i - 1) * ne_param.num_k;
-%     for i_k_i = 1 : ne_param.num_k
+%     base_i = (i_u_i - 1) * ne_param.num_K;
+%     for i_k_i = 1 : ne_param.num_K
 %         policy{base_i+i_k_i} = 1 / i_k_i * ones(1, i_k_i);
 %     end
 % end
 for i_u_i = 1 : ne_param.num_U
-    base_i = (i_u_i - 1) * ne_param.num_k;
-    for i_k_i = 1 : ne_param.num_k
+    base_i = (i_u_i - 1) * ne_param.num_K;
+    for i_k_i = 1 : ne_param.num_K
         if ne_param.U(i_u_i) == 0
             policy{base_i+i_k_i} = zeros(1, i_k_i);
             policy{base_i+i_k_i}(1) = 1;
@@ -45,8 +45,8 @@ for i_u_i = 1 : ne_param.num_U
     end
 end
 % for i_u_i = 1 : ne_param.num_U
-%     base_i = (i_u_i - 1) * ne_param.num_k;
-%     for i_k_i = 1 : ne_param.num_k
+%     base_i = (i_u_i - 1) * ne_param.num_K;
+%     for i_k_i = 1 : ne_param.num_K
 %         policy{base_i+i_k_i} = zeros(1, i_k_i);
 %         policy{base_i+i_k_i}(1) = 1;
 %     end
@@ -59,15 +59,15 @@ policy_plot_title = 'Current NE Guess Policy';
 ne_func.plot_policy_states(policy_plot_fg, policy_plot_pos, policy, ne_param, policy_plot_title, RedColormap);
 
 % Step 0.2: Stationary distribution at NE policy guess
-% Parametrized as a vector with num_states rows. The probability of
-% state [u = U(i_u), k = k(i_k)] is in D((i_u-1)*num_k+i_k)
+% Parametrized as a vector with num_X rows. The probability of
+% state [u = U(i_u), k = K(i_k)] is in D((i_u-1)*num_K+i_k)
 % Note: All entries are non-negative and vector sums to 1
 % Initialize to uniform distribution
-D = 1 / ne_param.num_states * ones(ne_param.num_states, 1);
-% D = zeros(ne_param.num_states, 1);
+D = 1 / ne_param.num_X * ones(ne_param.num_X, 1);
+% D = zeros(ne_param.num_X, 1);
 % for i_u_i = 1 : ne_param.num_U
-%     base_i = (i_u_i - 1) * ne_param.num_k;
-%     D(base_i+1:base_i+ne_param.num_k) = ne_param.p_U(i_u_i) / ne_param.num_k * ones(ne_param.num_k, 1);
+%     base_i = (i_u_i - 1) * ne_param.num_K;
+%     D(base_i+1:base_i+ne_param.num_K) = ne_param.p_U(i_u_i) / ne_param.num_K * ones(ne_param.num_K, 1);
 % end
 
 %% Step 1: Get (D,T) pair corresponding to NE policy guess
@@ -108,7 +108,7 @@ c_i = ne_func.get_c_states(policy_i, policy, D, ne_param);
 % Step 2.2: Get probability transition matrix for agent i playing policy_i
 T_i = ne_func.get_T_states(policy_i, policy, D, ne_param);
 % Step 2.3: Get expected utility for agent i playing policy_i
-theta_i = (eye(ne_param.num_states) - ne_param.alpha * T_i) \ c_i;
+theta_i = (eye(ne_param.num_X) - ne_param.alpha * T_i) \ c_i;
 % Plot expected utility
 theta_plot_fg = 3;
 theta_plot_pos = [default_width, default_height / 3, default_width, default_height];
@@ -131,7 +131,7 @@ while policy_i_error > ne_param.policy_tol && num_policy_iter < ne_param.policy_
     num_policy_iter = num_policy_iter + 1;
     c_i = ne_func.get_c_states(policy_i, policy, D, ne_param);
     T_i = ne_func.get_T_states(policy_i, policy, D, ne_param);
-    theta_i = (eye(ne_param.num_states) - ne_param.alpha * T_i) \ c_i;
+    theta_i = (eye(ne_param.num_X) - ne_param.alpha * T_i) \ c_i;
     rho_i = ne_func.get_rho_states(policy, D, theta_i, ne_param);
     policy_i_next = ne_func.get_policy(rho_i);
     policy_i_error = ne_func.policy_norm(policy_i, policy_i_next, inf);
@@ -147,8 +147,8 @@ policy_i_plot_title = 'Best Response Policy';
 ne_func.plot_policy_states(policy_i_plot_fg, policy_i_plot_pos, policy_i, ne_param, policy_i_plot_title, RedColormap);
 
 % Set next NE guess to best response, using momentum
-policy_next = cell(ne_param.num_states, 1);
-for i = 1 : ne_param.num_states
+policy_next = cell(ne_param.num_X, 1);
+for i = 1 : ne_param.num_X
     policy_next{i} = (1 - ne_param.tau) * policy{i} + ne_param.tau * policy_i{i};
 end
 
@@ -156,16 +156,16 @@ end
 policy_error = ne_func.policy_norm(policy, policy_next, inf);
 % Display status
 fprintf('Iteration %d policy error %f\n', num_iter, policy_error);
-policy_hist_end = zeros(1, ne_param.num_states);
+policy_hist_end = zeros(1, ne_param.num_X);
 for i_u_i = 1 : ne_param.num_U
-    base_i = (i_u_i - 1) * ne_param.num_k;
-    for i_k_i = 1 : ne_param.num_k
+    base_i = (i_u_i - 1) * ne_param.num_K;
+    for i_k_i = 1 : ne_param.num_K
         i = base_i + i_k_i;
         [~, max_i] = max(policy_i{i});
-        policy_hist_end(i) = ne_param.k(max_i);
+        policy_hist_end(i) = ne_param.K(max_i);
         if i == 1
             fprintf('Iteration %d policy:\t%d', num_iter, policy_hist_end(i));
-        elseif mod(i - 1, ne_param.num_k) == 0
+        elseif mod(i - 1, ne_param.num_K) == 0
             fprintf('\n\t\t\t%d', policy_hist_end(i));
         else
             fprintf('->%d', policy_hist_end(i));
@@ -184,10 +184,10 @@ while policy_error > ne_param.policy_tol && num_iter < ne_param.ne_policy_max_it
     % Step 3-1.1: Get T for when all agents play policy and stationary
     % distribution is D
     % Re-initialize D to uniform distribution first
-    D = 1 / ne_param.num_states * ones(ne_param.num_states, 1);
+    D = 1 / ne_param.num_X * ones(ne_param.num_X, 1);
 %     for i_u_i = 1 : ne_param.num_U
-%         base_i = (i_u_i - 1) * ne_param.num_k;
-%         D(base_i+1:base_i+ne_param.num_k) = ne_param.p_U(i_u_i) / ne_param.num_k * ones(ne_param.num_k, 1);
+%         base_i = (i_u_i - 1) * ne_param.num_K;
+%         D(base_i+1:base_i+ne_param.num_K) = ne_param.p_U(i_u_i) / ne_param.num_K * ones(ne_param.num_K, 1);
 %     end
     T = ne_func.get_T_states(policy, policy, D, ne_param);
 
@@ -220,7 +220,7 @@ while policy_error > ne_param.policy_tol && num_iter < ne_param.ne_policy_max_it
     % Step 3-2.2: Get probability transition matrix for agent i playing policy_i
     T_i = ne_func.get_T_states(policy_i, policy, D, ne_param);
     % Step 3-2.3: Get expected utility for agent i playing policy_i
-    theta_i = (eye(ne_param.num_states) - ne_param.alpha * T_i) \ c_i;
+    theta_i = (eye(ne_param.num_X) - ne_param.alpha * T_i) \ c_i;
     % Plot expected utility
     ne_func.plot_theta_states(theta_plot_fg, theta_plot_pos, theta_i, ne_param, theta_plot_title);
     % Step 3-2.4: Get the expected cost matrix for agent i as per the messages
@@ -240,7 +240,7 @@ while policy_error > ne_param.policy_tol && num_iter < ne_param.ne_policy_max_it
         num_policy_iter = num_policy_iter + 1;
         c_i = ne_func.get_c_states(policy_i, policy, D, ne_param);
         T_i = ne_func.get_T_states(policy_i, policy, D, ne_param);
-        theta_i = (eye(ne_param.num_states) - ne_param.alpha * T_i) \ c_i;
+        theta_i = (eye(ne_param.num_X) - ne_param.alpha * T_i) \ c_i;
         rho_i = ne_func.get_rho_states(policy, D, theta_i, ne_param);
         policy_i_next = ne_func.get_policy(rho_i);
         policy_i_error = ne_func.policy_norm(policy_i, policy_i_next, inf);
@@ -252,24 +252,24 @@ while policy_error > ne_param.policy_tol && num_iter < ne_param.ne_policy_max_it
     % Plot best response policy
     ne_func.plot_policy_states(policy_i_plot_fg, policy_i_plot_pos, policy_i, ne_param, policy_i_plot_title, RedColormap);
     % Set next NE guess to best response, using momentum
-    policy_next = cell(ne_param.num_states, 1);
-    for i = 1 : ne_param.num_states
+    policy_next = cell(ne_param.num_X, 1);
+    for i = 1 : ne_param.num_X
         policy_next{i} = (1 - ne_param.tau) * policy{i} + ne_param.tau * policy_i{i};
     end
     
     policy_error = ne_func.policy_norm(policy, policy_next, inf);
     % Display status
     fprintf('Iteration %d policy error %f\n', num_iter, policy_error);
-    policy_hist_end = zeros(1, ne_param.num_states);
+    policy_hist_end = zeros(1, ne_param.num_X);
     for i_u_i = 1 : ne_param.num_U
-        base_i = (i_u_i - 1) * ne_param.num_k;
-        for i_k_i = 1 : ne_param.num_k
+        base_i = (i_u_i - 1) * ne_param.num_K;
+        for i_k_i = 1 : ne_param.num_K
             i = base_i + i_k_i;
             [~, max_i] = max(policy_i{i});
-            policy_hist_end(i) = ne_param.k(max_i);
+            policy_hist_end(i) = ne_param.K(max_i);
             if i == 1
                 fprintf('Iteration %d policy:\t%d', num_iter, policy_hist_end(i));
-            elseif mod(i - 1, ne_param.num_k) == 0
+            elseif mod(i - 1, ne_param.num_K) == 0
                 fprintf('\n\t\t\t%d', policy_hist_end(i));
             else
                 fprintf('->%d', policy_hist_end(i));
@@ -283,7 +283,7 @@ while policy_error > ne_param.policy_tol && num_iter < ne_param.ne_policy_max_it
             % Limit cycle found
             limit_cycle = true;
             policy_limit_cycle = policy_hist(policy_hist_i:end,:);
-            policy_limit_cycle_code = policy_limit_cycle * repmat((1 : ne_param.num_k).', ne_param.num_U, 1);
+            policy_limit_cycle_code = policy_limit_cycle * repmat((1 : ne_param.num_K).', ne_param.num_U, 1);
             break;
         end
     end
