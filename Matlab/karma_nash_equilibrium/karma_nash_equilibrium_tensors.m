@@ -7,7 +7,7 @@ screensize = get(groot, 'ScreenSize');
 screenwidth = screensize(3);
 screenheight = screensize(4);
 default_width = screenwidth / 2;
-default_height = screenheight / 3;
+default_height = screenheight / 2;
 load('karma_nash_equilibrium/RedColormap.mat');
 
 %% Parameters
@@ -92,10 +92,9 @@ for i_alpha = 1 : length(ne_param.alpha)
 
     % Plot
     if ne_param.plot
-        policy_plot_fg = 1;
-        policy_plot_pos = [0, 2 * default_height, default_width, default_height];
-        policy_plot_title = 'Current NE Guess Policy';
-        ne_func.plot_ne_policy_tensors(policy_plot_fg, policy_plot_pos, pi_down_u_k_up_m, ne_param, policy_plot_title, RedColormap);
+        ne_pi_plot_fg = 1;
+        ne_pi_plot_pos = [0, default_height, default_width, default_height];
+        ne_func.plot_ne_pi(ne_pi_plot_fg, ne_pi_plot_pos, RedColormap, pi_down_u_k_up_m, ne_param.U, ne_param.K, alpha);
     end
 
     %% Step 2
@@ -130,10 +129,9 @@ for i_alpha = 1 : length(ne_param.alpha)
 
     % Plot
     if ne_param.plot
-        D_plot_fg = 2;
-        D_plot_pos = [0, default_height / 3, default_width, default_height];
-        D_plot_title = 'Current NE Stationary Distribution';
-        ne_func.plot_D_tensors(D_plot_fg, D_plot_pos, D_up_u_k, ne_param, D_plot_title);
+        ne_D_plot_fg = 2;
+        ne_D_plot_pos = [0, 0, default_width, default_height];
+        ne_func.plot_ne_D(ne_D_plot_fg, ne_D_plot_pos, D_up_u_k, ne_param.U, ne_param.K, alpha);
     end
 
     %% Step 3
@@ -158,14 +156,6 @@ for i_alpha = 1 : length(ne_param.alpha)
         num_V_iter = num_V_iter + 1;
     end
 
-    % Plot
-    if ne_param.plot
-        V_plot_fg = 3;
-        V_plot_pos = [default_width, default_height / 3, default_width, default_height];
-        V_plot_title = 'Current NE Expected Utility';
-        ne_func.plot_V_tensors(V_plot_fg, V_plot_pos, V_down_u_k, ne_param, V_plot_title);
-    end
-
     %% Step 4
     % 4.1
     V_down_u_k_m = q_down_ui_ki_mi + alpha * dot2(reshape(T_down_ui_ki_mi_up_uin_kin, ne_param.num_U, ne_param.num_K, ne_param.num_K, []), reshape(V_down_u_k, [], 1), 4, 1);
@@ -178,15 +168,15 @@ for i_alpha = 1 : length(ne_param.alpha)
             pi_i_down_ui_ki_up_mi(i_ui,i_ki,i_mi) = 1;
         end
     end
-    policy_i_diff = pi_down_u_k_up_m - pi_i_down_ui_ki_up_mi;
-    policy_i_error = norm(reshape(policy_i_diff, [], 1), inf);
+    pi_i_diff = pi_down_u_k_up_m - pi_i_down_ui_ki_up_mi;
+    pi_i_error = norm(reshape(pi_i_diff, [], 1), inf);
 
     % 4.3/4
-    num_ne_iter = 0;
-    num_policy_iter = 0;
+    num_ne_pi_iter = 0;
+    num_pi_iter = 0;
     % Display status
-    fprintf('Iteration %d policy-iteration %d policy_i error %f\n', num_ne_iter, num_policy_iter, policy_i_error);
-    while policy_i_error > ne_param.policy_tol && num_policy_iter < ne_param.policy_max_iter
+    fprintf('Iteration %d policy-iteration %d policy_i error %f\n', num_ne_pi_iter, num_pi_iter, pi_i_error);
+    while pi_i_error > ne_param.policy_tol && num_pi_iter < ne_param.policy_max_iter
         % 4.4.1
         q_down_ui_ki = dot2(pi_i_down_ui_ki_up_mi, q_down_ui_ki_mi, 3, 3);
         T_down_ui_ki_up_uin_kin = squeeze(dot2(pi_i_down_ui_ki_up_mi, T_down_ui_ki_mi_up_uin_kin, 3, 3));
@@ -215,59 +205,58 @@ for i_alpha = 1 : length(ne_param.alpha)
                 pi_i_down_ui_ki_up_mi_next(i_ui,i_ki,i_mi) = 1;
             end
         end
-        policy_i_diff = pi_i_down_ui_ki_up_mi - pi_i_down_ui_ki_up_mi_next;
-        policy_i_error = norm(reshape(policy_i_diff, [], 1), inf);
+        pi_i_diff = pi_i_down_ui_ki_up_mi - pi_i_down_ui_ki_up_mi_next;
+        pi_i_error = norm(reshape(pi_i_diff, [], 1), inf);
 
         % 4.4.5
         pi_i_down_ui_ki_up_mi = pi_i_down_ui_ki_up_mi_next;
-        num_policy_iter = num_policy_iter + 1;
+        num_pi_iter = num_pi_iter + 1;
         % Display status
-        fprintf('Iteration %d policy-iteration %d policy_i error %f\n', num_ne_iter, num_policy_iter, policy_i_error);
+        fprintf('Iteration %d policy-iteration %d policy_i error %f\n', num_ne_pi_iter, num_pi_iter, pi_i_error);
     end
 
     % Plot
     if ne_param.plot
-        policy_i_plot_fg = 4;
-        policy_i_plot_pos = [default_width, 2 * default_height, default_width, default_height];
-        policy_i_plot_title = 'Best Response Policy';
-        ne_func.plot_best_response_policy_tensors(policy_i_plot_fg, policy_i_plot_pos, pi_i_down_ui_ki_up_mi, ne_param, policy_i_plot_title, RedColormap);
+        br_pi_plot_fg = 3;
+        br_pi_plot_pos = [default_width, default_height, default_width, default_height];
+        ne_func.plot_br_pi(br_pi_plot_fg, br_pi_plot_pos, RedColormap, pi_i_down_ui_ki_up_mi, ne_param.U, ne_param.K, alpha);
         drawnow;
     end
 
     %% Step 5
     % Apply momentum
     pi_down_u_k_up_m_next = ne_param.policy_tau * pi_i_down_ui_ki_up_mi + (1 - ne_param.policy_tau) * pi_down_u_k_up_m;
-    ne_policy_diff = pi_down_u_k_up_m - pi_down_u_k_up_m_next;
-    ne_policy_error = rms(reshape(ne_policy_diff, [], 1));
+    ne_pi_diff = pi_down_u_k_up_m - pi_down_u_k_up_m_next;
+    ne_pi_error = rms(reshape(ne_pi_diff, [], 1));
     pi_down_u_k_up_m = pi_down_u_k_up_m_next;
 
     % Plot
     if ne_param.plot
-        ne_func.plot_ne_policy_tensors(policy_plot_fg, policy_plot_pos, pi_down_u_k_up_m, ne_param, policy_plot_title, RedColormap);
+        ne_func.plot_ne_pi(ne_pi_plot_fg, ne_pi_plot_pos, RedColormap, pi_down_u_k_up_m, ne_param.U, ne_param.K, alpha);
     end
     % Display status and store history of policies
-    fprintf('Iteration %d policy error %f\n', num_ne_iter, ne_policy_error);
-    policy_hist_end = zeros(1, ne_param.num_X);
+    fprintf('Iteration %d policy error %f\n', num_ne_pi_iter, ne_pi_error);
+    pi_hist_end = zeros(1, ne_param.num_X);
     for i_ui = 1 : ne_param.num_U
         base_i_ui = (i_ui - 1) * ne_param.num_K;
         for i_ki = 1 : ne_param.num_K
             i_xi = base_i_ui + i_ki;
             [~, max_i] = max(pi_down_u_k_up_m(i_ui,i_ki,:));
-            policy_hist_end(i_xi) = ne_param.K(max_i);
+            pi_hist_end(i_xi) = ne_param.K(max_i);
             if i_xi == 1
-                fprintf('Iteration %d policy:\n%d', num_ne_iter, policy_hist_end(i_xi));
+                fprintf('Iteration %d policy:\n%d', num_ne_pi_iter, pi_hist_end(i_xi));
             elseif mod(i_xi - 1, ne_param.num_K) == 0
-                fprintf('\n%d', policy_hist_end(i_xi));
+                fprintf('\n%d', pi_hist_end(i_xi));
             else
-                fprintf('->%d', policy_hist_end(i_xi));
+                fprintf('->%d', pi_hist_end(i_xi));
             end
         end
     end
-    policy_hist = policy_hist_end;
+    pi_hist = pi_hist_end;
     fprintf('\n\n');
-    ne_policy_error_hist = ne_policy_error;
-    num_ne_iter = num_ne_iter + 1;
-    while ne_policy_error > ne_param.policy_tol && num_ne_iter < ne_param.ne_policy_max_iter
+    ne_policy_error_hist = ne_pi_error;
+    num_ne_pi_iter = num_ne_pi_iter + 1;
+    while ne_pi_error > ne_param.policy_tol && num_ne_pi_iter < ne_param.ne_policy_max_iter
         %% Step 5.2
         % 5.2.1
         T_down_ki_mi_uj_kj_up_uin_kin = permute(squeeze(dot2(permute(phi_down_ki_mi_kj_mj_up_uin_kin, [1 2 5 6 3 4]), permute(pi_down_u_k_up_m, [2 3 1]), 6, 2)), [1 2 6 5 3 4]);
@@ -294,7 +283,7 @@ for i_alpha = 1 : length(ne_param.alpha)
 
         % Plot
         if ne_param.plot
-            ne_func.plot_D_tensors(D_plot_fg, D_plot_pos, D_up_u_k, ne_param, D_plot_title);
+            ne_func.plot_ne_D(ne_D_plot_fg, ne_D_plot_pos, D_up_u_k, ne_param.U, ne_param.K, alpha);
         end
 
         %% Step 5.3
@@ -319,11 +308,6 @@ for i_alpha = 1 : length(ne_param.alpha)
             num_V_iter = num_V_iter + 1;
         end
 
-        % Plot
-        if ne_param.plot
-            ne_func.plot_V_tensors(V_plot_fg, V_plot_pos, V_down_u_k, ne_param, V_plot_title);
-        end
-
         %% Step 5.4
         % 5.4.1
         V_down_u_k_m = q_down_ui_ki_mi + alpha * dot2(reshape(T_down_ui_ki_mi_up_uin_kin, ne_param.num_U, ne_param.num_K, ne_param.num_K, []), reshape(V_down_u_k, [], 1), 4, 1);
@@ -336,14 +320,14 @@ for i_alpha = 1 : length(ne_param.alpha)
                 pi_i_down_ui_ki_up_mi(i_ui,i_ki,i_mi) = 1;
             end
         end
-        policy_i_diff = pi_down_u_k_up_m - pi_i_down_ui_ki_up_mi;
-        policy_i_error = norm(reshape(policy_i_diff, [], 1), inf);
+        pi_i_diff = pi_down_u_k_up_m - pi_i_down_ui_ki_up_mi;
+        pi_i_error = norm(reshape(pi_i_diff, [], 1), inf);
 
         % 5.4.3/4
-        num_policy_iter = 0;
+        num_pi_iter = 0;
         % Display status
-        fprintf('Iteration %d policy-iteration %d policy_i error %f\n', num_ne_iter, num_policy_iter, policy_i_error);
-        while policy_i_error > ne_param.policy_tol && num_policy_iter < ne_param.policy_max_iter
+        fprintf('Iteration %d policy-iteration %d policy_i error %f\n', num_ne_pi_iter, num_pi_iter, pi_i_error);
+        while pi_i_error > ne_param.policy_tol && num_pi_iter < ne_param.policy_max_iter
             % 5.4.4.1
             q_down_ui_ki = dot2(pi_i_down_ui_ki_up_mi, q_down_ui_ki_mi, 3, 3);
             T_down_ui_ki_up_uin_kin = squeeze(dot2(pi_i_down_ui_ki_up_mi, T_down_ui_ki_mi_up_uin_kin, 3, 3));
@@ -372,99 +356,137 @@ for i_alpha = 1 : length(ne_param.alpha)
                     pi_i_down_ui_ki_up_mi_next(i_ui,i_ki,i_mi) = 1;
                 end
             end
-            policy_i_diff = pi_i_down_ui_ki_up_mi - pi_i_down_ui_ki_up_mi_next;
-            policy_i_error = norm(reshape(policy_i_diff, [], 1), inf);
+            pi_i_diff = pi_i_down_ui_ki_up_mi - pi_i_down_ui_ki_up_mi_next;
+            pi_i_error = norm(reshape(pi_i_diff, [], 1), inf);
 
             % 5.4.4.5
             pi_i_down_ui_ki_up_mi = pi_i_down_ui_ki_up_mi_next;
-            num_policy_iter = num_policy_iter + 1;
+            num_pi_iter = num_pi_iter + 1;
             % Display status
-            fprintf('Iteration %d policy-iteration %d policy_i error %f\n', num_ne_iter, num_policy_iter, policy_i_error);
+            fprintf('Iteration %d policy-iteration %d policy_i error %f\n', num_ne_pi_iter, num_pi_iter, pi_i_error);
         end
 
         % Plot
         if ne_param.plot
-            ne_func.plot_best_response_policy_tensors(policy_i_plot_fg, policy_i_plot_pos, pi_i_down_ui_ki_up_mi, ne_param, policy_i_plot_title, RedColormap);
+            ne_func.plot_br_pi(br_pi_plot_fg, br_pi_plot_pos, RedColormap, pi_i_down_ui_ki_up_mi, ne_param.U, ne_param.K, alpha);
             drawnow;
         end
 
         %% Step 5.5
         % Apply momentum
         pi_down_u_k_up_m_next = ne_param.policy_tau * pi_i_down_ui_ki_up_mi + (1 - ne_param.policy_tau) * pi_down_u_k_up_m;
-        ne_policy_diff = pi_down_u_k_up_m - pi_down_u_k_up_m_next;
-        ne_policy_error = rms(reshape(ne_policy_diff, [], 1));
+        ne_pi_diff = pi_down_u_k_up_m - pi_down_u_k_up_m_next;
+        ne_pi_error = rms(reshape(ne_pi_diff, [], 1));
         pi_down_u_k_up_m = pi_down_u_k_up_m_next;
 
         % Plot
         if ne_param.plot
-            ne_func.plot_ne_policy_tensors(policy_plot_fg, policy_plot_pos, pi_down_u_k_up_m, ne_param, policy_plot_title, RedColormap);
+            ne_func.plot_ne_pi(ne_pi_plot_fg, ne_pi_plot_pos, RedColormap, pi_down_u_k_up_m, ne_param.U, ne_param.K, alpha);
         end
 
         % Display status and store history of policies
-        fprintf('Iteration %d policy error %f\n', num_ne_iter, ne_policy_error);
+        fprintf('Iteration %d policy error %f\n', num_ne_pi_iter, ne_pi_error);
         for i_ui = 1 : ne_param.num_U
             base_i_ui = (i_ui - 1) * ne_param.num_K;
             for i_ki = 1 : ne_param.num_K
                 i_xi = base_i_ui + i_ki;
                 [~, max_i] = max(pi_down_u_k_up_m(i_ui,i_ki,:));
-                policy_hist_end(i_xi) = ne_param.K(max_i);
+                pi_hist_end(i_xi) = ne_param.K(max_i);
                 if i_xi == 1
-                    fprintf('Iteration %d policy:\n%d', num_ne_iter, policy_hist_end(i_xi));
+                    fprintf('Iteration %d policy:\n%d', num_ne_pi_iter, pi_hist_end(i_xi));
                 elseif mod(i_xi - 1, ne_param.num_K) == 0
-                    fprintf('\n%d', policy_hist_end(i_xi));
+                    fprintf('\n%d', pi_hist_end(i_xi));
                 else
-                    fprintf('->%d', policy_hist_end(i_xi));
+                    fprintf('->%d', pi_hist_end(i_xi));
                 end
             end
         end
         % Detect a limit cycle
         limit_cycle = false;
-        for policy_hist_i = 1 : size(policy_hist, 1)
-            if isequal(policy_hist(policy_hist_i,:), policy_hist_end)
+        for pi_hist_i = 1 : size(pi_hist, 1)
+            if isequal(pi_hist(pi_hist_i,:), pi_hist_end)
                 % Limit cycle found
                 limit_cycle = true;
-                policy_limit_cycle = policy_hist(policy_hist_i:end,:);
-                policy_limit_cycle_code = policy_limit_cycle * repmat((1 : ne_param.num_K).', ne_param.num_U, 1);
+                pi_limit_cycle = pi_hist(pi_hist_i:end,:);
+                pi_limit_cycle_code = pi_limit_cycle * repmat((1 : ne_param.num_K).', ne_param.num_U, 1);
                 break;
             end
         end
-        policy_hist = [policy_hist; policy_hist_end];
+        pi_hist = [pi_hist; pi_hist_end];
         fprintf('\n\n');
-        ne_policy_error_hist = [ne_policy_error_hist; ne_policy_error];
-        num_ne_iter = num_ne_iter + 1;
-        if ne_param.policy_tau == 1 && ne_param.D_tau == 1 && limit_cycle && size(policy_limit_cycle, 1) > 1
+        ne_policy_error_hist = [ne_policy_error_hist; ne_pi_error];
+        num_ne_pi_iter = num_ne_pi_iter + 1;
+        if ne_param.policy_tau == 1 && ne_param.D_tau == 1 && limit_cycle && size(pi_limit_cycle, 1) > 1
             fprintf('Limit cycle found!\n\n');
             break;
         end
     end
+    
+    % Plot remaining statistics
+    if ne_param.plot
+        % NE expected utility plot
+        ne_V_plot_fg = 4;
+        ne_V_plot_pos = [0, 0, default_width, default_height];
+        ne_func.plot_ne_V(ne_V_plot_fg, ne_V_plot_pos, V_down_u_k, ne_param.U, ne_param.K, alpha)
 
-    % Plot end result
-    if ~ne_param.plot && i_alpha == length(ne_param.alpha)
-        policy_plot_fg = 1;
-        policy_plot_pos = [0, 2 * default_height, default_width, default_height];
-        policy_plot_title = 'Current NE Guess Policy';
-        ne_func.plot_ne_policy_tensors(policy_plot_fg, policy_plot_pos, pi_down_u_k_up_m, ne_param, policy_plot_title, RedColormap);
-
-        D_plot_fg = 2;
-        D_plot_pos = [0, default_height / 3, default_width, default_height];
-        D_plot_title = 'Current NE Stationary Distribution';
-        ne_func.plot_D_tensors(D_plot_fg, D_plot_pos, D_up_u_k, ne_param, D_plot_title);
-
-        V_plot_fg = 3;
-        V_plot_pos = [default_width, default_height / 3, default_width, default_height];
-        V_plot_title = 'Current NE Expected Utility';
-        ne_func.plot_V_tensors(V_plot_fg, V_plot_pos, V_down_ui_ki, ne_param, V_plot_title);
-
-        policy_i_plot_fg = 4;
-        policy_i_plot_pos = [default_width, 2 * default_height, default_width, default_height];
-        policy_i_plot_title = 'Best Response Policy';
-        ne_func.plot_best_response_policy_tensors(policy_i_plot_fg, policy_i_plot_pos, pi_i_down_ui_ki_up_mi, ne_param, policy_i_plot_title, RedColormap);
+        % NE expected utiliy per message plot
+        ne_V_m_plot_fg = 5;
+        ne_V_m_plot_pos = [default_width, 0, default_width, default_height];
+        ne_func.plot_ne_V_m(ne_V_m_plot_fg, ne_V_m_plot_pos, parula, V_down_u_k_m, ne_param.U, ne_param.K, alpha)
+        
+        % NE state transitions plot
+        ne_T_plot_fg = 6;
+        ne_T_plot_pos = [0, 0, screenwidth, screenheight];
+        ne_func.plot_ne_T(ne_T_plot_fg, ne_T_plot_pos, RedColormap, T_down_u_k_up_un_kn, ne_param.U, ne_param.K, alpha);
+        
+        % NE policy error plot
+        ne_pi_error_plot_fg = 7;
+        ne_pi_error_plot_pos = [default_width, 0, default_width, default_height];
+        ne_func.plot_ne_pi_error(ne_pi_error_plot_fg, ne_pi_error_plot_pos, ne_policy_error_hist, alpha);
     end
     
     % Store end results
     if ne_param.save
         save(['karma_nash_equilibrium/results/alpha_', num2str(alpha, '%.2f'), '.mat']);
     end
+end
+
+% If plotting is not active, plot everything at the end
+if ~ne_param.plot
+    % NE policy plot
+    ne_pi_plot_fg = 1;
+    ne_pi_plot_pos = [0, default_height, default_width, default_height];
+    ne_func.plot_ne_pi(ne_pi_plot_fg, ne_pi_plot_pos, RedColormap, pi_down_u_k_up_m, ne_param.U, ne_param.K, alpha);
+    
+    % NE stationary distribution plot
+    ne_D_plot_fg = 2;
+    ne_D_plot_pos = [0, 0, default_width, default_height];
+    ne_func.plot_ne_D(ne_D_plot_fg, ne_D_plot_pos, D_up_u_k, ne_param.U, ne_param.K, alpha);
+    
+    % Agent i best response policy plot
+    br_pi_plot_fg = 3;
+    br_pi_plot_pos = [default_width, default_height, default_width, default_height];
+    ne_func.plot_br_pi(br_pi_plot_fg, br_pi_plot_pos, RedColormap, pi_i_down_ui_ki_up_mi, ne_param.U, ne_param.K, alpha);
+
+    % NE expected utility plot
+    ne_V_plot_fg = 4;
+    ne_V_plot_pos = [0, 0, default_width, default_height];
+    ne_func.plot_ne_V(ne_V_plot_fg, ne_V_plot_pos, V_down_u_k, ne_param.U, ne_param.K, alpha)
+
+    % NE expected utiliy per message plot
+    ne_V_m_plot_fg = 5;
+    ne_V_m_plot_pos = [default_width, 0, default_width, default_height];
+    ne_func.plot_ne_V_m(ne_V_m_plot_fg, ne_V_m_plot_pos, parula, V_down_u_k_m, ne_param.U, ne_param.K, alpha)
+
+    % NE state transitions plot
+    ne_T_plot_fg = 6;
+    ne_T_plot_pos = [0, 0, screenwidth, screenheight];
+    ne_func.plot_ne_T(ne_T_plot_fg, ne_T_plot_pos, RedColormap, T_down_u_k_up_un_kn, ne_param.U, ne_param.K, alpha);
+
+    % NE policy error plot
+    ne_pi_error_plot_fg = 7;
+    ne_pi_error_plot_pos = [default_width, 0, default_width, default_height];
+    ne_func.plot_ne_pi_error(ne_pi_error_plot_fg, ne_pi_error_plot_pos, ne_policy_error_hist, alpha);
 end
 
 %% Inform user when done

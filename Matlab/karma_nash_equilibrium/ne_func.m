@@ -1,586 +1,94 @@
 classdef ne_func
     % Miscellaneous helper functions used in scripts
     methods(Static)
-        % Gets karma transition matrix
-        function T = get_T(policy_i, policy_j, D, ne_param)
-            % T is the transition probability matrix with num_K x num_K entries.
-            % Entry T(i_k_i,i_next_k_i) denotes probability of agent i's karma
-            % level transitioning from K(i_k_i) to K(i_next_k_i).
-            T = zeros(ne_param.num_K);
-            for i_k_i = 1 : ne_param.num_K
-                for i_next_k_i = 1 : ne_param.num_K
-                    % Expectation over u_i
-                    for i_u_i = 1 : ne_param.num_U
-                        u_i = ne_param.U(i_u_i);
-                        p_u_i = ne_param.p_U(i_u_i);
-                        % Expectation over m_i - comes from policy_i
-                        for i_m_i = 1 : i_k_i
-                            if u_i == 0
-                                p_m_i = (ne_param.K(i_m_i) == 0);
-                            else
-                                p_m_i = policy_i{i_k_i}(i_m_i);
-                            end
-                            if p_m_i == 0
-                                continue;
-                            end
-                            % Expectation over u_j
-                            for i_u_j = 1 : ne_param.num_U
-                                u_j = ne_param.U(i_u_j);
-                                p_u_j = ne_param.p_U(i_u_j);
-                                % Expectation over k_j
-                                for i_k_j = 1 : ne_param.num_K
-                                    p_k_j = D(i_k_j);
-                                    if p_k_j == 0
-                                        continue;
-                                    end
-                                    % Expectation over m_j - comes from policy_j
-                                    for i_m_j = 1 : i_k_j
-                                        if u_j == 0
-                                            p_m_j = (ne_param.K(i_m_j) == 0);
-                                        else
-                                            p_m_j = policy_j{i_k_j}(i_m_j);
-                                        end
-                                        if p_m_j == 0
-                                            continue;
-                                        end
-
-                                        % This is where the magic happens
-                                        % Note that in some cases multiple equally
-                                        % probable next karma levels are attainable
-                                        % (when bids are the same)
-                                        k_next = ne_param.k_next{i_k_i,i_k_j}{i_m_i,i_m_j};
-                                        p = p_u_i * p_m_i * p_u_j * p_k_j * p_m_j;
-                                        T(i_k_i,i_next_k_i) = T(i_k_i,i_next_k_i)...
-                                            + p * 1 / length(k_next) * sum((k_next == ne_param.K(i_next_k_i)));
-                                    end
-                                end
-                            end
-                        end
-                    end
-                end
-            end
-        end
-        
-        % Gets karma transition matrix for state implementation
-        function T = get_T_states(policy_i, policy_j, D, ne_param)
-            % T is the transition probability matrix with
-            % num_X x num_X entries.
-            % Entry T(i_x_i,i_next_x_i) denotes probability of agent i's
-            % state transitioning from x(i_x_i) to x(i_next_x_i)
-            % State [u_i = U(i_u_i), k_i = K(i_k_i)] corresponds to
-            % x((i_u_i-1)*num_K+i_k_i), i.e. the first num_K rows/cols are
-            % 'non-urgent' states and the next num_K rows/cols are 'urgent'
-            % states (for binary urgency)
-            T = zeros(ne_param.num_X);
-            for i_u_i = 1 : ne_param.num_U
-                base_i = (i_u_i - 1) * ne_param.num_K;
-                for i_k_i = 1 : ne_param.num_K
-                    for i_next_u_i = 1 : ne_param.num_U
-                        p_next_u_i = ne_param.p_U(i_next_u_i);
-                        base_next_i = (i_next_u_i - 1) * ne_param.num_K;
-                        for i_next_k_i = 1 : ne_param.num_K
-                            % Expectation over m_i - comes from policy_i
-                            for i_m_i = 1 : i_k_i
-                                p_m_i = policy_i{base_i+i_k_i}(i_m_i);
-                                if p_m_i == 0
-                                    continue;
-                                end
-                                % Expectation over [u_j, k_j]
-                                for i_u_j = 1 : ne_param.num_U
-                                    base_j = (i_u_j - 1) * ne_param.num_K;
-                                    for i_k_j = 1 : ne_param.num_K
-                                        p_u_k_j = D(base_j+i_k_j);
-                                        if p_u_k_j == 0
-                                            continue;
-                                        end
-                                        % Expectation over m_j - comes from policy_j
-                                        for i_m_j = 1 : i_k_j
-                                            p_m_j = policy_j{base_j+i_k_j}(i_m_j);
-                                            if p_m_j == 0
-                                                continue;
-                                            end
-
-                                            % This is where the magic happens
-                                            % Note that in some cases multiple equally
-                                            % probable next karma levels are attainable
-                                            % (when bids are the same)
-                                            k_next = ne_param.k_next{i_k_i,i_k_j}{i_m_i,i_m_j};
-                                            p = p_next_u_i * p_m_i * p_u_k_j * p_m_j;
-                                            T(base_i+i_k_i,base_next_i+i_next_k_i) =...
-                                                T(base_i+i_k_i,base_next_i+i_next_k_i)...
-                                                + p * 1 / length(k_next) * sum((k_next == ne_param.K(i_next_k_i)));
-                                        end
-                                    end
-                                end
-                            end
-                        end
-                    end
-                end
-            end
-        end
-        
-        % Gets stationary distribution of transition matrix T
-        % This solves D = T * D. The solution is the right eigenvector
-        % corresponding to eigenvalue 1, or the kernel of (I - T)
-        function D = get_D(T)
-            n = length(T);
-            left_eig_T_1 = null(eye(n) - T.');
-            % Make sure to return a valid probability distribution (sums to 1)
-            if ~isempty(left_eig_T_1)
-                D = left_eig_T_1 / sum(left_eig_T_1);
-            else
-                D = 1 / n * ones(n, 1);
-            end
-        end
-        
-        % Gets current stage cost
-        function c = get_c(policy_i, policy_j, D, ne_param)
-            c = zeros(ne_param.num_K, 1);
-            for i_k_i = 1 : ne_param.num_K
-                % Expectation over u_i
-                % Can skip u_i = 0 since cost will be zero
-                for u_i = ne_param.u_high
-                    p_u_i = ne_param.p_U(end);
-                    %p_u_i = 1;
-                    % Expectation over m_i - comes from policy_i
-                    for i_m_i = 1 : i_k_i
-                        if u_i == 0
-                            p_m_i = (ne_param.K(i_m_i) == 0);
-                        else
-                            p_m_i = policy_i{i_k_i}(i_m_i);
-                        end
-                        if p_m_i == 0
-                            continue;
-                        end
-                        m_i = ne_param.K(i_m_i);
-                        % Expectation over u_j
-                        for i_u_j = 1 : ne_param.num_U
-                            u_j = ne_param.U(i_u_j);
-                            p_u_j = ne_param.p_U(i_u_j);
-                            % Expectation over k_j
-                            for i_k_j = 1 : ne_param.num_K
-                                p_k_j = D(i_k_j);
-                                if p_k_j == 0
-                                    continue;
-                                end
-                                % Expectation over m_j - comes from policy_j
-                                for i_m_j = 1 : i_k_j
-                                    if u_j == 0
-                                        p_m_j = (ne_param.K(i_m_j) == 0);
-                                    else
-                                        p_m_j = policy_j{i_k_j}(i_m_j);
-                                    end
-                                    if p_m_j == 0
-                                        continue;
-                                    end
-                                    m_j = ne_param.K(i_m_j);
-
-                                    % This is where the magic happens
-                                    if m_i < m_j
-                                        c_now = u_i;
-                                    elseif m_i > m_j
-                                        c_now = 0;
-                                    else
-                                        c_now = 0.5 * u_i;
-                                    end
-
-                                    p = p_u_i * p_m_i * p_u_j * p_k_j * p_m_j;
-                                    c(i_k_i) = c(i_k_i) + p * c_now;
-                                end
-                            end
-                        end
-                    end
-                end
-            end
-        end
-
-        % Gets current stage cost for state implementation
-        function c = get_c_states(policy_i, policy_j, D, ne_param)
-            c = zeros(ne_param.num_X, 1);
-            for i_u_i = 1 : ne_param.num_U
-                u_i = ne_param.U(i_u_i);
-                base_i = (i_u_i - 1) * ne_param.num_K;
-                for i_k_i = 1 : ne_param.num_K
-                    % Expectation over m_i - comes from policy_i
-                    for i_m_i = 1 : i_k_i
-                        p_m_i = policy_i{base_i+i_k_i}(i_m_i);
-                        if p_m_i == 0
-                            continue;
-                        end
-                        m_i = ne_param.K(i_m_i);
-                        % Expectation over [u_j, k_j]
-                        for i_u_j = 1 : ne_param.num_U
-                            base_j = (i_u_j - 1) * ne_param.num_K;
-                            for i_k_j = 1 : ne_param.num_K
-                                p_u_k_j = D(base_j+i_k_j);
-                                if p_u_k_j == 0
-                                    continue;
-                                end
-                                % Expectation over m_j - comes from policy_j
-                                for i_m_j = 1 : i_k_j
-                                    p_m_j = policy_j{base_j+i_k_j}(i_m_j);
-                                    if p_m_j == 0
-                                        continue;
-                                    end
-                                    m_j = ne_param.K(i_m_j);
-
-                                    % This is where the magic happens
-                                    if m_i < m_j
-                                        c_now = u_i;
-                                    elseif m_i > m_j
-                                        c_now = 0;
-                                    else
-                                        c_now = 0.5 * u_i;
-                                    end
-
-                                    p = p_m_i * p_u_k_j * p_m_j;
-                                    c(base_i+i_k_i) = c(base_i+i_k_i)...
-                                        + p * c_now;
-                                end
-                            end
-                        end
-                    end
-                end
-            end
-        end
-        
-        % Gets rho matrix
-        function rho = get_rho(policy, D, theta, ne_param)
-            rho = cell(ne_param.num_K, 1);
-            for i_k_i = 1 : ne_param.num_K
-                rho{i_k_i} = zeros(1, i_k_i);
-                for i_m_i = 1 : i_k_i
-                    m_i = ne_param.K(i_m_i);
-                    % Expectation over u_j
-                    for i_u_j = 1 : ne_param.num_U
-                        u_j = ne_param.U(i_u_j);
-                        p_u_j = ne_param.p_U(i_u_j);
-                        % Expectation over k_j
-                        for i_k_j = 1 : ne_param.num_K
-                            p_k_j = D(i_k_j);
-                            % Expectation over m_j
-                            for i_m_j = 1 : i_k_j
-                                if u_j == 0
-                                    p_m_j = (ne_param.K(i_m_j) == 0);
-                                else
-                                    p_m_j = policy{i_k_j}(i_m_j);
-                                end
-                                if p_m_j == 0
-                                    continue;
-                                end
-                                m_j = ne_param.K(i_m_j);
-
-                                % This is where the magic happens
-                                % Current stage cost
-                                if m_i < m_j
-                                    c_now = ne_param.u_high;
-                                elseif m_i > m_j
-                                    c_now = 0;
-                                else
-                                    c_now = 0.5 * ne_param.u_high;
-                                end
-
-                                % Next karma with current conditions
-                                % Note that in some cases multiple equally
-                                % probable next karma levels are attainable
-                                % (when bids are the same)
-                                k_next = ne_param.k_next{i_k_i,i_k_j}{i_m_i,i_m_j};
-                                c_future = theta(ne_param.K == k_next(1)) / length(k_next);
-                                for i = 2 : length(k_next)
-                                    c_future = c_future + theta(ne_param.K == k_next(i)) / length(k_next);
-                                end
-
-                                p = p_u_j * p_k_j * p_m_j;
-                                rho{i_k_i}(i_m_i) = rho{i_k_i}(i_m_i)...
-                                    + p * (c_now + ne_param.alpha * c_future);
-                            end
-                        end
-                    end
-                end
-            end
-        end
-        
-        % Gets rho matrix for state implementation
-        function rho = get_rho_states(policy, D, theta, ne_param)
-            rho = cell(ne_param.num_X, 1);
-            for i_u_i = 1 : ne_param.num_U
-                u_i = ne_param.U(i_u_i);
-                base_i = (i_u_i - 1) * ne_param.num_K;
-                for i_k_i = 1 : ne_param.num_K
-                    rho{base_i+i_k_i} = zeros(1, i_k_i);
-                    for i_m_i = 1 : i_k_i
-                        m_i = ne_param.K(i_m_i);
-                        % Expectation over [u_j, k_j]
-                        for i_u_j = 1 : ne_param.num_U
-                            base_j = (i_u_j - 1) * ne_param.num_K;
-                            for i_k_j = 1 : ne_param.num_K
-                                p_u_k_j = D(base_j+i_k_j);
-                                % Expectation over m_j
-                                for i_m_j = 1 : i_k_j
-                                    p_m_j = policy{base_j+i_k_j}(i_m_j);
-                                    if p_m_j == 0
-                                        continue;
-                                    end
-                                    m_j = ne_param.K(i_m_j);
-
-                                    % This is where the magic happens
-                                    % Current stage cost
-                                    if m_i < m_j
-                                        c_now = u_i;
-                                    elseif m_i > m_j
-                                        c_now = 0;
-                                    else
-                                        c_now = 0.5 * u_i;
-                                    end
-
-                                    % Next karma with current conditions
-                                    % Note that in some cases multiple equally
-                                    % probable next karma levels are attainable
-                                    % (when bids are the same)
-                                    next_k_i = ne_param.k_next{i_k_i,i_k_j}{i_m_i,i_m_j};
-                                    num_next_k_i = length(next_k_i);
-                                    c_future = 0;
-                                    for i_next_u_i = 1 : ne_param.num_U
-                                        p_next_u_i = ne_param.p_U(i_next_u_i);
-                                        base_next_i = (i_next_u_i - 1) * ne_param.num_K;
-                                        for i = 1 : num_next_k_i
-                                            p_next_k_i = 1 / num_next_k_i;
-                                            i_next_k_i = find(ne_param.K == next_k_i(i));
-                                            p_next_i = p_next_u_i * p_next_k_i;
-                                            c_future = c_future + p_next_i * theta(base_next_i+i_next_k_i);
-                                        end
-                                    end
-
-                                    p = p_u_k_j * p_m_j;
-                                    rho{base_i+i_k_i}(i_m_i) =...
-                                        rho{base_i+i_k_i}(i_m_i)...
-                                        + p * (c_now + ne_param.alpha * c_future);
-                                end
-                            end
-                        end
-                    end
-                end
-            end
-        end
-        
-        % Gets the minimizing policy of rho
-        function policy = get_policy(rho)
-            n = size(rho, 1);
-            policy = cell(n, 1);
-            for i = 1 : n
-                policy{i} = zeros(1, length(rho{i}));
-                [~, min_i] = ne_func.multi_mins(rho{i});
-                policy{i}(min_i) = 1 / length(min_i);
-            end
-        end
-
-        % Computes norm on difference in policy matrices
-        function pol_norm = policy_norm(policy_1, policy_2, p)
-            % Concatenate all differences in 1 vector
-            diff_vec = [];
-            for i = 1 : size(policy_1, 1)
-                diff_vec = [diff_vec, policy_1{i} - policy_2{i}];
-            end
-            pol_norm = norm(diff_vec, p);
-        end
-        
-        % Returns all minimizers (if there are multiple)
-        function [min_v, min_i] = multi_mins(input)
-            [min_v, min_i] = min(input);
-            input(min_i) = realmax;
-            [next_min_v, next_min_i] = min(input);
-            while next_min_v == min_v
-                min_i = [min_i, next_min_i];
-                input(next_min_i) = realmax;
-                [next_min_v, next_min_i] = min(input);
-            end
-        end
-        
-        % Plot policy
-        function plot_policy(fg, position, policy, ne_param, title, colormap)
-            policy_mat = nan(ne_param.num_K);
-            for i_k_i = 1 : ne_param.num_K
-                policy_mat(i_k_i,1:i_k_i) = policy{i_k_i};
-            end
-            policy_mat(policy_mat == 0) = nan;
-            figure(fg);
-            fig = gcf;
-            fig.Position = position;
-            h = heatmap(ne_param.K, ne_param.K, policy_mat.', 'ColorbarVisible','off');
-            h.YDisplayData = flipud(h.YDisplayData);
-            h.Title = title;
-            h.XLabel = 'Karma';
-            h.YLabel = 'Message';
-            h.FontName = 'Ubuntu';
-            h.FontSize = 12;
-            if exist('colormap', 'var')
-                h.Colormap = colormap;
-            end
-            h.ColorLimits = [0 1];
-            h.CellLabelFormat = '%.2f';
-            drawnow;
-        end
-        
-        % Plot policy for state implementation
-        function plot_policy_states(fg, position, policy, ne_param, title, colormap)
-            figure(fg);
-            fig = gcf;
-            fig.Position = position;
-            for i_u_i = 1 : ne_param.num_U
-                base_i = (i_u_i - 1) * ne_param.num_K;
-                policy_mat = nan(ne_param.num_K);
-                for i_k_i = 1 : ne_param.num_K
-                    policy_mat(i_k_i,1:i_k_i) = policy{base_i+i_k_i};
-                end
-                policy_mat(policy_mat == 0) = nan;
-                subplot(1,ne_param.num_U,i_u_i);
-                h = heatmap(ne_param.K, ne_param.K, policy_mat.', 'ColorbarVisible','off');
-                h.YDisplayData = flipud(h.YDisplayData);
-                h.Title = [title, ' for u = ', num2str(ne_param.U(i_u_i))];
-                h.XLabel = 'Karma';
-                h.YLabel = 'Message';
-                h.FontName = 'Ubuntu';
-                h.FontSize = 10;
-                if exist('colormap', 'var')
-                    h.Colormap = colormap;
-                end
-                h.ColorLimits = [0 1];
-                h.CellLabelFormat = '%.2f';
-            end
-            drawnow;
-        end
-        
-        % Plot NE policy for tensor implementation
-        function plot_ne_policy_tensors(fg, position, policy, ne_param, title, colormap)
-            persistent h
+        % Plot NE policy
+        function plot_ne_pi(fg, position, colormap, pi_down_u_k_up_m, U, K, alpha)
+            persistent ne_pi_plot
+            num_U = length(U);
             if ~ishandle(fg)
                 figure(fg);
                 fig = gcf;
                 fig.Position = position;
-                h = cell(ne_param.num_U, 1);
-                for i_ui = 1 : ne_param.num_U
-                    policy_mat = squeeze(policy(i_ui,:,:));
-                    policy_mat(policy_mat == 0) = nan;
-                    subplot(1,ne_param.num_U,i_ui);
-                    h{i_ui} = heatmap(ne_param.K, ne_param.K, policy_mat.', 'ColorbarVisible','off');
-                    h{i_ui}.YDisplayData = flipud(h{i_ui}.YDisplayData);
-                    h{i_ui}.Title = [title, ' for u = ', num2str(ne_param.U(i_ui))];
-                    h{i_ui}.XLabel = 'Karma';
-                    h{i_ui}.YLabel = 'Message';
-                    h{i_ui}.FontName = 'Ubuntu';
-                    h{i_ui}.FontSize = 10;
+                ne_pi_plot = cell(num_U, 1);
+                for i_u = 1 : num_U
+                    pi_mat = squeeze(pi_down_u_k_up_m(i_u,:,:));
+                    pi_mat(pi_mat == 0) = nan;
+                    subplot(1, num_U, i_u);
+                    ne_pi_plot{i_u} = heatmap(K, K, pi_mat.', 'ColorbarVisible','off');
+                    ne_pi_plot{i_u}.YDisplayData = flipud(ne_pi_plot{i_u}.YDisplayData);
+                    ne_pi_plot{i_u}.Title = ['\alpha = ', num2str(alpha, '%.2f'), ' NE policy for u = ', num2str(U(i_u))];
+                    ne_pi_plot{i_u}.XLabel = 'Karma';
+                    ne_pi_plot{i_u}.YLabel = 'Message';
+                    ne_pi_plot{i_u}.FontName = 'Ubuntu';
+                    ne_pi_plot{i_u}.FontSize = 10;
                     if exist('colormap', 'var')
-                        h{i_ui}.Colormap = colormap;
+                        ne_pi_plot{i_u}.Colormap = colormap;
                     end
-                    h{i_ui}.ColorLimits = [0 1];
-                    h{i_ui}.CellLabelFormat = '%.2f';
+                    ne_pi_plot{i_u}.ColorLimits = [0 1];
+                    ne_pi_plot{i_u}.CellLabelFormat = '%.2f';
                 end
             else
-                for i_ui = 1 : ne_param.num_U
-                    policy_mat = squeeze(policy(i_ui,:,:));
-                    policy_mat(policy_mat == 0) = nan;
-                    h{i_ui}.ColorData = policy_mat.';
+                for i_u = 1 : num_U
+                    pi_mat = squeeze(pi_down_u_k_up_m(i_u,:,:));
+                    pi_mat(pi_mat == 0) = nan;
+                    ne_pi_plot{i_u}.ColorData = pi_mat.';
+                    ne_pi_plot{i_u}.Title = ['\alpha = ', num2str(alpha, '%.2f'), ' NE policy for u = ', num2str(U(i_u))];
                 end
             end
         end
         
-        % Plot best response policy for tensor implementation
-        function plot_best_response_policy_tensors(fg, position, policy, ne_param, title, colormap)
-            persistent h
-            if ~ishandle(fg) 
-                figure(fg);
-                fig = gcf;
-                fig.Position = position;
-                h = cell(ne_param.num_U, 1);
-                for i_ui = 1 : ne_param.num_U
-                    policy_mat = squeeze(policy(i_ui,:,:));
-                    policy_mat(policy_mat == 0) = nan;
-                    subplot(1,ne_param.num_U,i_ui);
-                    h{i_ui} = heatmap(ne_param.K, ne_param.K, policy_mat.', 'ColorbarVisible','off');
-                    h{i_ui}.YDisplayData = flipud(h{i_ui}.YDisplayData);
-                    h{i_ui}.Title = [title, ' for u = ', num2str(ne_param.U(i_ui))];
-                    h{i_ui}.XLabel = 'Karma';
-                    h{i_ui}.YLabel = 'Message';
-                    h{i_ui}.FontName = 'Ubuntu';
-                    h{i_ui}.FontSize = 10;
-                    if exist('colormap', 'var')
-                        h{i_ui}.Colormap = colormap;
-                    end
-                    h{i_ui}.ColorLimits = [0 1];
-                    h{i_ui}.CellLabelFormat = '%.2f';
-                end
-            else
-                for i_ui = 1 : ne_param.num_U
-                    policy_mat = squeeze(policy(i_ui,:,:));
-                    policy_mat(policy_mat == 0) = nan;
-                    h{i_ui}.ColorData = policy_mat.';
-                end
-            end
-        end
-        
-        % Plot stationary distribution D
-        function plot_D(fg, position, D, ne_param, title)
-            figure(fg);
-            fig = gcf;
-            fig.Position = position;
-            bar(ne_param.K, D);
-            axes = gca;
-            axis tight;
-            axes.Title.FontName = 'ubuntu';
-            axes.Title.String = title;
-            axes.Title.FontSize = 12;
-            axes.XAxis.FontSize = 10;
-            axes.YAxis.FontSize = 10;
-            axes.XLabel.FontName = 'ubuntu';
-            axes.XLabel.String = 'Karma';
-            axes.XLabel.FontSize = 12;
-            axes.YLabel.FontName = 'ubuntu';
-            axes.YLabel.String = 'Probability';
-            axes.YLabel.FontSize = 12;
-            drawnow;
-        end
-        
-        % Plot stationary distribution D for state implementation
-        function plot_D_states(fg, position, D, ne_param, title)
-            figure(fg);
-            fig = gcf;
-            fig.Position = position;
-            for i_u_i = 1 : ne_param.num_U
-                base_i = (i_u_i - 1) * ne_param.num_K;
-                subplot(1,ne_param.num_U,i_u_i);
-                bar(ne_param.K, D(base_i+1:base_i+ne_param.num_K));
-                axes = gca;
-                axis tight;
-                axes.Title.FontName = 'ubuntu';
-                axes.Title.String = [title, ' for u = ', num2str(ne_param.U(i_u_i))];
-                axes.Title.FontSize = 12;
-                axes.XAxis.FontSize = 10;
-                axes.YAxis.FontSize = 10;
-                axes.XLabel.FontName = 'ubuntu';
-                axes.XLabel.String = 'Karma';
-                axes.XLabel.FontSize = 12;
-                axes.YLabel.FontName = 'ubuntu';
-                axes.YLabel.String = 'Probability';
-                axes.YLabel.FontSize = 12;
-            end
-            drawnow;
-        end
-        
-        % Plot stationary distribution D for tensor implementation
-        function plot_D_tensors(fg, position, D, ne_param, title)
-            persistent b
+        % Plot best response policy
+        function plot_br_pi(fg, position, colormap, pi_i_down_ui_ki_up_mi, U, K, alpha)
+            persistent ne_br_plot
+            num_U = length(U);
             if ~ishandle(fg)
                 figure(fg);
                 fig = gcf;
                 fig.Position = position;
-                b = cell(ne_param.num_U, 1);
-                for i_ui = 1 : ne_param.num_U
-                    subplot(1,ne_param.num_U,i_ui);
-                    b{i_ui} = bar(ne_param.K, D(i_ui,:));
+                ne_br_plot = cell(num_U, 1);
+                for i_u = 1 : num_U
+                    pi_mat = squeeze(pi_i_down_ui_ki_up_mi(i_u,:,:));
+                    pi_mat(pi_mat == 0) = nan;
+                    subplot(1, num_U, i_u);
+                    ne_br_plot{i_u} = heatmap(K, K, pi_mat.', 'ColorbarVisible','off');
+                    ne_br_plot{i_u}.YDisplayData = flipud(ne_br_plot{i_u}.YDisplayData);
+                    ne_br_plot{i_u}.Title = ['\alpha = ', num2str(alpha, '%.2f'), ' BR policy for u = ', num2str(U(i_u))];
+                    ne_br_plot{i_u}.XLabel = 'Karma';
+                    ne_br_plot{i_u}.YLabel = 'Message';
+                    ne_br_plot{i_u}.FontName = 'Ubuntu';
+                    ne_br_plot{i_u}.FontSize = 10;
+                    if exist('colormap', 'var')
+                        ne_br_plot{i_u}.Colormap = colormap;
+                    end
+                    ne_br_plot{i_u}.ColorLimits = [0 1];
+                    ne_br_plot{i_u}.CellLabelFormat = '%.2f';
+                end
+            else
+                for i_u = 1 : num_U
+                    pi_mat = squeeze(pi_i_down_ui_ki_up_mi(i_u,:,:));
+                    pi_mat(pi_mat == 0) = nan;
+                    ne_br_plot{i_u}.ColorData = pi_mat.';
+                    ne_br_plot{i_u}.Title = ['\alpha = ', num2str(alpha, '%.2f'), ' BR policy for u = ', num2str(U(i_u))];
+                end
+            end
+        end
+        
+        % Plot NE stationary distribution
+        function plot_ne_D(fg, position, D_up_u_k, U, K, alpha)
+            persistent ne_D_plot
+            num_U = length(U);
+            if ~ishandle(fg)
+                figure(fg);
+                fig = gcf;
+                fig.Position = position;
+                ne_D_plot = cell(num_U, 1);
+                for i_u = 1 : num_U
+                    subplot(1, num_U, i_u);
+                    ne_D_plot{i_u} = bar(K, D_up_u_k(i_u,:));
                     axis tight;
                     axes = gca;
                     axes.Title.FontName = 'ubuntu';
-                    axes.Title.String = [title, ' for u = ', num2str(ne_param.U(i_ui))];
+                    axes.Title.String = ['\alpha = ', num2str(alpha, '%.2f'), ' NE stationary distribution for u = ', num2str(U(i_u))];
                     axes.Title.FontSize = 12;
                     axes.XAxis.FontSize = 10;
                     axes.YAxis.FontSize = 10;
@@ -592,75 +100,29 @@ classdef ne_func
                     axes.YLabel.FontSize = 12;
                 end
             else
-                for i_ui = 1 : ne_param.num_U
-                    b{i_ui}.YData = D(i_ui,:);
+                for i_u = 1 : num_U
+                    ne_D_plot{i_u}.YData = D_up_u_k(i_u,:);
+                    ne_D_plot{i_u}.Parent.Title.String = ['\alpha = ', num2str(alpha, '%.2f'), ' NE stationary distribution for u = ', num2str(U(i_u))];
                 end
             end
         end
         
-        % Plot utility theta
-        function plot_theta(fg, position, theta, ne_param, title)
-            figure(fg);
-            fig = gcf;
-            fig.Position = position;
-            plot(ne_param.K, -theta, '-x', 'LineWidth', 2);
-            axes = gca;
-            axis tight;
-            axes.Title.FontName = 'ubuntu';
-            axes.Title.String = title;
-            axes.Title.FontSize = 12;
-            axes.XAxis.FontSize = 10;
-            axes.YAxis.FontSize = 10;
-            axes.XLabel.FontName = 'ubuntu';
-            axes.XLabel.String = 'Karma';
-            axes.XLabel.FontSize = 12;
-            axes.YLabel.FontName = 'ubuntu';
-            axes.YLabel.String = 'Utility';
-            axes.YLabel.FontSize = 12;
-            drawnow;
-        end
-        
-        % Plot utility theta for state implementation
-        function plot_theta_states(fg, position, theta, ne_param, title)
-            figure(fg);
-            fig = gcf;
-            fig.Position = position;
-            for i_u_i = 1 : ne_param.num_U
-                base_i = (i_u_i - 1) * ne_param.num_K;
-                subplot(1,ne_param.num_U,i_u_i);
-                plot(ne_param.K, -theta(base_i+1:base_i+ne_param.num_K), '-x', 'LineWidth', 2);
-                axes = gca;
-                axis tight;
-                axes.Title.FontName = 'ubuntu';
-                axes.Title.String = [title, ' for u = ', num2str(ne_param.U(i_u_i))];
-                axes.Title.FontSize = 12;
-                axes.XAxis.FontSize = 10;
-                axes.YAxis.FontSize = 10;
-                axes.XLabel.FontName = 'ubuntu';
-                axes.XLabel.String = 'Karma';
-                axes.XLabel.FontSize = 12;
-                axes.YLabel.FontName = 'ubuntu';
-                axes.YLabel.String = 'Utility';
-                axes.YLabel.FontSize = 12;
-            end
-            drawnow;
-        end
-        
-        % Plot expected infinite horizon cost V for tensor implementation
-        function plot_V_tensors(fg, position, V, ne_param, title)
-            persistent p
+        % Plot NE expected utility
+        function plot_ne_V_old(fg, position, V_down_u_k, U, K, alpha)
+            persistent ne_V_plot
+            num_U = length(U);
             if ~ishandle(fg)
                 figure(fg);
                 fig = gcf;
                 fig.Position = position;
-                p = cell(ne_param.num_U, 1);
-                for i_ui = 1 : ne_param.num_U
-                    subplot(1,ne_param.num_U,i_ui);
-                    p{i_ui} = plot(ne_param.K, -V(i_ui,:), '-x', 'LineWidth', 2);
+                ne_V_plot = cell(num_U, 1);
+                for i_u = 1 : num_U
+                    subplot(1, num_U, i_u);
+                    ne_V_plot{i_u} = plot(K, -V_down_u_k(i_u,:), '-x', 'LineWidth', 2);
                     axis tight;
                     axes = gca;
                     axes.Title.FontName = 'ubuntu';
-                    axes.Title.String = [title, ' for u = ', num2str(ne_param.U(i_ui))];
+                    axes.Title.String = ['\alpha = ', num2str(alpha, '%.2f'), ' NE expected utility for u = ', num2str(U(i_u))];
                     axes.Title.FontSize = 12;
                     axes.XAxis.FontSize = 10;
                     axes.YAxis.FontSize = 10;
@@ -672,9 +134,175 @@ classdef ne_func
                     axes.YLabel.FontSize = 12;
                 end
             else
-                for i_ui = 1 : ne_param.num_U
-                    p{i_ui}.YData = -V(i_ui,:);
+                for i_u = 1 : num_U
+                    ne_V_plot{i_u}.YData = -V_down_u_k(i_u,:);
+                    ne_V_plot{i_u}.Parent.Title.String = ['\alpha = ', num2str(alpha, '%.2f'), ' NE expected utility for u = ', num2str(U(i_u))];
                 end
+            end
+        end
+        
+        function plot_ne_V(fg, position, V_down_u_k, U, K, alpha)
+            persistent ne_V_plot
+            num_U = length(U);
+            if ~ishandle(fg)
+                figure(fg);
+                fig = gcf;
+                fig.Position = position;
+                ne_V_plot = cell(num_U, 1);
+                lgd_text = cell(num_U, 1);
+                ne_V_plot{1} = plot(K, -V_down_u_k(1,:), '-x', 'LineWidth', 2);
+                lgd_text{1} = ['u = ', num2str(U(1))];
+                hold on;
+                for i_u = 2 : num_U
+                    ne_V_plot{i_u} = plot(K, -V_down_u_k(i_u,:), '-x', 'LineWidth', 2);
+                    lgd_text{i_u} = ['u = ', num2str(U(i_u))];
+                end
+                axis tight;
+                axes = gca;
+                axes.Title.FontName = 'ubuntu';
+                axes.Title.String = ['\alpha = ', num2str(alpha, '%.2f'), ' NE expected utility'];
+                axes.Title.FontSize = 12;
+                axes.XAxis.FontSize = 10;
+                axes.YAxis.FontSize = 10;
+                axes.XLabel.FontName = 'ubuntu';
+                axes.XLabel.String = 'Karma';
+                axes.XLabel.FontSize = 12;
+                axes.YLabel.FontName = 'ubuntu';
+                axes.YLabel.String = 'Utility';
+                axes.YLabel.FontSize = 12;
+                lgd = legend(lgd_text);
+                lgd.FontSize = 12;
+                lgd.FontName = 'ubuntu';
+                lgd.Location = 'bestoutside';
+            else
+                for i_u = 1 : num_U
+                    ne_V_plot{i_u}.YData = -V_down_u_k(i_u,:);
+                end
+                ne_V_plot{1}.Parent.Title.String = ['\alpha = ', num2str(alpha, '%.2f'), ' NE expected utility'];
+            end
+        end
+        
+        % Plot NE expected utility per message
+        function plot_ne_V_m(fg, position, colormap, V_down_u_k_m, U, K, alpha)
+            persistent ne_V_m_plot
+            num_U = length(U);
+            num_K = length(K);
+            if ~ishandle(fg)
+                figure(fg);
+                fig = gcf;
+                fig.Position = position;
+                ne_V_m_plot = cell(num_U, 1);
+                for i_u = 1 : num_U
+                    V_m_mat = squeeze(V_down_u_k_m(i_u,:,:));
+                    for i_k = 1 : num_K
+                        V_m_mat(i_k,i_k+1:end) = nan;
+                    end
+                    subplot(1, num_U, i_u);
+                    ne_V_m_plot{i_u} = heatmap(K, K, -V_m_mat.', 'ColorbarVisible','off');
+                    ne_V_m_plot{i_u}.YDisplayData = flipud(ne_V_m_plot{i_u}.YDisplayData);
+                    ne_V_m_plot{i_u}.Title = ['\alpha = ', num2str(alpha, '%.2f'), ' NE expected utility per message for u = ', num2str(U(i_u))];
+                    ne_V_m_plot{i_u}.XLabel = 'Karma';
+                    ne_V_m_plot{i_u}.YLabel = 'Message';
+                    ne_V_m_plot{i_u}.FontName = 'Ubuntu';
+                    ne_V_m_plot{i_u}.FontSize = 10;
+                    if exist('colormap', 'var')
+                        ne_V_m_plot{i_u}.Colormap = colormap;
+                    end
+                    ne_V_m_plot{i_u}.CellLabelFormat = '%.2f';
+                end
+            else
+                for i_u = 1 : num_U
+                    V_m_mat = squeeze(V_down_u_k_m(i_u,:,:));
+                    for i_k = 1 : num_K
+                        V_m_mat(i_k,i_k+1:end) = nan;
+                    end
+                    ne_V_m_plot{i_u}.ColorData = -V_m_mat.';
+                    ne_V_m_plot{i_u}.Title = ['\alpha = ', num2str(alpha, '%.2f'), ' NE expected utility per message for u = ', num2str(U(i_u))];
+                end
+            end
+        end
+        
+        % Plot NE state transitions
+        function plot_ne_T(fg, position, colormap, T_down_u_k_up_un_kn, U, K, alpha)
+            persistent ne_T_plot
+            num_U = length(U);
+            num_K = length(K);
+            num_X = num_U * num_K;
+            if ~ishandle(fg)
+                figure(fg);
+                fig = gcf;
+                fig.Position = position;
+                label = cell(num_X, 1);
+                for i_u = 1 : num_U
+                    base_i_u = (i_u - 1) * num_K;
+                    u_str = num2str(U(i_u));
+                    for i_k = 1 : num_K
+                        label{base_i_u+i_k} = ['(', u_str, ',', num2str(K(i_k)), ')'];
+                    end
+                end
+                T_mat = zeros(num_X);
+                for i_u = 1 : num_U
+                    start_i_u = (i_u - 1) * num_K + 1;
+                    end_i_u = i_u * num_K;
+                    for i_un = 1 : num_U
+                        start_i_un = (i_un - 1) * num_K + 1;
+                        end_i_un = i_un * num_K;
+                        T_mat(start_i_u:end_i_u,start_i_un:end_i_un) =...
+                            squeeze(T_down_u_k_up_un_kn(i_u,:,i_un,:));
+                    end
+                end
+                ne_T_plot = heatmap(label, label, T_mat.', 'ColorbarVisible','off');
+                ne_T_plot.YDisplayData = flipud(ne_T_plot.YDisplayData);
+                ne_T_plot.Title = ['\alpha = ', num2str(alpha, '%.2f'), ' NE state transitions'];
+                ne_T_plot.XLabel = 'State now (urgency,karma)';
+                ne_T_plot.YLabel = 'State next (urgency,karma)';
+                ne_T_plot.FontName = 'Ubuntu';
+                ne_T_plot.FontSize = 10;
+                if exist('colormap', 'var')
+                    ne_T_plot.Colormap = colormap;
+                end
+                ne_T_plot.CellLabelFormat = '%.2f';
+            else
+                T_mat = zeros(num_X);
+                for i_u = 1 : num_U
+                    start_i_u = (i_u - 1) * num_K + 1;
+                    end_i_u = i_u * num_K;
+                    for i_un = 1 : num_U
+                        start_i_un = (i_un - 1) * num_K + 1;
+                        end_i_un = i_un * num_K;
+                        T_mat(start_i_u:end_i_u,start_i_un:end_i_un) =...
+                            squeeze(T_down_u_k_up_un_kn(i_u,:,i_un,:));
+                    end
+                end
+                ne_T_plot.ColorData = T_mat.';
+                ne_T_plot.Title = ['\alpha = ', num2str(alpha, '%.2f'), ' NE state transitions'];
+            end
+        end
+        
+        % Plot NE policy error
+        function plot_ne_pi_error(fg, position, ne_policy_error_hist, alpha)
+            persistent ne_pi_error_plot
+            if ~ishandle(fg)
+                figure(fg);
+                fig = gcf;
+                fig.Position = position;
+                ne_pi_error_plot = plot(ne_policy_error_hist, 'r-x', 'LineWidth', 2);
+                axis tight;
+                axes = gca;
+                axes.Title.FontName = 'ubuntu';
+                axes.Title.String = ['\alpha = ', num2str(alpha, '%.2f'), ' NE policy error'];
+                axes.Title.FontSize = 12;
+                axes.XAxis.FontSize = 10;
+                axes.YAxis.FontSize = 10;
+                axes.XLabel.FontName = 'ubuntu';
+                axes.XLabel.String = 'Iteration';
+                axes.XLabel.FontSize = 12;
+                axes.YLabel.FontName = 'ubuntu';
+                axes.YLabel.String = 'RMS policy error';
+                axes.YLabel.FontSize = 12;
+            else
+                ne_pi_error_plot.YData = ne_policy_error_hist;
+                ne_pi_error_plot.Parent.Title.String = ['\alpha = ', num2str(alpha, '%.2f'), ' NE policy error'];
             end
         end
     end
