@@ -4,22 +4,23 @@ close all;
 
 %% Some parameters
 Nu = 2;
-K = 0 : 12;
+K = 0 : 24;
 Nk = length(K);
 Nx = Nu * Nk;
-k_ave = 6;
+k_ave = 3;
 Nk_small = length(0 : k_ave - 1);
 Nk_big = length(k_ave + 1 : K(end));
 delta_constant = sum(0 : k_ave - 1) / Nk_small - sum(k_ave + 1 : K(end)) / Nk_big;
-p_U = rand(1);
+p_U = 0.5;
 p_U = [p_U; 1 - p_U];
 
-% %% Create random T_down_xi_xj_up_xin that sum to 1 along xin dimension
+%% Create random T_down_xi_xj_up_xin that sum to 1 along xin dimension
 % T_down_xi_xj_up_xin = rand(Nx, Nx, Nx);
 % T_down_xi_xj_up_xin = T_down_xi_xj_up_xin ./ sum(T_down_xi_xj_up_xin, 3);
 
 %% Load sample 
-load('T_down_ui_ki_uj_kj_up_uin_kin.mat');
+%load('T_down_ui_ki_uj_kj_up_uin_kin.mat');
+load('karma_nash_equilibrium/results/k_ave_3_k_max_24/alpha_0.00.mat');
 T_down_xi_xj_up_xin = zeros(Nx, Nx, Nx);
 for i_ui = 1 : Nu
     base_i_ui = (i_ui - 1) * Nk;
@@ -41,6 +42,7 @@ for i_ui = 1 : Nu
         end
     end
 end
+
 % T_down_xi_uj_kj_up_uin_kin = reshape(T_down_ui_ki_uj_kj_up_uin_kin, [], Nu, Nk, Nu, Nk);
 % T_down_xi_xj_up_uin_kin = reshape(T_down_xi_uj_kj_up_uin_kin, Nx, [], Nu, Nk);
 % T_down_xi_xj_up_xin = reshape(T_down_xi_xj_up_uin_kin, Nx, Nx, []);
@@ -144,9 +146,12 @@ for i_trial = i_trivial_trials : num_trials
     D(:,i_trial) = D_next;
     k_ave_out(i_trial) = [K K] * D_next;
 end
-sensitivity = norm(max(D, [], 2) - min(D, [], 2), inf);
-sensitivity_k_ave_init = max(k_ave_init) - min(k_ave_init);
-sensitivity_k_ave_out = max(k_ave_out) - min(k_ave_out);
+sensitivity = norm(max(D, [], 2) - min(D, [], 2), inf)
+%D(:,10) = [];
+% D(:,7) = [];
+% sensitivity2 = norm(max(D, [], 2) - min(D, [], 2), inf)
+sensitivity_k_ave_init = max(k_ave_init) - min(k_ave_init)
+sensitivity_k_ave_out = max(k_ave_out) - min(k_ave_out)
 
 fprintf('DONE ITERATIVE\n\n');
 
@@ -167,5 +172,16 @@ fprintf('DONE ITERATIVE\n\n');
 % sensitivity_opt = norm(max([D, D_sol], [], 2) - min([D, D_sol], [], 2), inf);
 % 
 % fprintf('DONE QCQP\n\n');
+
+%% Some more testing for uniqueness
+T_down_ui_ki_uj_kj_up_kin = squeeze(sum(T_down_ui_ki_uj_kj_up_uin_kin, 5));
+T_down_ui_ki_kj_up_kin = squeeze(p_U(1) * T_down_ui_ki_uj_kj_up_kin(:,:,1,:,:) + p_U(2) * T_down_ui_ki_uj_kj_up_kin(:,:,2,:,:));
+T_down_ki_kj_up_kin = squeeze(p_U(1) * T_down_ui_ki_kj_up_kin(1,:,:,:) + p_U(2) * T_down_ui_ki_kj_up_kin(2,:,:,:));
+K_T = zeros(Nk);
+for i_k = 1 : Nk
+    K_T = K_T + K(i_k) * T_down_ki_kj_up_kin(:,:,i_k);
+end
+D_up_k = D_curr(1:Nk) + D_curr(Nk+1:end);
+D_up_k.' * K_T * D_up_k;
 
 fprintf('DONE\n\n');

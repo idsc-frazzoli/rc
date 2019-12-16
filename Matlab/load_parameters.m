@@ -84,7 +84,7 @@ param.k_min = 0;
 param.k_max = 12;
 
 % Average karma laevel
-param.k_ave = 3;
+param.k_ave = 6;
 
 end
 

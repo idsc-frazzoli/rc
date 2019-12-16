@@ -23,16 +23,8 @@ ne_param = load_ne_parameters();
 % their karma. Column j in row i denotes probability of transmitting
 % message K(j) when karma level is K(i)
 % Note 1: All entries are non-negative and rows sum to 1
-% Note 2: NE policy for urgency 0 is to bid 0 karma always. This is
-% hardcoded in algorithm and not parametrized
 % Initialize to uniform distribution
 policy = cell(ne_param.num_X, 1);
-% for i_u_i = 1 : ne_param.num_U
-%     base_i = (i_u_i - 1) * ne_param.num_K;
-%     for i_k_i = 1 : ne_param.num_K
-%         policy{base_i+i_k_i} = 1 / i_k_i * ones(1, i_k_i);
-%     end
-% end
 for i_u_i = 1 : ne_param.num_U
     base_i = (i_u_i - 1) * ne_param.num_K;
     for i_k_i = 1 : ne_param.num_K
@@ -44,31 +36,29 @@ for i_u_i = 1 : ne_param.num_U
         end
     end
 end
-% for i_u_i = 1 : ne_param.num_U
-%     base_i = (i_u_i - 1) * ne_param.num_K;
-%     for i_k_i = 1 : ne_param.num_K
-%         policy{base_i+i_k_i} = zeros(1, i_k_i);
-%         policy{base_i+i_k_i}(1) = 1;
-%     end
-% end
 
 % Plot NE guess policy
-policy_plot_fg = 1;
-policy_plot_pos = [0, 2 * default_height, default_width, default_height];
-policy_plot_title = 'Current NE Guess Policy';
-ne_func.plot_policy_states(policy_plot_fg, policy_plot_pos, policy, ne_param, policy_plot_title, RedColormap);
+if ne_param.plot
+    policy_plot_fg = 1;
+    policy_plot_pos = [0, 2 * default_height, default_width, default_height];
+    policy_plot_title = 'Current NE Guess Policy';
+    ne_func.plot_policy_states(policy_plot_fg, policy_plot_pos, policy, ne_param, policy_plot_title, RedColormap);
+end
 
 % Step 0.2: Stationary distribution at NE policy guess
 % Parametrized as a vector with num_X rows. The probability of
 % state [u = U(i_u), k = K(i_k)] is in D((i_u-1)*num_K+i_k)
 % Note: All entries are non-negative and vector sums to 1
-% Initialize to uniform distribution
-D = 1 / ne_param.num_X * ones(ne_param.num_X, 1);
-% D = zeros(ne_param.num_X, 1);
-% for i_u_i = 1 : ne_param.num_U
-%     base_i = (i_u_i - 1) * ne_param.num_K;
-%     D(base_i+1:base_i+ne_param.num_K) = ne_param.p_U(i_u_i) / ne_param.num_K * ones(ne_param.num_K, 1);
-% end
+% Initialize to 1 at average karma
+i_kave = find(ne_param.K == ne_param.k_ave);
+D_k = zeros(ne_param.num_K, 1);
+D_k(i_kave) = 1;
+D = zeros(ne_param.num_X, 1);
+for i_u_i = 1 : ne_param.num_U
+    base_i = (i_u_i - 1) * ne_param.num_K;
+    D(base_i+1:base_i+ne_param.num_K) = ne_param.p_U(i_u_i) * D_k;
+end
+
 
 %% Step 1: Get (D,T) pair corresponding to NE policy guess
 % Step 1.1: Get T for when all agents play policy and stationary
@@ -94,10 +84,12 @@ if num_iter_D_T == ne_param.D_T_max_iter
     fprintf('Iteration %d did not find convergent (D,T) pair\n', num_iter);
 end
 % Plot stationary distribution
-D_plot_fg = 2;
-D_plot_pos = [0, default_height / 3, default_width, default_height];
-D_plot_title = 'Current NE Stationary Distribution';
-ne_func.plot_D_states(D_plot_fg, D_plot_pos, D, ne_param, D_plot_title);
+if ne_param.plot
+    D_plot_fg = 2;
+    D_plot_pos = [0, default_height / 3, default_width, default_height];
+    D_plot_title = 'Current NE Stationary Distribution';
+    ne_func.plot_D_states(D_plot_fg, D_plot_pos, D, ne_param, D_plot_title);
+end
 
 %% Step 2: Best response of agent i to all other agents j playing policy
 % This is a dynamic progarmming problem solved using policy iteration
@@ -110,10 +102,12 @@ T_i = ne_func.get_T_states(policy_i, policy, D, ne_param);
 % Step 2.3: Get expected utility for agent i playing policy_i
 theta_i = (eye(ne_param.num_X) - ne_param.alpha * T_i) \ c_i;
 % Plot expected utility
-theta_plot_fg = 3;
-theta_plot_pos = [default_width, default_height / 3, default_width, default_height];
-theta_plot_title = 'Current NE Expected Utility';
-ne_func.plot_theta_states(theta_plot_fg, theta_plot_pos, theta_i, ne_param, theta_plot_title);
+if ne_param.plot
+    theta_plot_fg = 3;
+    theta_plot_pos = [default_width, default_height / 3, default_width, default_height];
+    theta_plot_title = 'Current NE Expected Utility';
+    ne_func.plot_theta_states(theta_plot_fg, theta_plot_pos, theta_i, ne_param, theta_plot_title);
+end
 % Step 2.4: Get the expected cost matrix for agent i as per the messages
 % they would transmit, given current expected utility theta_i
 rho_i = ne_func.get_rho_states(policy, D, theta_i, ne_param);
@@ -141,15 +135,17 @@ while policy_i_error > ne_param.policy_tol && num_policy_iter < ne_param.policy_
     policy_i = policy_i_next;
 end
 % Plot best response policy
-policy_i_plot_fg = 4;
-policy_i_plot_pos = [default_width, 2 * default_height, default_width, default_height];
-policy_i_plot_title = 'Best Response Policy';
-ne_func.plot_policy_states(policy_i_plot_fg, policy_i_plot_pos, policy_i, ne_param, policy_i_plot_title, RedColormap);
+if ne_param.plot
+    policy_i_plot_fg = 4;
+    policy_i_plot_pos = [default_width, 2 * default_height, default_width, default_height];
+    policy_i_plot_title = 'Best Response Policy';
+    ne_func.plot_policy_states(policy_i_plot_fg, policy_i_plot_pos, policy_i, ne_param, policy_i_plot_title, RedColormap);
+end
 
 % Set next NE guess to best response, using momentum
 policy_next = cell(ne_param.num_X, 1);
 for i = 1 : ne_param.num_X
-    policy_next{i} = (1 - ne_param.tau) * policy{i} + ne_param.tau * policy_i{i};
+    policy_next{i} = (1 - ne_param.policy_tau) * policy{i} + ne_param.policy_tau * policy_i{i};
 end
 
 %% Step 3: Repeat Step 1-2 until convergence
@@ -164,9 +160,9 @@ for i_u_i = 1 : ne_param.num_U
         [~, max_i] = max(policy_i{i});
         policy_hist_end(i) = ne_param.K(max_i);
         if i == 1
-            fprintf('Iteration %d policy:\t%d', num_iter, policy_hist_end(i));
+            fprintf('Iteration %d policy:\n%d', num_iter, policy_hist_end(i));
         elseif mod(i - 1, ne_param.num_K) == 0
-            fprintf('\n\t\t\t%d', policy_hist_end(i));
+            fprintf('\n%d', policy_hist_end(i));
         else
             fprintf('->%d', policy_hist_end(i));
         end
@@ -177,18 +173,19 @@ fprintf('\n\n');
 % Initialize next iteration
 policy = policy_next;
 % Plot new NE guess policy
-ne_func.plot_policy_states(policy_plot_fg, policy_plot_pos, policy, ne_param, policy_plot_title, RedColormap);
+if ne_param.plot
+    ne_func.plot_policy_states(policy_plot_fg, policy_plot_pos, policy, ne_param, policy_plot_title, RedColormap);
+end
 while policy_error > ne_param.policy_tol && num_iter < ne_param.ne_policy_max_iter
     num_iter = num_iter + 1;
     
     % Step 3-1.1: Get T for when all agents play policy and stationary
     % distribution is D
-    % Re-initialize D to uniform distribution first
-    D = 1 / ne_param.num_X * ones(ne_param.num_X, 1);
-%     for i_u_i = 1 : ne_param.num_U
-%         base_i = (i_u_i - 1) * ne_param.num_K;
-%         D(base_i+1:base_i+ne_param.num_K) = ne_param.p_U(i_u_i) / ne_param.num_K * ones(ne_param.num_K, 1);
-%     end
+    % Re-initialize D first
+    for i_u_i = 1 : ne_param.num_U
+        base_i = (i_u_i - 1) * ne_param.num_K;
+        D(base_i+1:base_i+ne_param.num_K) = ne_param.p_U(i_u_i) * D_k;
+    end
     T = ne_func.get_T_states(policy, policy, D, ne_param);
 
     % Step 3-1.2: Get stattionary distribution D from T
@@ -209,7 +206,9 @@ while policy_error > ne_param.policy_tol && num_iter < ne_param.ne_policy_max_it
         fprintf('Iteration %d did not find convergent (D,T) pair\n', num_iter);
     end
     % Plot stationary distribution
-    ne_func.plot_D_states(D_plot_fg, D_plot_pos, D, ne_param, D_plot_title);
+    if ne_param.plot
+        ne_func.plot_D_states(D_plot_fg, D_plot_pos, D, ne_param, D_plot_title);
+    end
     
     % Step 3-2: Best response of agent i to all other agents j playing policy
     % This is a dynamic progarmming problem solved using policy iteration
@@ -222,7 +221,9 @@ while policy_error > ne_param.policy_tol && num_iter < ne_param.ne_policy_max_it
     % Step 3-2.3: Get expected utility for agent i playing policy_i
     theta_i = (eye(ne_param.num_X) - ne_param.alpha * T_i) \ c_i;
     % Plot expected utility
-    ne_func.plot_theta_states(theta_plot_fg, theta_plot_pos, theta_i, ne_param, theta_plot_title);
+    if ne_param.plot
+        ne_func.plot_theta_states(theta_plot_fg, theta_plot_pos, theta_i, ne_param, theta_plot_title);
+    end
     % Step 3-2.4: Get the expected cost matrix for agent i as per the messages
     % they would transmit, given current expected utility theta_i
     rho_i = ne_func.get_rho_states(policy, D, theta_i, ne_param);
@@ -250,11 +251,13 @@ while policy_error > ne_param.policy_tol && num_iter < ne_param.ne_policy_max_it
         policy_i = policy_i_next;
     end
     % Plot best response policy
-    ne_func.plot_policy_states(policy_i_plot_fg, policy_i_plot_pos, policy_i, ne_param, policy_i_plot_title, RedColormap);
+    if ne_param.plot
+        ne_func.plot_policy_states(policy_i_plot_fg, policy_i_plot_pos, policy_i, ne_param, policy_i_plot_title, RedColormap);
+    end
     % Set next NE guess to best response, using momentum
     policy_next = cell(ne_param.num_X, 1);
     for i = 1 : ne_param.num_X
-        policy_next{i} = (1 - ne_param.tau) * policy{i} + ne_param.tau * policy_i{i};
+        policy_next{i} = (1 - ne_param.policy_tau) * policy{i} + ne_param.policy_tau * policy_i{i};
     end
     
     policy_error = ne_func.policy_norm(policy, policy_next, inf);
@@ -268,9 +271,9 @@ while policy_error > ne_param.policy_tol && num_iter < ne_param.ne_policy_max_it
             [~, max_i] = max(policy_i{i});
             policy_hist_end(i) = ne_param.K(max_i);
             if i == 1
-                fprintf('Iteration %d policy:\t%d', num_iter, policy_hist_end(i));
+                fprintf('Iteration %d policy:\n%d', num_iter, policy_hist_end(i));
             elseif mod(i - 1, ne_param.num_K) == 0
-                fprintf('\n\t\t\t%d', policy_hist_end(i));
+                fprintf('\n%d', policy_hist_end(i));
             else
                 fprintf('->%d', policy_hist_end(i));
             end
@@ -289,14 +292,39 @@ while policy_error > ne_param.policy_tol && num_iter < ne_param.ne_policy_max_it
     end
     policy_hist = [policy_hist; policy_hist_end];
     fprintf('\n\n');
-    if ne_param.tau == 1 && limit_cycle && size(policy_limit_cycle, 1) > 1
+    if ne_param.policy_tau == 1 && limit_cycle && size(policy_limit_cycle, 1) > 1
         fprintf('Limit cycle found!\n\n');
         break;
     end
     % Initialize next iteration
     policy = policy_next;
     % Plot new NE guess policy
+    if ne_param.plot
+        ne_func.plot_policy_states(policy_plot_fg, policy_plot_pos, policy, ne_param, policy_plot_title, RedColormap);
+    end
+end
+
+% Plot end result
+if ~ne_param.plot
+    policy_plot_fg = 1;
+    policy_plot_pos = [0, 2 * default_height, default_width, default_height];
+    policy_plot_title = 'Current NE Guess Policy';
     ne_func.plot_policy_states(policy_plot_fg, policy_plot_pos, policy, ne_param, policy_plot_title, RedColormap);
+    
+    D_plot_fg = 2;
+    D_plot_pos = [0, default_height / 3, default_width, default_height];
+    D_plot_title = 'Current NE Stationary Distribution';
+    ne_func.plot_D_states(D_plot_fg, D_plot_pos, D, ne_param, D_plot_title);
+    
+    theta_plot_fg = 3;
+    theta_plot_pos = [default_width, default_height / 3, default_width, default_height];
+    theta_plot_title = 'Current NE Expected Utility';
+    ne_func.plot_theta_states(theta_plot_fg, theta_plot_pos, theta_i, ne_param, theta_plot_title);
+    
+    policy_i_plot_fg = 4;
+    policy_i_plot_pos = [default_width, 2 * default_height, default_width, default_height];
+    policy_i_plot_title = 'Best Response Policy';
+    ne_func.plot_policy_states(policy_i_plot_fg, policy_i_plot_pos, policy_i, ne_param, policy_i_plot_title, RedColormap);
 end
 
 %% Inform user when done

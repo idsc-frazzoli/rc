@@ -450,29 +450,72 @@ classdef ne_func
             drawnow;
         end
         
-        % Plot policy for tensor implementation
-        function plot_policy_tensors(fg, position, policy, ne_param, title, colormap)
-            figure(fg);
-            fig = gcf;
-            fig.Position = position;
-            for i_ui = 1 : ne_param.num_U
-                policy_mat = squeeze(policy(i_ui,:,:));
-                policy_mat(policy_mat == 0) = nan;
-                subplot(1,ne_param.num_U,i_ui);
-                h = heatmap(ne_param.K, ne_param.K, policy_mat.', 'ColorbarVisible','off');
-                h.YDisplayData = flipud(h.YDisplayData);
-                h.Title = [title, ' for u = ', num2str(ne_param.U(i_ui))];
-                h.XLabel = 'Karma';
-                h.YLabel = 'Message';
-                h.FontName = 'Ubuntu';
-                h.FontSize = 10;
-                if exist('colormap', 'var')
-                    h.Colormap = colormap;
+        % Plot NE policy for tensor implementation
+        function plot_ne_policy_tensors(fg, position, policy, ne_param, title, colormap)
+            persistent h
+            if ~ishandle(fg)
+                figure(fg);
+                fig = gcf;
+                fig.Position = position;
+                h = cell(ne_param.num_U, 1);
+                for i_ui = 1 : ne_param.num_U
+                    policy_mat = squeeze(policy(i_ui,:,:));
+                    policy_mat(policy_mat == 0) = nan;
+                    subplot(1,ne_param.num_U,i_ui);
+                    h{i_ui} = heatmap(ne_param.K, ne_param.K, policy_mat.', 'ColorbarVisible','off');
+                    h{i_ui}.YDisplayData = flipud(h{i_ui}.YDisplayData);
+                    h{i_ui}.Title = [title, ' for u = ', num2str(ne_param.U(i_ui))];
+                    h{i_ui}.XLabel = 'Karma';
+                    h{i_ui}.YLabel = 'Message';
+                    h{i_ui}.FontName = 'Ubuntu';
+                    h{i_ui}.FontSize = 10;
+                    if exist('colormap', 'var')
+                        h{i_ui}.Colormap = colormap;
+                    end
+                    h{i_ui}.ColorLimits = [0 1];
+                    h{i_ui}.CellLabelFormat = '%.2f';
                 end
-                h.ColorLimits = [0 1];
-                h.CellLabelFormat = '%.2f';
+            else
+                for i_ui = 1 : ne_param.num_U
+                    policy_mat = squeeze(policy(i_ui,:,:));
+                    policy_mat(policy_mat == 0) = nan;
+                    h{i_ui}.ColorData = policy_mat.';
+                end
             end
-            drawnow;
+        end
+        
+        % Plot best response policy for tensor implementation
+        function plot_best_response_policy_tensors(fg, position, policy, ne_param, title, colormap)
+            persistent h
+            if ~ishandle(fg) 
+                figure(fg);
+                fig = gcf;
+                fig.Position = position;
+                h = cell(ne_param.num_U, 1);
+                for i_ui = 1 : ne_param.num_U
+                    policy_mat = squeeze(policy(i_ui,:,:));
+                    policy_mat(policy_mat == 0) = nan;
+                    subplot(1,ne_param.num_U,i_ui);
+                    h{i_ui} = heatmap(ne_param.K, ne_param.K, policy_mat.', 'ColorbarVisible','off');
+                    h{i_ui}.YDisplayData = flipud(h{i_ui}.YDisplayData);
+                    h{i_ui}.Title = [title, ' for u = ', num2str(ne_param.U(i_ui))];
+                    h{i_ui}.XLabel = 'Karma';
+                    h{i_ui}.YLabel = 'Message';
+                    h{i_ui}.FontName = 'Ubuntu';
+                    h{i_ui}.FontSize = 10;
+                    if exist('colormap', 'var')
+                        h{i_ui}.Colormap = colormap;
+                    end
+                    h{i_ui}.ColorLimits = [0 1];
+                    h{i_ui}.CellLabelFormat = '%.2f';
+                end
+            else
+                for i_ui = 1 : ne_param.num_U
+                    policy_mat = squeeze(policy(i_ui,:,:));
+                    policy_mat(policy_mat == 0) = nan;
+                    h{i_ui}.ColorData = policy_mat.';
+                end
+            end
         end
         
         % Plot stationary distribution D
@@ -525,27 +568,34 @@ classdef ne_func
         
         % Plot stationary distribution D for tensor implementation
         function plot_D_tensors(fg, position, D, ne_param, title)
-            figure(fg);
-            fig = gcf;
-            fig.Position = position;
-            for i_ui = 1 : ne_param.num_U
-                subplot(1,ne_param.num_U,i_ui);
-                bar(ne_param.K, D(i_ui,:));
-                axes = gca;
-                axis tight;
-                axes.Title.FontName = 'ubuntu';
-                axes.Title.String = [title, ' for u = ', num2str(ne_param.U(i_ui))];
-                axes.Title.FontSize = 12;
-                axes.XAxis.FontSize = 10;
-                axes.YAxis.FontSize = 10;
-                axes.XLabel.FontName = 'ubuntu';
-                axes.XLabel.String = 'Karma';
-                axes.XLabel.FontSize = 12;
-                axes.YLabel.FontName = 'ubuntu';
-                axes.YLabel.String = 'Probability';
-                axes.YLabel.FontSize = 12;
+            persistent b
+            if ~ishandle(fg)
+                figure(fg);
+                fig = gcf;
+                fig.Position = position;
+                b = cell(ne_param.num_U, 1);
+                for i_ui = 1 : ne_param.num_U
+                    subplot(1,ne_param.num_U,i_ui);
+                    b{i_ui} = bar(ne_param.K, D(i_ui,:));
+                    axis tight;
+                    axes = gca;
+                    axes.Title.FontName = 'ubuntu';
+                    axes.Title.String = [title, ' for u = ', num2str(ne_param.U(i_ui))];
+                    axes.Title.FontSize = 12;
+                    axes.XAxis.FontSize = 10;
+                    axes.YAxis.FontSize = 10;
+                    axes.XLabel.FontName = 'ubuntu';
+                    axes.XLabel.String = 'Karma';
+                    axes.XLabel.FontSize = 12;
+                    axes.YLabel.FontName = 'ubuntu';
+                    axes.YLabel.String = 'Probability';
+                    axes.YLabel.FontSize = 12;
+                end
+            else
+                for i_ui = 1 : ne_param.num_U
+                    b{i_ui}.YData = D(i_ui,:);
+                end
             end
-            drawnow;
         end
         
         % Plot utility theta
@@ -598,27 +648,34 @@ classdef ne_func
         
         % Plot expected infinite horizon cost V for tensor implementation
         function plot_V_tensors(fg, position, V, ne_param, title)
-            figure(fg);
-            fig = gcf;
-            fig.Position = position;
-            for i_ui = 1 : ne_param.num_U
-                subplot(1,ne_param.num_U,i_ui);
-                plot(ne_param.K, -V(i_ui,:), '-x', 'LineWidth', 2);
-                axes = gca;
-                axis tight;
-                axes.Title.FontName = 'ubuntu';
-                axes.Title.String = [title, ' for u = ', num2str(ne_param.U(i_ui))];
-                axes.Title.FontSize = 12;
-                axes.XAxis.FontSize = 10;
-                axes.YAxis.FontSize = 10;
-                axes.XLabel.FontName = 'ubuntu';
-                axes.XLabel.String = 'Karma';
-                axes.XLabel.FontSize = 12;
-                axes.YLabel.FontName = 'ubuntu';
-                axes.YLabel.String = 'Utility';
-                axes.YLabel.FontSize = 12;
+            persistent p
+            if ~ishandle(fg)
+                figure(fg);
+                fig = gcf;
+                fig.Position = position;
+                p = cell(ne_param.num_U, 1);
+                for i_ui = 1 : ne_param.num_U
+                    subplot(1,ne_param.num_U,i_ui);
+                    p{i_ui} = plot(ne_param.K, -V(i_ui,:), '-x', 'LineWidth', 2);
+                    axis tight;
+                    axes = gca;
+                    axes.Title.FontName = 'ubuntu';
+                    axes.Title.String = [title, ' for u = ', num2str(ne_param.U(i_ui))];
+                    axes.Title.FontSize = 12;
+                    axes.XAxis.FontSize = 10;
+                    axes.YAxis.FontSize = 10;
+                    axes.XLabel.FontName = 'ubuntu';
+                    axes.XLabel.String = 'Karma';
+                    axes.XLabel.FontSize = 12;
+                    axes.YLabel.FontName = 'ubuntu';
+                    axes.YLabel.String = 'Utility';
+                    axes.YLabel.FontSize = 12;
+                end
+            else
+                for i_ui = 1 : ne_param.num_U
+                    p{i_ui}.YData = -V(i_ui,:);
+                end
             end
-            drawnow;
         end
     end
 end

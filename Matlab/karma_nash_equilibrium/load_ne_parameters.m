@@ -76,31 +76,35 @@ end
 ne_param.num_X = ne_param.num_U * ne_param.num_K;
 
 % Alpha
-ne_param.alpha = 0.8;
+%ne_param.alpha = 0.05 * (0 : 19);
+ne_param.alpha = 0.75;
 
 % Tolerance for convergence of (D,T) pair
-ne_param.D_T_tol = 1e-4;
+ne_param.D_T_tol = 1e-3;
 
 % Maximum number of iterations for convergence of (D,T) pair
 ne_param.D_T_max_iter = 100;
 
 % Tolerance for convergence of D
-ne_param.D_tol = 1e-4;
+ne_param.D_tol = 1e-3;
 
 % Maximum number of iterations for convergence of D
 ne_param.D_max_iter = 1000;
 
 % Tolerance for convergence of V
-ne_param.V_tol = 1e-4;
+ne_param.V_tol = 1e-3;
 
 % Maximum number of iterations for convergence of V
 ne_param.V_max_iter = 1000;
 
-% Momentum
-ne_param.tau = 1.0;
+% Momentum on policy
+ne_param.policy_tau = 1.0;
+
+% Momentum on stationary distribution
+ne_param.D_tau = 1.0;
 
 % Tolerance for convergence of policy
-ne_param.policy_tol = 1e-3;
+ne_param.policy_tol = 1e-4;
 
 % Maximum number of policy iterations
 ne_param.policy_max_iter = 100;
@@ -109,6 +113,9 @@ ne_param.policy_max_iter = 100;
 ne_param.ne_policy_max_iter = 1000;
 
 % Do plots
-ne_param.plot = true;
+ne_param.plot = false;
+
+% Save results
+ne_param.save = true;
 
 end
