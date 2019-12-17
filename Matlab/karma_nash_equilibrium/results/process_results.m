@@ -8,7 +8,7 @@ screenwidth = screensize(3);
 screenheight = screensize(4);
 load('karma_nash_equilibrium/RedColormap.mat');
 
-% Save data
+% Flag to save data
 save_data = false;
 
 %% Select alpha(s) to process

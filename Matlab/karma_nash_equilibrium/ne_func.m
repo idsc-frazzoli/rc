@@ -107,40 +107,7 @@ classdef ne_func
             end
         end
         
-        % Plot NE expected utility
-        function plot_ne_V_old(fg, position, V_down_u_k, U, K, alpha)
-            persistent ne_V_plot
-            num_U = length(U);
-            if ~ishandle(fg)
-                figure(fg);
-                fig = gcf;
-                fig.Position = position;
-                ne_V_plot = cell(num_U, 1);
-                for i_u = 1 : num_U
-                    subplot(1, num_U, i_u);
-                    ne_V_plot{i_u} = plot(K, -V_down_u_k(i_u,:), '-x', 'LineWidth', 2);
-                    axis tight;
-                    axes = gca;
-                    axes.Title.FontName = 'ubuntu';
-                    axes.Title.String = ['\alpha = ', num2str(alpha, '%.2f'), ' NE expected utility for u = ', num2str(U(i_u))];
-                    axes.Title.FontSize = 12;
-                    axes.XAxis.FontSize = 10;
-                    axes.YAxis.FontSize = 10;
-                    axes.XLabel.FontName = 'ubuntu';
-                    axes.XLabel.String = 'Karma';
-                    axes.XLabel.FontSize = 12;
-                    axes.YLabel.FontName = 'ubuntu';
-                    axes.YLabel.String = 'Utility';
-                    axes.YLabel.FontSize = 12;
-                end
-            else
-                for i_u = 1 : num_U
-                    ne_V_plot{i_u}.YData = -V_down_u_k(i_u,:);
-                    ne_V_plot{i_u}.Parent.Title.String = ['\alpha = ', num2str(alpha, '%.2f'), ' NE expected utility for u = ', num2str(U(i_u))];
-                end
-            end
-        end
-        
+        % Plot NE expected utility        
         function plot_ne_V(fg, position, V_down_u_k, U, K, alpha)
             persistent ne_V_plot
             num_U = length(U);

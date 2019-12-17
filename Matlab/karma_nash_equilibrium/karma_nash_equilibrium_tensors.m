@@ -104,10 +104,21 @@ for i_alpha = 1 : length(ne_param.alpha)
 
     % 2.2
     i_kave = find(ne_param.K == ne_param.k_ave);
-    % D_up_k = zeros(ne_param.num_K, 1);
-    % D_up_k(i_kave) = 1;
-    i_kave2 = find(ne_param.K == ne_param.k_ave * 2);
-    D_up_k_init = [1 / i_kave2 * ones(i_kave2, 1); zeros(ne_param.num_K - i_kave2, 1)];
+    if ne_param.k_ave * 2 <= ne_param.k_max
+        i_kave2 = find(ne_param.K == ne_param.k_ave * 2);
+        D_up_k_init = [1 / i_kave2 * ones(i_kave2, 1); zeros(ne_param.num_K - i_kave2, 1)];
+    else
+        D_up_k_init = 1 / ne_param.num_K * ones(ne_param.num_K, 1);
+        K_small = ne_param.k_min : ne_param.k_ave - 1;
+        K_big = ne_param.k_ave + 1 : ne_param.k_max;
+        num_K_small = length(K_small);
+        num_K_big = length(K_big);
+        delta_constant = sum(K_small) / num_K_small - sum(K_big) / num_K_big;
+        delta_k_ave = ne_param.k_ave - ne_param.K.' * D_up_k_init;
+        delta_p = delta_k_ave / delta_constant;
+        D_up_k_init(1:i_kave-1) = D_up_k_init(1:i_kave-1) + delta_p / num_K_small;
+        D_up_k_init(i_kave+1:end) = D_up_k_init(i_kave+1:end) - delta_p / num_K_big;
+    end
     D_up_u_k = D_up_u * D_up_k_init.';
     D_up_u_k_next = D_up_u_k;
     T_down_u_k_up_un_kn = squeeze(dot2(reshape(D_up_u_k_next, [], 1), reshape(T_down_ui_ki_uj_kj_up_uin_kin, ne_param.num_U, ne_param.num_K, [], ne_param.num_U, ne_param.num_K), 1, 3));

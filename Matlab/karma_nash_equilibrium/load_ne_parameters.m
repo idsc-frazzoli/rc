@@ -18,10 +18,13 @@ ne_param.u_low = param.u_low;
 ne_param.u_high = param.u_high;
 
 % Vector of all karma values
-ne_param.K = (param.k_min : 1 : param.k_max).';
+ne_param.K = (param.k_min : param.k_max).';
 
 % Number of karma values
 ne_param.num_K = length(ne_param.K);
+
+% Minimum karma
+ne_param.k_min = param.k_min;
 
 % Maximum karma
 ne_param.k_max = param.k_max;
