@@ -4,7 +4,7 @@ close all;
 
 %% Some parameters
 Nu = 2;
-K = 0 : 24;
+K = 0 : 12;
 Nk = length(K);
 Nx = Nu * Nk;
 k_ave = 3;
@@ -20,7 +20,7 @@ p_U = [p_U; 1 - p_U];
 
 %% Load sample 
 %load('T_down_ui_ki_uj_kj_up_uin_kin.mat');
-load('karma_nash_equilibrium/results/k_ave_3_k_max_24/alpha_0.00.mat');
+load('karma_nash_equilibrium/results/k_max_12_k_ave_06/alpha_0.75.mat');
 T_down_xi_xj_up_xin = zeros(Nx, Nx, Nx);
 for i_ui = 1 : Nu
     base_i_ui = (i_ui - 1) * Nk;
@@ -68,7 +68,7 @@ for i_x = 1 : Nx
     D_next(i_x) = D_curr.' * T_down_xi_xj_up_xin(:,:,i_x) * D_curr;
 end
 D_next = D_next / sum(D_next);
-while(norm(D_next - D_curr, inf) > 1e-4)
+while(norm(D_next - D_curr, inf) > 1e-5)
     D_curr = D_next;
     for i_x = 1 : Nx
         D_next(i_x) = D_curr.' * T_down_xi_xj_up_xin(:,:,i_x) * D_curr;
@@ -95,7 +95,7 @@ for i_small = 1 : i_kave - 1
             D_next(i_x) = D_curr.' * T_down_xi_xj_up_xin(:,:,i_x) * D_curr;
         end
         D_next = D_next / sum(D_next);
-        while(norm(D_next - D_curr, inf) > 1e-4)
+        while(norm(D_next - D_curr, inf) > 1e-5)
             D_curr = D_next;
             for i_x = 1 : Nx
                 D_next(i_x) = D_curr.' * T_down_xi_xj_up_xin(:,:,i_x) * D_curr;
@@ -136,7 +136,7 @@ for i_trial = i_trivial_trials : num_trials
         D_next(i_x) = D_curr.' * T_down_xi_xj_up_xin(:,:,i_x) * D_curr;
     end
     D_next = D_next / sum(D_next);
-    while(norm(D_next - D_curr, inf) > 1e-4)
+    while(norm(D_next - D_curr, inf) > 1e-5)
         D_curr = D_next;
         for i_x = 1 : Nx
             D_next(i_x) = D_curr.' * T_down_xi_xj_up_xin(:,:,i_x) * D_curr;

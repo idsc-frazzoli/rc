@@ -11,6 +11,12 @@ param.p_U = [0.5; 0.5];
 % Number of urgency values
 param.num_U = length(param.U);
 
+% Transition matrix for urgency markov process
+param.mu_down_u_up_un = zeros(param.num_U, param.num_U);
+for i_u = 1 : param.num_U
+    param.mu_down_u_up_un(i_u,:) = param.p_U.';
+end
+
 % Low urgency
 param.u_low = min(param.U);
 

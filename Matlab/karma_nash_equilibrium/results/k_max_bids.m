@@ -41,6 +41,19 @@ for i_k_ave = 1 : num_k_ave
     end
 end
 
+%% Find 'phase transistions'
+% This is where agents start/stop bidding max karma at max level
+transition_alpha = zeros(num_k_ave, 1);
+for i_k_ave = 1 : num_k_ave
+    k_max_bid_max_i = find(k_max_bid(i_k_ave,:) == k_max);
+    transition_alpha(i_k_ave) = alpha_vec(k_max_bid_max_i(end));
+end
+transition_k_ave = zeros(num_alpha, 1);
+for i_alpha = 1 : num_alpha
+    k_max_bid_max_i = find(k_max_bid(:,i_alpha) == k_max);
+    transition_k_ave(i_alpha) = k_ave_vec(k_max_bid_max_i(1));
+end
+
 %% Plot k_max_bid
 figure(fg);
 fg = fg + 1;
@@ -131,6 +144,46 @@ lgd = legend(lgd_text);
 lgd.FontSize = 12;
 lgd.FontName = 'ubuntu';
 lgd.Location = 'bestoutside';
+
+%% Plot transition alphas
+figure(fg);
+fg = fg + 1;
+fig = gcf;
+fig.Position = [0, default_height, default_width, default_height];
+plot(k_ave_vec, transition_alpha, '-x', 'LineWidth', 2);
+axis tight;
+axes = gca;
+axes.Title.FontName = 'ubuntu';
+axes.Title.String = 'Largest \alpha where maximum karma is bid at maximum level';
+axes.Title.FontSize = 12;
+axes.XAxis.FontSize = 10;
+axes.YAxis.FontSize = 10;
+axes.XLabel.FontName = 'ubuntu';
+axes.XLabel.String = 'Average karma';
+axes.XLabel.FontSize = 12;
+axes.YLabel.FontName = 'ubuntu';
+axes.YLabel.String = 'Future discount factor';
+axes.YLabel.FontSize = 12;
+
+%% Plot transition k_aves
+figure(fg);
+fg = fg + 1;
+fig = gcf;
+fig.Position = [default_width, default_height, default_width, default_height];
+plot(alpha_vec, transition_k_ave, '-x', 'LineWidth', 2);
+axis tight;
+axes = gca;
+axes.Title.FontName = 'ubuntu';
+axes.Title.String = 'Smallest k_{ave} where maximum karma is bid at maximum level';
+axes.Title.FontSize = 12;
+axes.XAxis.FontSize = 10;
+axes.YAxis.FontSize = 10;
+axes.XLabel.FontName = 'ubuntu';
+axes.XLabel.String = 'Future discount factor';
+axes.XLabel.FontSize = 12;
+axes.YLabel.FontName = 'ubuntu';
+axes.YLabel.String = 'Average karma';
+axes.YLabel.FontSize = 12;
 
 % %% Plot slice along average karma
 % alpha_slice = 0.8;

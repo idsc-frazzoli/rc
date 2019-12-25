@@ -11,6 +11,9 @@ ne_param.p_U = param.p_U;
 % Number of urgency values
 ne_param.num_U = param.num_U;
 
+% Transition matrix for urgency markov process
+ne_param.mu_down_u_up_un = param.mu_down_u_up_un;
+
 % Low urgency
 ne_param.u_low = param.u_low;
 
@@ -32,12 +35,19 @@ ne_param.k_max = param.k_max;
 % Average karma
 ne_param.k_ave = param.k_ave;
 
+% Partial messages
+r_interval = 0.25;
+ne_param.R = 0 : r_interval : 1 - r_interval;
+
+% Number of partial messages
+ne_param.num_R = length(ne_param.R);
+
 % Number of states, which is number of urgency * number of karma values
 ne_param.num_X = ne_param.num_U * ne_param.num_K;
 
 % Alpha
-ne_param.alpha = 0 : 0.05 : 0.95;
-% ne_param.alpha = 0.75;
+%ne_param.alpha = 0 : 0.05 : 0.95;
+ne_param.alpha = 0.75;
 
 % Tolerance for convergence of (D,T) pair
 ne_param.D_T_tol = 1e-3;
