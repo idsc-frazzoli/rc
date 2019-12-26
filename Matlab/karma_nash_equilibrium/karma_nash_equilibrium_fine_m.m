@@ -54,7 +54,7 @@ for i_u = 1 : ne_param.num_U
     end
 end
 C_down_u_k_z_r_zj_rj = permute(outer(ones(ne_param.num_K, 1), kappa_down_u_z_r_zj_rj), [2 1 3 4 5 6]);
-lota_down_k_z_r_kj_zj_rj_up_kn...
+iota_down_k_z_r_kj_zj_rj_up_kn...
     = zeros(ne_param.num_K, ne_param.num_K, ne_param.num_R, ne_param.num_K, ne_param.num_K, ne_param.num_R, ne_param.num_K);
 for i_k = 1 : ne_param.num_K
     k = ne_param.K(i_k);
@@ -84,36 +84,36 @@ for i_k = 1 : ne_param.num_K
                         if m > mj
                             % Agent i wins for sure
                             i_kn_0 = ne_param.K == k - min([z, ne_param.k_max - kj]);
-                            lota_down_k_z_r_kj_zj_rj_up_kn(i_k,i_z,i_r,i_kj,i_zj,i_rj,i_kn_0) = 1 - r;
+                            iota_down_k_z_r_kj_zj_rj_up_kn(i_k,i_z,i_r,i_kj,i_zj,i_rj,i_kn_0) = 1 - r;
                             if r ~= 0
                                 i_kn_1 = ne_param.K == k - min([z + 1, ne_param.k_max - kj]);
-                                lota_down_k_z_r_kj_zj_rj_up_kn(i_k,i_z,i_r,i_kj,i_zj,i_rj,i_kn_1) = ...
-                                    lota_down_k_z_r_kj_zj_rj_up_kn(i_k,i_z,i_r,i_kj,i_zj,i_rj,i_kn_1) + r;
+                                iota_down_k_z_r_kj_zj_rj_up_kn(i_k,i_z,i_r,i_kj,i_zj,i_rj,i_kn_1) = ...
+                                    iota_down_k_z_r_kj_zj_rj_up_kn(i_k,i_z,i_r,i_kj,i_zj,i_rj,i_kn_1) + r;
                             end
                         elseif m < mj
                             % Agent i loses for sure
                             i_kn_0 = ne_param.K == min([k + zj, ne_param.k_max]);
-                            lota_down_k_z_r_kj_zj_rj_up_kn(i_k,i_z,i_r,i_kj,i_zj,i_rj,i_kn_0) = 1 - rj;
+                            iota_down_k_z_r_kj_zj_rj_up_kn(i_k,i_z,i_r,i_kj,i_zj,i_rj,i_kn_0) = 1 - rj;
                             if rj ~= 0
                                 i_kn_1 = ne_param.K == min([k + zj + 1, ne_param.k_max]);
-                                lota_down_k_z_r_kj_zj_rj_up_kn(i_k,i_z,i_r,i_kj,i_zj,i_rj,i_kn_1) = ...
-                                    lota_down_k_z_r_kj_zj_rj_up_kn(i_k,i_z,i_r,i_kj,i_zj,i_rj,i_kn_1) + rj;
+                                iota_down_k_z_r_kj_zj_rj_up_kn(i_k,i_z,i_r,i_kj,i_zj,i_rj,i_kn_1) = ...
+                                    iota_down_k_z_r_kj_zj_rj_up_kn(i_k,i_z,i_r,i_kj,i_zj,i_rj,i_kn_1) + rj;
                             end
                         else
                             % 50-50 chances of agent i winning or losing
                             i_kn_win_0 = ne_param.K == k - min([z, ne_param.k_max - kj]);
                             i_kn_lose_0 = ne_param.K == min([k + zj, ne_param.k_max]);
                             
-                            lota_down_k_z_r_kj_zj_rj_up_kn(i_k,i_z,i_r,i_kj,i_zj,i_rj,i_kn_win_0) = 0.5 * (1 - r);
-                            lota_down_k_z_r_kj_zj_rj_up_kn(i_k,i_z,i_r,i_kj,i_zj,i_rj,i_kn_lose_0) = ...
-                                lota_down_k_z_r_kj_zj_rj_up_kn(i_k,i_z,i_r,i_kj,i_zj,i_rj,i_kn_lose_0) + 0.5 * (1 - rj);
+                            iota_down_k_z_r_kj_zj_rj_up_kn(i_k,i_z,i_r,i_kj,i_zj,i_rj,i_kn_win_0) = 0.5 * (1 - r);
+                            iota_down_k_z_r_kj_zj_rj_up_kn(i_k,i_z,i_r,i_kj,i_zj,i_rj,i_kn_lose_0) = ...
+                                iota_down_k_z_r_kj_zj_rj_up_kn(i_k,i_z,i_r,i_kj,i_zj,i_rj,i_kn_lose_0) + 0.5 * (1 - rj);
                             if r ~= 0
                                 i_kn_win_1 = ne_param.K == k - min([z + 1, ne_param.k_max - kj]);
                                 i_kn_lose_1 = ne_param.K == min([k + zj + 1, ne_param.k_max]);
-                                lota_down_k_z_r_kj_zj_rj_up_kn(i_k,i_z,i_r,i_kj,i_zj,i_rj,i_kn_win_1) = ...
-                                lota_down_k_z_r_kj_zj_rj_up_kn(i_k,i_z,i_r,i_kj,i_zj,i_rj,i_kn_win_1) + 0.5 * r;
-                                lota_down_k_z_r_kj_zj_rj_up_kn(i_k,i_z,i_r,i_kj,i_zj,i_rj,i_kn_lose_1) = ...
-                                    lota_down_k_z_r_kj_zj_rj_up_kn(i_k,i_z,i_r,i_kj,i_zj,i_rj,i_kn_lose_1) + 0.5 * rj;
+                                iota_down_k_z_r_kj_zj_rj_up_kn(i_k,i_z,i_r,i_kj,i_zj,i_rj,i_kn_win_1) = ...
+                                iota_down_k_z_r_kj_zj_rj_up_kn(i_k,i_z,i_r,i_kj,i_zj,i_rj,i_kn_win_1) + 0.5 * r;
+                                iota_down_k_z_r_kj_zj_rj_up_kn(i_k,i_z,i_r,i_kj,i_zj,i_rj,i_kn_lose_1) = ...
+                                    iota_down_k_z_r_kj_zj_rj_up_kn(i_k,i_z,i_r,i_kj,i_zj,i_rj,i_kn_lose_1) + 0.5 * rj;
                             end
                         end
                     end
@@ -122,7 +122,7 @@ for i_k = 1 : ne_param.num_K
         end
     end
 end
-epsilon_down_k_z_r_uj_kj_zj_rj_up_kn = permute(outer(ones(ne_param.num_U, 1), lota_down_k_z_r_kj_zj_rj_up_kn), [2 3 4 1 5 6 7 8]);
+epsilon_down_k_z_r_uj_kj_zj_rj_up_kn = permute(outer(ones(ne_param.num_U, 1), iota_down_k_z_r_kj_zj_rj_up_kn), [2 3 4 1 5 6 7 8]);
 Phi_down_u_k_z_r_uj_kj_zj_rj_up_un_kn = permute(outer(ne_param.mu_down_u_up_un, epsilon_down_k_z_r_uj_kj_zj_rj_up_kn), [1 3 4 5 6 7 8 9 2 10]);
 
 for i_alpha = 1 : length(ne_param.alpha)

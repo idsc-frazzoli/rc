@@ -45,42 +45,43 @@ ne_param.num_R = length(ne_param.R);
 % Number of states, which is number of urgency * number of karma values
 ne_param.num_X = ne_param.num_U * ne_param.num_K;
 
-% Alpha
+% Future discount factor(s)
 %ne_param.alpha = 0 : 0.05 : 0.95;
 ne_param.alpha = 0.75;
 
-% Tolerance for convergence of (D,T) pair
-ne_param.D_T_tol = 1e-3;
+% Tolerance for convergence of stationary distribution
+ne_param.d_tol = 1e-3;
 
-% Maximum number of iterations for convergence of (D,T) pair
-ne_param.D_T_max_iter = 100;
-
-% Tolerance for convergence of D
-ne_param.D_tol = 1e-3;
-
-% Maximum number of iterations for convergence of D
-ne_param.D_max_iter = 1000;
-
-% Tolerance for convergence of V
-ne_param.V_tol = 1e-3;
-
-% Maximum number of iterations for convergence of V
-ne_param.V_max_iter = 1000;
-
-% Momentum on policy
-ne_param.policy_tau = 0.05;
+% Maximum number of iterations for convergence of stationary distribution
+ne_param.d_max_iter = 1000;
 
 % Momentum on stationary distribution
-ne_param.D_tau = 1.0;
+ne_param.d_mom = 1.0;
 
-% Tolerance for convergence of policy
-ne_param.policy_tol = 1e-4;
+% Tolerance for convergence of v
+ne_param.v_tol = 1e-3;
 
-% Maximum number of policy iterations
-ne_param.policy_max_iter = 100;
+% Maximum number of iterations for convergence of v
+ne_param.v_max_iter = 1000;
 
-% Maximum number of Nash Equilibrium policy iterations
-ne_param.ne_policy_max_iter = 1000;
+% Tolerance for best response deviation on v
+ne_param.br_v_tol = 1e-8;
+% ne_param.br_v_tol = 1e-2;
+
+% Tolerance for convergence of best response policy
+ne_param.br_pi_tol = 1e-4;
+
+% Maximum number of best response policy iterations
+ne_param.br_pi_max_iter = 100;
+
+% Tolerance for convergence of Nash equilibrium policy
+ne_param.ne_pi_tol = 1e-5;
+
+% Maximum number of Nash equilibrium policy iterations
+ne_param.ne_pi_max_iter = 1000;
+
+% Momentum on Nash equilibrium policy
+ne_param.ne_pi_mom = 0.05;
 
 % Do plots
 ne_param.plot = false;
