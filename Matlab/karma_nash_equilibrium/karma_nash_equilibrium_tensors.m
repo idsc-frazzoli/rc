@@ -18,17 +18,17 @@ ne_param = load_ne_parameters();
 %% Step 0: Game tensors
 c_down_u_m_mj = zeros(ne_param.num_U, ne_param.num_K, ne_param.num_K);
 for i_u = 1 : ne_param.num_U
-    for i_min_m = 1 : ne_param.num_K
+    for i_m = 1 : ne_param.num_K
         for i_mj = 1 : ne_param.num_K
-            if i_min_m > i_mj
+            if i_m > i_mj
                 % Agent i wins for sure
-                c_down_u_m_mj(i_u,i_min_m,i_mj) = 0;
-            elseif i_min_m < i_mj
+                c_down_u_m_mj(i_u,i_m,i_mj) = 0;
+            elseif i_m < i_mj
                 % Agent i loses for sure
-                c_down_u_m_mj(i_u,i_min_m,i_mj) = ne_param.U(i_u);
+                c_down_u_m_mj(i_u,i_m,i_mj) = ne_param.U(i_u);
             else
                 % 50-50 chances of agent i winning or losing
-                c_down_u_m_mj(i_u,i_min_m,i_mj) = 0.5 * ne_param.U(i_u);
+                c_down_u_m_mj(i_u,i_m,i_mj) = 0.5 * ne_param.U(i_u);
             end
         end
     end
@@ -37,8 +37,8 @@ kappa_down_k_m_kj_mj_up_kn...
     = zeros(ne_param.num_K, ne_param.num_K, ne_param.num_K, ne_param.num_K, ne_param.num_K);
 for i_k = 1 : ne_param.num_K
     k = ne_param.K(i_k);
-    for i_min_m = 1 : i_k
-        m = ne_param.K(i_min_m);
+    for i_m = 1 : i_k
+        m = ne_param.K(i_m);
         for i_kj = 1 : ne_param.num_K
             kj = ne_param.K(i_kj);
             for i_mj = 1 : i_kj
@@ -48,30 +48,30 @@ for i_k = 1 : ne_param.num_K
                     % Agent i wins for sure
                     kn = k - min([m, ne_param.k_max - kj]);
                     i_kn = ne_param.K == kn;
-                    kappa_down_k_m_kj_mj_up_kn(i_k,i_min_m,i_kj,i_mj,i_kn) = 1;
+                    kappa_down_k_m_kj_mj_up_kn(i_k,i_m,i_kj,i_mj,i_kn) = 1;
                 elseif m < mj
                     % Agent i loses for sure
                     kn = min([k + mj, ne_param.k_max]);
                     i_kn = ne_param.K == kn;
-                    kappa_down_k_m_kj_mj_up_kn(i_k,i_min_m,i_kj,i_mj,i_kn) = 1;
+                    kappa_down_k_m_kj_mj_up_kn(i_k,i_m,i_kj,i_mj,i_kn) = 1;
                 else
                     % 50-50 chances of agent i winning or losing
                     kn_win = k - min([m, ne_param.k_max - kj]);
                     i_kn_win = ne_param.K == kn_win;
                     kn_lose = min([k + mj, ne_param.k_max]);
                     if kn_win == kn_lose
-                        kappa_down_k_m_kj_mj_up_kn(i_k,i_min_m,i_kj,i_mj,i_kn_win) = 1;
+                        kappa_down_k_m_kj_mj_up_kn(i_k,i_m,i_kj,i_mj,i_kn_win) = 1;
                     else
                         i_kn_lose = ne_param.K == kn_lose;
-                        kappa_down_k_m_kj_mj_up_kn(i_k,i_min_m,i_kj,i_mj,i_kn_win) = 0.5;
-                        kappa_down_k_m_kj_mj_up_kn(i_k,i_min_m,i_kj,i_mj,i_kn_lose) = 0.5;
+                        kappa_down_k_m_kj_mj_up_kn(i_k,i_m,i_kj,i_mj,i_kn_win) = 0.5;
+                        kappa_down_k_m_kj_mj_up_kn(i_k,i_m,i_kj,i_mj,i_kn_lose) = 0.5;
                     end
                 end
             end
         end
     end
 end
-psi_down_u_k_m_kj_mj_up_un_kn = permute(reshape(outer(reshape(ne_param.mu_down_u_up_un, [], 1), kappa_down_k_m_kj_mj_up_kn), ne_param.num_U, ne_param.num_U, ne_param.num_K, ne_param.num_K, ne_param.num_K, ne_param.num_K, ne_param.num_K), [1 3 4 5 6 2 7]);
+psi_down_u_k_m_kj_mj_up_un_kn = permute(reshape(outer(reshape(ne_param.mu_down_u_up_un, [], 1), kappa_down_k_m_kj_mj_up_kn), [ne_param.num_U, ne_param.num_U, size(kappa_down_k_m_kj_mj_up_kn)]), [1 3 4 5 6 2 7]);
 
 for i_alpha = 1 : length(ne_param.alpha)
     alpha = ne_param.alpha(i_alpha);
@@ -84,8 +84,8 @@ for i_alpha = 1 : length(ne_param.alpha)
         ne_pi_down_u_k_up_m(1,i_k,1) = 1;
         % Initial policy for urgent is uniform distribution over messages
         p = 1 / i_k;
-        for i_min_m = 1 : i_k
-            ne_pi_down_u_k_up_m(2,i_k,i_min_m) = p;
+        for i_m = 1 : i_k
+            ne_pi_down_u_k_up_m(2,i_k,i_m) = p;
         end
     end
 
@@ -93,7 +93,7 @@ for i_alpha = 1 : length(ne_param.alpha)
     if ne_param.plot
         ne_pi_plot_fg = 1;
         ne_pi_plot_pos = [0, default_height, default_width, default_height];
-        ne_func.plot_ne_pi(ne_pi_plot_fg, ne_pi_plot_pos, RedColormap, ne_pi_down_u_k_up_m, ne_param.U, ne_param.K, alpha);
+        ne_func.plot_ne_pi(ne_pi_plot_fg, ne_pi_plot_pos, RedColormap, ne_pi_down_u_k_up_m, ne_param.U, ne_param.K, ne_param.K, alpha);
     end
 
     %% Step 2
@@ -247,7 +247,7 @@ for i_alpha = 1 : length(ne_param.alpha)
     if ne_param.plot
         br_pi_plot_fg = 3;
         br_pi_plot_pos = [default_width, default_height, default_width, default_height];
-        ne_func.plot_br_pi(br_pi_plot_fg, br_pi_plot_pos, RedColormap, br_pi_down_u_k_up_m, ne_param.U, ne_param.K, alpha);
+        ne_func.plot_br_pi(br_pi_plot_fg, br_pi_plot_pos, RedColormap, br_pi_down_u_k_up_m, ne_param.U, ne_param.K, ne_param.K, alpha);
         drawnow;
     end
 
@@ -260,7 +260,7 @@ for i_alpha = 1 : length(ne_param.alpha)
 
     % Plot
     if ne_param.plot
-        ne_func.plot_ne_pi(ne_pi_plot_fg, ne_pi_plot_pos, RedColormap, ne_pi_down_u_k_up_m, ne_param.U, ne_param.K, alpha);
+        ne_func.plot_ne_pi(ne_pi_plot_fg, ne_pi_plot_pos, RedColormap, ne_pi_down_u_k_up_m, ne_param.U, ne_param.K, ne_param.K, alpha);
     end
     % Display status and store history of policies
     fprintf('Iteration %d policy error %f\n', num_ne_pi_iter, ne_pi_error);
@@ -412,7 +412,7 @@ for i_alpha = 1 : length(ne_param.alpha)
 
         % Plot
         if ne_param.plot
-            ne_func.plot_br_pi(br_pi_plot_fg, br_pi_plot_pos, RedColormap, br_pi_down_u_k_up_m, ne_param.U, ne_param.K, alpha);
+            ne_func.plot_br_pi(br_pi_plot_fg, br_pi_plot_pos, RedColormap, br_pi_down_u_k_up_m, ne_param.U, ne_param.K, ne_param.K, alpha);
             drawnow;
         end
 
@@ -425,7 +425,7 @@ for i_alpha = 1 : length(ne_param.alpha)
 
         % Plot
         if ne_param.plot
-            ne_func.plot_ne_pi(ne_pi_plot_fg, ne_pi_plot_pos, RedColormap, ne_pi_down_u_k_up_m, ne_param.U, ne_param.K, alpha);
+            ne_func.plot_ne_pi(ne_pi_plot_fg, ne_pi_plot_pos, RedColormap, ne_pi_down_u_k_up_m, ne_param.U, ne_param.K, ne_param.K, alpha);
         end
 
         % Display status and store history of policies
@@ -478,7 +478,7 @@ for i_alpha = 1 : length(ne_param.alpha)
         % NE expected utiliy per message plot
         ne_rho_plot_fg = 5;
         ne_rho_plot_pos = [default_width, 0, default_width, default_height];
-        ne_func.plot_ne_rho(ne_rho_plot_fg, ne_rho_plot_pos, parula, ne_rho_down_u_k_m, ne_param.U, ne_param.K, alpha);
+        ne_func.plot_ne_rho(ne_rho_plot_fg, ne_rho_plot_pos, parula, ne_rho_down_u_k_m, ne_param.U, ne_param.K, ne_param.K, alpha);
         
         % NE state transitions plot
         ne_t_plot_fg = 6;
@@ -502,7 +502,7 @@ if ~ne_param.plot
     % NE policy plot
     ne_pi_plot_fg = 1;
     ne_pi_plot_pos = [0, default_height, default_width, default_height];
-    ne_func.plot_ne_pi(ne_pi_plot_fg, ne_pi_plot_pos, RedColormap, ne_pi_down_u_k_up_m, ne_param.U, ne_param.K, alpha);
+    ne_func.plot_ne_pi(ne_pi_plot_fg, ne_pi_plot_pos, RedColormap, ne_pi_down_u_k_up_m, ne_param.U, ne_param.K, ne_param.K, alpha);
     
     % NE stationary distribution plot
     ne_d_plot_fg = 2;
@@ -512,7 +512,7 @@ if ~ne_param.plot
     % Agent i best response policy plot
     br_pi_plot_fg = 3;
     br_pi_plot_pos = [default_width, default_height, default_width, default_height];
-    ne_func.plot_br_pi(br_pi_plot_fg, br_pi_plot_pos, RedColormap, br_pi_down_u_k_up_m, ne_param.U, ne_param.K, alpha);
+    ne_func.plot_br_pi(br_pi_plot_fg, br_pi_plot_pos, RedColormap, br_pi_down_u_k_up_m, ne_param.U, ne_param.K, ne_param.K, alpha);
 
     % NE expected utility plot
     ne_v_plot_fg = 4;
@@ -522,7 +522,7 @@ if ~ne_param.plot
     % NE expected utiliy per message plot
     ne_rho_plot_fg = 5;
     ne_rho_plot_pos = [default_width, 0, default_width, default_height];
-    ne_func.plot_ne_rho(ne_rho_plot_fg, ne_rho_plot_pos, parula, ne_rho_down_u_k_m, ne_param.U, ne_param.K, alpha);
+    ne_func.plot_ne_rho(ne_rho_plot_fg, ne_rho_plot_pos, parula, ne_rho_down_u_k_m, ne_param.U, ne_param.K, ne_param.K, alpha);
 
     % NE state transitions plot
     ne_t_plot_fg = 6;

@@ -16,7 +16,7 @@ classdef ne_func
         end
         
         % Plot NE policy
-        function plot_ne_pi(fg, position, colormap, ne_pi_down_u_k_up_m, U, K, alpha)
+        function plot_ne_pi(fg, position, colormap, ne_pi_down_u_k_up_m, U, K, M, alpha)
             persistent ne_pi_plot
             num_U = length(U);
             if ~ishandle(fg)
@@ -28,7 +28,7 @@ classdef ne_func
                     pi_mat = squeeze(ne_pi_down_u_k_up_m(i_u,:,:));
                     pi_mat(pi_mat == 0) = nan;
                     subplot(1, num_U, i_u);
-                    ne_pi_plot{i_u} = heatmap(K, K, pi_mat.', 'ColorbarVisible','off');
+                    ne_pi_plot{i_u} = heatmap(K, M, pi_mat.', 'ColorbarVisible','off');
                     ne_pi_plot{i_u}.YDisplayData = flipud(ne_pi_plot{i_u}.YDisplayData);
                     ne_pi_plot{i_u}.Title = ['\alpha = ', num2str(alpha, '%.2f'), ' NE policy for u = ', num2str(U(i_u))];
                     ne_pi_plot{i_u}.XLabel = 'Karma';
@@ -52,7 +52,7 @@ classdef ne_func
         end
         
         % Plot best response policy
-        function plot_br_pi(fg, position, colormap, br_pi_down_u_k_up_m, U, K, alpha)
+        function plot_br_pi(fg, position, colormap, br_pi_down_u_k_up_m, U, K, M, alpha)
             persistent br_pi_plot
             num_U = length(U);
             if ~ishandle(fg)
@@ -64,7 +64,7 @@ classdef ne_func
                     pi_mat = squeeze(br_pi_down_u_k_up_m(i_u,:,:));
                     pi_mat(pi_mat == 0) = nan;
                     subplot(1, num_U, i_u);
-                    br_pi_plot{i_u} = heatmap(K, K, pi_mat.', 'ColorbarVisible','off');
+                    br_pi_plot{i_u} = heatmap(K, M, pi_mat.', 'ColorbarVisible','off');
                     br_pi_plot{i_u}.YDisplayData = flipud(br_pi_plot{i_u}.YDisplayData);
                     br_pi_plot{i_u}.Title = ['\alpha = ', num2str(alpha, '%.2f'), ' BR policy for u = ', num2str(U(i_u))];
                     br_pi_plot{i_u}.XLabel = 'Karma';
@@ -164,7 +164,7 @@ classdef ne_func
         end
         
         % Plot NE expected utility per message
-        function plot_ne_rho(fg, position, colormap, ne_rho_down_u_k_m, U, K, alpha)
+        function plot_ne_rho(fg, position, colormap, ne_rho_down_u_k_m, U, K, M, alpha)
             persistent ne_rho_plot
             num_U = length(U);
             num_K = length(K);
@@ -176,10 +176,10 @@ classdef ne_func
                 for i_u = 1 : num_U
                     rho_mat = squeeze(ne_rho_down_u_k_m(i_u,:,:));
                     for i_k = 1 : num_K
-                        rho_mat(i_k,i_k+1:end) = nan;
+                        rho_mat(i_k,M>K(i_k)) = nan;
                     end
                     subplot(1, num_U, i_u);
-                    ne_rho_plot{i_u} = heatmap(K, K, -rho_mat.', 'ColorbarVisible','off');
+                    ne_rho_plot{i_u} = heatmap(K, M, -rho_mat.', 'ColorbarVisible','off');
                     ne_rho_plot{i_u}.YDisplayData = flipud(ne_rho_plot{i_u}.YDisplayData);
                     ne_rho_plot{i_u}.Title = ['\alpha = ', num2str(alpha, '%.2f'), ' NE expected utility per message for u = ', num2str(U(i_u))];
                     ne_rho_plot{i_u}.XLabel = 'Karma';
@@ -195,7 +195,7 @@ classdef ne_func
                 for i_u = 1 : num_U
                     rho_mat = squeeze(ne_rho_down_u_k_m(i_u,:,:));
                     for i_k = 1 : num_K
-                        rho_mat(i_k,i_k+1:end) = nan;
+                        rho_mat(i_k,M>K(i_k)) = nan;
                     end
                     ne_rho_plot{i_u}.ColorData = -rho_mat.';
                     ne_rho_plot{i_u}.Title = ['\alpha = ', num2str(alpha, '%.2f'), ' NE expected utility per message for u = ', num2str(U(i_u))];

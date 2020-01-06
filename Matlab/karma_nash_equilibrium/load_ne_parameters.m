@@ -35,19 +35,25 @@ ne_param.k_max = param.k_max;
 % Average karma
 ne_param.k_ave = param.k_ave;
 
-% Partial messages
-r_interval = 0.25;
-ne_param.R = 0 : r_interval : 1 - r_interval;
+% Vector of all message values
+m_interval = 1.0;
+ne_param.M = 0 : m_interval : ne_param.k_max;
 
-% Number of partial messages
-ne_param.num_R = length(ne_param.R);
+% Number of message values
+ne_param.num_M = length(ne_param.M);
 
 % Number of states, which is number of urgency * number of karma values
 ne_param.num_X = ne_param.num_U * ne_param.num_K;
 
+% Vector of output values
+ne_param.O = [0; 1];
+
+% Number of output values
+ne_param.num_O = length(ne_param.O);
+
 % Future discount factor(s)
-%ne_param.alpha = 0 : 0.05 : 0.95;
-ne_param.alpha = 0.75;
+ne_param.alpha = 0 : 0.05 : 0.95;
+% ne_param.alpha = 0.75;
 
 % Tolerance for convergence of stationary distribution
 ne_param.d_tol = 1e-3;
@@ -59,13 +65,13 @@ ne_param.d_max_iter = 1000;
 ne_param.d_mom = 1.0;
 
 % Tolerance for convergence of v
-ne_param.v_tol = 1e-3;
+ne_param.v_tol = 1e-10;
 
 % Maximum number of iterations for convergence of v
 ne_param.v_max_iter = 1000;
 
 % Tolerance for best response deviation on v
-ne_param.br_v_tol = 1e-8;
+ne_param.br_v_tol = 1e-4;
 % ne_param.br_v_tol = 1e-2;
 
 % Tolerance for convergence of best response policy
@@ -82,11 +88,18 @@ ne_param.ne_pi_max_iter = 1000;
 
 % Momentum on Nash equilibrium policy
 ne_param.ne_pi_mom = 0.05;
+% ne_param.ne_pi_mom = 1;
+
+% Smoothing factor for winning probability
+ne_param.gamma_s = 0.75;
+
+% Smoothing factor for karma exchange probability
+ne_param.beta_s = 0.5;
 
 % Do plots
 ne_param.plot = false;
 
 % Save results
-ne_param.save = false;
+ne_param.save = true;
 
 end

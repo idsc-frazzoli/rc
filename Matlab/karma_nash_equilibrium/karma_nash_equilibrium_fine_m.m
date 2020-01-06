@@ -15,145 +15,100 @@ load('karma_nash_equilibrium/RedColormap.mat');
 ne_param = load_ne_parameters();
 
 %% Iterative algorithm to find Karma Nash equilibrium %%
-%% Game tensors
-% Game cost tensor
-kappa_down_u_z_r_zj_rj = zeros(ne_param.num_U, ne_param.num_K, ne_param.num_R, ne_param.num_K, ne_param.num_R);
-for i_u = 1 : ne_param.num_U
-    u = ne_param.U(i_u);
-    for i_z = 1 : ne_param.num_K
-        z = ne_param.K(i_z);
-        if z == ne_param.k_max
-            i_r_end = 1;
-        else
-            i_r_end = ne_param.num_R;
-        end
-        for i_r = 1 : i_r_end
-            m = z + ne_param.R(i_r);
-            for i_zj = 1 : ne_param.num_K
-                zj = ne_param.K(i_zj);
-                if zj == ne_param.k_max
-                    i_rj_end = 1;
-                else
-                    i_rj_end = ne_param.num_R;
-                end
-                for i_rj = 1 : i_rj_end
-                    zj = zj + ne_param.R(i_rj);
-                    if m > zj
-                        % Agent i wins for sure
-                        kappa_down_u_z_r_zj_rj(i_u,i_z,i_r,i_zj,i_rj) = 0;
-                    elseif m < zj
-                        % Agent i loses for sure
-                        kappa_down_u_z_r_zj_rj(i_u,i_z,i_r,i_zj,i_rj) = u;
-                    else
-                        % 50-50 chances of agent i winning or losing
-                        kappa_down_u_z_r_zj_rj(i_u,i_z,i_r,i_zj,i_rj) = 0.5 * u;
-                    end
-                end
-            end
-        end
+%% Step 0: Game tensors
+% Probability of winning/losing given messages
+gamma_down_m_mj_up_o = zeros(ne_param.num_M, ne_param.num_M, ne_param.num_O);
+for i_m = 1 : ne_param.num_M
+    m = ne_param.M(i_m);
+    for i_mj = 1 : ne_param.num_M
+        mj = ne_param.M(i_mj);        
+%         gamma_down_m_mj_up_o(i_m,i_mj,1) = max([0, min([(m - mj + 1) / 2, 1])]);
+        gamma_down_m_mj_up_o(i_m,i_mj,1) = 0.5 * (1 + erf((m - mj) / (sqrt(2) * ne_param.gamma_s)));
+%         gamma_down_m_mj_up_o(i_m,i_mj,1) = 1 / (1 + exp(-(m - mj) / ne_param.gamma_s));
+        gamma_down_m_mj_up_o(i_m,i_mj,2) = 1 - gamma_down_m_mj_up_o(i_m,i_mj,1);
     end
 end
-C_down_u_k_z_r_zj_rj = permute(outer(ones(ne_param.num_K, 1), kappa_down_u_z_r_zj_rj), [2 1 3 4 5 6]);
-iota_down_k_z_r_kj_zj_rj_up_kn...
-    = zeros(ne_param.num_K, ne_param.num_K, ne_param.num_R, ne_param.num_K, ne_param.num_K, ne_param.num_R, ne_param.num_K);
+
+% Game cost tensor
+zeta_down_u_o = outer(ne_param.U, ne_param.O);
+c_down_u_m_mj = squeeze(dot2(zeta_down_u_o, permute(gamma_down_m_mj_up_o, [3 1 2]), 2, 1));
+
+% Game state transition tensor
+beta_down_k_m_up_mb = zeros(ne_param.num_K, ne_param.num_M, ne_param.num_K);
 for i_k = 1 : ne_param.num_K
     k = ne_param.K(i_k);
-    for i_z = 1 : i_k
-        z = ne_param.K(i_z);
-        if z == k
-            i_r_end = 1;
-        else
-            i_r_end = ne_param.num_R;
+    for i_m = 1 : ne_param.num_M
+        m = ne_param.M(i_m);
+        if m > k
+            continue
         end
-        for i_r = 1 : i_r_end
-            r = ne_param.R(i_r);
-            m = z + r;
-            for i_kj = 1 : ne_param.num_K
-                kj = ne_param.K(i_kj);
-                for i_zj = 1 : i_kj
-                    zj = ne_param.K(i_zj);
-                    if zj == kj
-                        i_rj_end = 1;
-                    else
-                        i_rj_end = ne_param.num_R;
-                    end
-                    for i_rj = 1 : i_rj_end
-                        rj = ne_param.R(i_rj);
-                        mj = zj + rj;
-                        
-                        if m > mj
-                            % Agent i wins for sure
-                            i_kn_0 = ne_param.K == k - min([z, ne_param.k_max - kj]);
-                            iota_down_k_z_r_kj_zj_rj_up_kn(i_k,i_z,i_r,i_kj,i_zj,i_rj,i_kn_0) = 1 - r;
-                            if r ~= 0
-                                i_kn_1 = ne_param.K == k - min([z + 1, ne_param.k_max - kj]);
-                                iota_down_k_z_r_kj_zj_rj_up_kn(i_k,i_z,i_r,i_kj,i_zj,i_rj,i_kn_1) = ...
-                                    iota_down_k_z_r_kj_zj_rj_up_kn(i_k,i_z,i_r,i_kj,i_zj,i_rj,i_kn_1) + r;
-                            end
-                        elseif m < mj
-                            % Agent i loses for sure
-                            i_kn_0 = ne_param.K == min([k + zj, ne_param.k_max]);
-                            iota_down_k_z_r_kj_zj_rj_up_kn(i_k,i_z,i_r,i_kj,i_zj,i_rj,i_kn_0) = 1 - rj;
-                            if rj ~= 0
-                                i_kn_1 = ne_param.K == min([k + zj + 1, ne_param.k_max]);
-                                iota_down_k_z_r_kj_zj_rj_up_kn(i_k,i_z,i_r,i_kj,i_zj,i_rj,i_kn_1) = ...
-                                    iota_down_k_z_r_kj_zj_rj_up_kn(i_k,i_z,i_r,i_kj,i_zj,i_rj,i_kn_1) + rj;
-                            end
-                        else
-                            % 50-50 chances of agent i winning or losing
-                            i_kn_win_0 = ne_param.K == k - min([z, ne_param.k_max - kj]);
-                            i_kn_lose_0 = ne_param.K == min([k + zj, ne_param.k_max]);
-                            
-                            iota_down_k_z_r_kj_zj_rj_up_kn(i_k,i_z,i_r,i_kj,i_zj,i_rj,i_kn_win_0) = 0.5 * (1 - r);
-                            iota_down_k_z_r_kj_zj_rj_up_kn(i_k,i_z,i_r,i_kj,i_zj,i_rj,i_kn_lose_0) = ...
-                                iota_down_k_z_r_kj_zj_rj_up_kn(i_k,i_z,i_r,i_kj,i_zj,i_rj,i_kn_lose_0) + 0.5 * (1 - rj);
-                            if r ~= 0
-                                i_kn_win_1 = ne_param.K == k - min([z + 1, ne_param.k_max - kj]);
-                                i_kn_lose_1 = ne_param.K == min([k + zj + 1, ne_param.k_max]);
-                                iota_down_k_z_r_kj_zj_rj_up_kn(i_k,i_z,i_r,i_kj,i_zj,i_rj,i_kn_win_1) = ...
-                                iota_down_k_z_r_kj_zj_rj_up_kn(i_k,i_z,i_r,i_kj,i_zj,i_rj,i_kn_win_1) + 0.5 * r;
-                                iota_down_k_z_r_kj_zj_rj_up_kn(i_k,i_z,i_r,i_kj,i_zj,i_rj,i_kn_lose_1) = ...
-                                    iota_down_k_z_r_kj_zj_rj_up_kn(i_k,i_z,i_r,i_kj,i_zj,i_rj,i_kn_lose_1) + 0.5 * rj;
-                            end
-                        end
-                    end
-                end
+        for i_mb = 1 : i_k
+            mb = ne_param.K(i_mb);
+%             beta_down_k_m_up_mb(i_k,i_m,i_mb) = max([0, 1 - abs(mb - m)]);
+            beta_down_k_m_up_mb(i_k,i_m,i_mb) = exp(-(mb - m)^2 / (2 * ne_param.beta_s^2));
+%             beta_down_k_m_up_mb(i_k,i_m,i_mb) = exp(-(mb - m) / ne_param.beta_s) / ((1 + exp(-(mb - m) / ne_param.beta_s))^2);
+        end
+        beta_down_k_m_up_mb(i_k,i_m,:) = beta_down_k_m_up_mb(i_k,i_m,:) / sum(beta_down_k_m_up_mb(i_k,i_m,:));
+    end
+end
+epsilon_down_k_mb_kj_mbj_o_up_kn = ...
+    zeros(ne_param.num_K, ne_param.num_K, ne_param.num_K, ne_param.num_K, ne_param.num_O, ne_param.num_K);
+for i_k = 1 : ne_param.num_K
+    k = ne_param.K(i_k);
+    for i_mb = 1 : i_k
+        mb = ne_param.K(i_mb);
+        for i_kj = 1 : ne_param.num_K
+            kj = ne_param.K(i_kj);
+            for i_mbj = 1 : i_kj
+                mbj = ne_param.K(i_mbj);
+                
+                i_kn_win = ne_param.K == k - min([mb, ne_param.k_max - kj]);
+                epsilon_down_k_mb_kj_mbj_o_up_kn(i_k,i_mb,i_kj,i_mbj,1,i_kn_win) = 1;
+                
+                i_kn_lose = ne_param.K == min([k + mbj, ne_param.k_max]);
+                epsilon_down_k_mb_kj_mbj_o_up_kn(i_k,i_mb,i_kj,i_mbj,2,i_kn_lose) = 1;
             end
         end
     end
 end
-epsilon_down_k_z_r_uj_kj_zj_rj_up_kn = permute(outer(ones(ne_param.num_U, 1), iota_down_k_z_r_kj_zj_rj_up_kn), [2 3 4 1 5 6 7 8]);
-Phi_down_u_k_z_r_uj_kj_zj_rj_up_un_kn = permute(outer(ne_param.mu_down_u_up_un, epsilon_down_k_z_r_uj_kj_zj_rj_up_kn), [1 3 4 5 6 7 8 9 2 10]);
+upsilon_down_k_kb_kj_mj_o_up_kn = permute(squeeze(dot2(permute(epsilon_down_k_mb_kj_mbj_o_up_kn, [1 2 5 6 3 4]), permute(beta_down_k_m_up_mb, [1 3 2]), 6, 2)), [1 2 5 6 3 4]);
+phi_down_k_m_kj_mj_o_up_kn = permute(squeeze(dot2(permute(upsilon_down_k_kb_kj_mj_o_up_kn, [3 4 5 6 1 2]), permute(beta_down_k_m_up_mb, [1 3 2]), 6, 2)), [5 6 1 2 3 4]);
 
+kappa_down_k_m_kj_mj_up_kn = permute(dot2(permute(phi_down_k_m_kj_mj_o_up_kn, [1 3 6 2 4 5]), gamma_down_m_mj_up_o, 6, 3), [1 4 2 5 3]);
+psi_down_u_k_m_kj_mj_up_un_kn = permute(reshape(outer(reshape(ne_param.mu_down_u_up_un, [], 1), kappa_down_k_m_kj_mj_up_kn), [ne_param.num_U, ne_param.num_U, size(kappa_down_k_m_kj_mj_up_kn)]), [1 3 4 5 6 2 7]);
+
+%% Loop over alphas
 for i_alpha = 1 : length(ne_param.alpha)
     alpha = ne_param.alpha(i_alpha);
     fprintf('%%%%ALPHA = %f%%%%\n\n', alpha);
 
-    %% Step 1
-    pi_down_u_k_up_m = zeros(ne_param.num_U, ne_param.num_K, ne_param.num_K);
+    %% Step 1: NE policy guess
+    ne_pi_down_u_k_up_m = zeros(ne_param.num_U, ne_param.num_K, ne_param.num_M);
     for i_k = 1 : ne_param.num_K
         % Initial policy for nonurgent is to always bid 0
-        pi_down_u_k_up_m(1,i_k,1) = 1;
+        ne_pi_down_u_k_up_m(1,i_k,1) = 1;
         % Initial policy for urgent is uniform distribution over messages
-        p = 1 / i_k;
-        for i_m = 1 : i_k
-            pi_down_u_k_up_m(2,i_k,i_m) = p;
-        end
+        i_adm_m = find(ne_param.M <= ne_param.K(i_k));
+        p = 1 / length(i_adm_m);
+        ne_pi_down_u_k_up_m(2,i_k,i_adm_m) = p;
+%         % Initial policy for urgent is to always bid 0
+%         ne_pi_down_u_k_up_m(2,i_k,1) = 1;
     end
 
     % Plot
     if ne_param.plot
         ne_pi_plot_fg = 1;
         ne_pi_plot_pos = [0, default_height, default_width, default_height];
-        ne_func.plot_ne_pi(ne_pi_plot_fg, ne_pi_plot_pos, RedColormap, pi_down_u_k_up_m, ne_param.U, ne_param.K, alpha);
+        ne_func.plot_ne_pi(ne_pi_plot_fg, ne_pi_plot_pos, RedColormap, ne_pi_down_u_k_up_m, ne_param.U, ne_param.K, ne_param.M, alpha);
     end
 
     %% Step 2
     % 2.1
-    T_down_ki_mi_uj_kj_up_uin_kin = permute(squeeze(dot2(permute(Phi_down_u_k_z_r_uj_kj_zj_rj_up_un_kn, [1 2 5 6 3 4]), permute(pi_down_u_k_up_m, [2 3 1]), 6, 2)), [1 2 6 5 3 4]);
-    T_down_ui_ki_uj_kj_up_uin_kin = permute(squeeze(dot2(permute(T_down_ki_mi_uj_kj_up_uin_kin, [3 4 5 6 1 2]), permute(pi_down_u_k_up_m, [2 3 1]), 6, 2)), [6 5 1 2 3 4]);
+    lambda_down_u_k_m_uj_kj_up_un_kn = permute(squeeze(dot2(ne_pi_down_u_k_up_m, permute(psi_down_u_k_m_kj_mj_up_un_kn, [4 5 1 2 3 6 7]), 3, 2)), [3 4 5 1 2 6 7]);
+    sigma_down_u_k_uj_kj_up_un_kn = squeeze(dot2(ne_pi_down_u_k_up_m, lambda_down_u_k_m_uj_kj_up_un_kn, 3, 3));
 
     % 2.2
+    D_up_u_init = ne_func.stat_dist(ne_param.mu_down_u_up_un);
     i_kave = find(ne_param.K == ne_param.k_ave);
     if ne_param.k_ave * 2 <= ne_param.k_max
         i_kave2 = find(ne_param.K == ne_param.k_ave * 2);
@@ -170,315 +125,354 @@ for i_alpha = 1 : length(ne_param.alpha)
         D_up_k_init(1:i_kave-1) = D_up_k_init(1:i_kave-1) + delta_p / num_K_small;
         D_up_k_init(i_kave+1:end) = D_up_k_init(i_kave+1:end) - delta_p / num_K_big;
     end
-    D_up_u_k = D_up_u * D_up_k_init.';
-    D_up_u_k_next = D_up_u_k;
-    T_down_u_k_up_un_kn = squeeze(dot2(reshape(D_up_u_k_next, [], 1), reshape(T_down_ui_ki_uj_kj_up_uin_kin, ne_param.num_U, ne_param.num_K, [], ne_param.num_U, ne_param.num_K), 1, 3));
-    D_up_u_k_next_next = squeeze(dot2(reshape(T_down_u_k_up_un_kn, [], ne_param.num_U, ne_param.num_K), reshape(D_up_u_k_next, [], 1), 1, 1));
-    D_up_u_k_next_next = D_up_u_k_next_next / sum(D_up_u_k_next_next(:));
-    D_error = norm(D_up_u_k_next - D_up_u_k_next_next, inf);
-    D_up_u_k_next = D_up_u_k_next_next;
-    num_D_iter = 0;
-    while D_error > ne_param.D_tol && num_D_iter < ne_param.D_max_iter
-        T_down_u_k_up_un_kn = squeeze(dot2(reshape(D_up_u_k_next, [], 1), reshape(T_down_ui_ki_uj_kj_up_uin_kin, ne_param.num_U, ne_param.num_K, [], ne_param.num_U, ne_param.num_K), 1, 3));
-        D_up_u_k_next_next = squeeze(dot2(reshape(T_down_u_k_up_un_kn, [], ne_param.num_U, ne_param.num_K), reshape(D_up_u_k_next, [], 1), 1, 1));
-        D_up_u_k_next_next = D_up_u_k_next_next / sum(D_up_u_k_next_next(:));
-        D_error = norm(D_up_u_k_next - D_up_u_k_next_next, inf);
-        D_up_u_k_next = D_up_u_k_next_next;
-        num_D_iter = num_D_iter + 1;
+    D_up_u_k_init = outer(D_up_u_init, D_up_k_init);
+    ne_d_up_u_k = D_up_u_k_init;
+    ne_d_up_u_k_next = ne_d_up_u_k;
+    
+    % 2.3
+    t_down_u_k_up_un_kn = squeeze(dot2(reshape(ne_d_up_u_k_next, [], 1), reshape(sigma_down_u_k_uj_kj_up_un_kn, ne_param.num_U, ne_param.num_K, [], ne_param.num_U, ne_param.num_K), 1, 3));
+    ne_d_up_u_k_next_next = squeeze(dot2(reshape(t_down_u_k_up_un_kn, [], ne_param.num_U, ne_param.num_K), reshape(ne_d_up_u_k_next, [], 1), 1, 1));
+    ne_d_up_u_k_next_next = ne_d_up_u_k_next_next / sum(ne_d_up_u_k_next_next(:));
+    ne_d_error = norm(ne_d_up_u_k_next - ne_d_up_u_k_next_next, inf);
+    ne_d_up_u_k_next = ne_d_up_u_k_next_next;
+    num_d_iter = 0;
+    while ne_d_error > ne_param.d_tol && num_d_iter < ne_param.d_max_iter
+        t_down_u_k_up_un_kn = squeeze(dot2(reshape(ne_d_up_u_k_next, [], 1), reshape(sigma_down_u_k_uj_kj_up_un_kn, ne_param.num_U, ne_param.num_K, [], ne_param.num_U, ne_param.num_K), 1, 3));
+        ne_d_up_u_k_next_next = squeeze(dot2(reshape(t_down_u_k_up_un_kn, [], ne_param.num_U, ne_param.num_K), reshape(ne_d_up_u_k_next, [], 1), 1, 1));
+        ne_d_up_u_k_next_next = ne_d_up_u_k_next_next / sum(ne_d_up_u_k_next_next(:));
+        ne_d_error = norm(ne_d_up_u_k_next - ne_d_up_u_k_next_next, inf);
+        ne_d_up_u_k_next = ne_d_up_u_k_next_next;
+        num_d_iter = num_d_iter + 1;
     end
     % Apply momentum
-    D_up_u_k = ne_param.D_tau * D_up_u_k_next + (1 - ne_param.D_tau) * D_up_u_k;
+    ne_d_up_u_k = ne_param.d_mom * ne_d_up_u_k_next + (1 - ne_param.d_mom) * ne_d_up_u_k;
 
     % Plot
     if ne_param.plot
-        ne_D_plot_fg = 2;
-        ne_D_plot_pos = [0, 0, default_width, default_height];
-        ne_func.plot_ne_D(ne_D_plot_fg, ne_D_plot_pos, D_up_u_k, ne_param.U, ne_param.K, alpha);
+        ne_d_plot_fg = 2;
+        ne_d_plot_pos = [0, 0, default_width, default_height];
+        ne_func.plot_ne_d(ne_d_plot_fg, ne_d_plot_pos, ne_d_up_u_k, ne_param.U, ne_param.K, alpha);
     end
 
     %% Step 3
     % 3.1
-    D_up_mj = squeeze(dot2(reshape(D_up_u_k, [], 1), reshape(pi_down_u_k_up_m, [], ne_param.num_K), 1, 1));
-    q_down_ui_mi = dot2(D_up_mj, kappa_down_u_z_r_zj_rj, 2, 3);
-    q_down_ui_ki_mi = permute(outer(ones(ne_param.num_K, 1), q_down_ui_mi), [2 1 3]);
-    T_down_ki_mi_up_uin_kin = squeeze(dot2(reshape(D_up_u_k, [], 1), reshape(T_down_ki_mi_uj_kj_up_uin_kin, ne_param.num_K, ne_param.num_K, [], ne_param.num_U, ne_param.num_K), 1, 3));
-    T_down_ui_ki_mi_up_uin_kin = outer(ones(ne_param.num_U, 1), T_down_ki_mi_up_uin_kin);
-    q_down_u_k = dot2(pi_down_u_k_up_m, q_down_ui_ki_mi, 3, 3);
+    iota_up_mj = squeeze(dot2(reshape(ne_d_up_u_k, [], 1), reshape(ne_pi_down_u_k_up_m, [], ne_param.num_M), 1, 1));
+    xi_down_u_m = dot2(iota_up_mj, c_down_u_m_mj, 2, 3);
 
     % 3.2
-    V_down_u_k = zeros(ne_param.num_U, ne_param.num_K);
-    V_down_u_k_next = q_down_u_k + alpha * dot2(reshape(T_down_u_k_up_un_kn, ne_param.num_U, ne_param.num_K, []), reshape(V_down_u_k, [], 1), 3, 1);
-    V_error = norm(V_down_u_k - V_down_u_k_next, inf);
-    V_down_u_k = V_down_u_k_next;
-    num_V_iter = 0;
-    while V_error > ne_param.V_tol && num_V_iter < ne_param.V_max_iter
-        V_down_u_k_next = q_down_u_k + alpha * dot2(reshape(T_down_u_k_up_un_kn, ne_param.num_U, ne_param.num_K, []), reshape(V_down_u_k, [], 1), 3, 1);
-        V_error = norm(V_down_u_k - V_down_u_k_next, inf);
-        V_down_u_k = V_down_u_k_next;
-        num_V_iter = num_V_iter + 1;
+    ne_q_down_u_k = squeeze(dot2(xi_down_u_m, permute(ne_pi_down_u_k_up_m, [1 3 2]), 2, 2));
+    ne_t_down_u_k_up_un_kn = squeeze(dot2(reshape(ne_d_up_u_k, [], 1), reshape(sigma_down_u_k_uj_kj_up_un_kn, ne_param.num_U, ne_param.num_K, [], ne_param.num_U, ne_param.num_K), 1, 3));
+    
+    % 3.3
+    ne_v_down_u_k = zeros(ne_param.num_U, ne_param.num_K);
+    ne_v_down_u_k_next = ne_q_down_u_k + alpha * dot2(reshape(ne_t_down_u_k_up_un_kn, ne_param.num_U, ne_param.num_K, []), reshape(ne_v_down_u_k, [], 1), 3, 1);
+    v_error = norm(ne_v_down_u_k - ne_v_down_u_k_next, inf);
+    ne_v_down_u_k = ne_v_down_u_k_next;
+    num_v_iter = 0;
+    while v_error > ne_param.v_tol && num_v_iter < ne_param.v_max_iter
+        ne_v_down_u_k_next = ne_q_down_u_k + alpha * dot2(reshape(ne_t_down_u_k_up_un_kn, ne_param.num_U, ne_param.num_K, []), reshape(ne_v_down_u_k, [], 1), 3, 1);
+        v_error = norm(ne_v_down_u_k - ne_v_down_u_k_next, inf);
+        ne_v_down_u_k = ne_v_down_u_k_next;
+        num_v_iter = num_v_iter + 1;
     end
 
     %% Step 4
     % 4.1
-    V_down_u_k_m = q_down_ui_ki_mi + alpha * dot2(reshape(T_down_ui_ki_mi_up_uin_kin, ne_param.num_U, ne_param.num_K, ne_param.num_K, []), reshape(V_down_u_k, [], 1), 4, 1);
+    chi_down_u_k_m_up_un_kn = squeeze(dot2(reshape(ne_d_up_u_k, [], 1), reshape(lambda_down_u_k_m_uj_kj_up_un_kn, ne_param.num_U, ne_param.num_K, ne_param.num_M, [], ne_param.num_U, ne_param.num_K), 1, 4));
+    omega_down_u_k_m = dot2(reshape(chi_down_u_k_m_up_un_kn, ne_param.num_U, ne_param.num_K, ne_param.num_M, []), reshape(ne_v_down_u_k, [], 1), 4, 1);
+    eta_down_u_k_m = permute(outer(ones(ne_param.num_K, 1), xi_down_u_m), [2 1 3]);
 
     % 4.2
-    pi_i_down_ui_ki_up_mi = zeros(ne_param.num_U, ne_param.num_K, ne_param.num_K);
+    ne_rho_down_u_k_m = eta_down_u_k_m + alpha * omega_down_u_k_m;
+
+    % 4.3
+    br_pi_down_u_k_up_m = zeros(ne_param.num_U, ne_param.num_K, ne_param.num_M);
     for i_u = 1 : ne_param.num_U
         for i_k = 1 : ne_param.num_K
-            [~, i_z] = min(V_down_u_k_m(i_u,i_k,1:i_k));
-            pi_i_down_ui_ki_up_mi(i_u,i_k,i_z) = 1;
-        end
-    end
-    pi_i_diff = pi_down_u_k_up_m - pi_i_down_ui_ki_up_mi;
-    pi_i_error = norm(reshape(pi_i_diff, [], 1), inf);
-
-    % 4.3/4
-    num_ne_pi_iter = 0;
-    num_pi_iter = 0;
-    % Display status
-    fprintf('Iteration %d policy-iteration %d policy_i error %f\n', num_ne_pi_iter, num_pi_iter, pi_i_error);
-    while pi_i_error > ne_param.policy_tol && num_pi_iter < ne_param.policy_max_iter
-        % 4.4.1
-        q_down_ui_ki = dot2(pi_i_down_ui_ki_up_mi, q_down_ui_ki_mi, 3, 3);
-        T_down_ui_ki_up_uin_kin = squeeze(dot2(pi_i_down_ui_ki_up_mi, T_down_ui_ki_mi_up_uin_kin, 3, 3));
-
-        % 4.4.2
-        V_down_ui_ki = zeros(ne_param.num_U, ne_param.num_K);
-        V_down_ui_ki_next = q_down_ui_ki + alpha * dot2(reshape(T_down_ui_ki_up_uin_kin, ne_param.num_U, ne_param.num_K, []), reshape(V_down_ui_ki, [], 1), 3, 1);
-        V_error = norm(V_down_ui_ki - V_down_ui_ki_next, inf);
-        V_down_ui_ki = V_down_ui_ki_next;
-        num_V_iter = 0;
-        while V_error > ne_param.V_tol && num_V_iter < ne_param.V_max_iter
-            V_down_ui_ki_next = q_down_ui_ki + alpha * dot2(reshape(T_down_ui_ki_up_uin_kin, ne_param.num_U, ne_param.num_K, []), reshape(V_down_ui_ki, [], 1), 3, 1);
-            V_error = norm(V_down_ui_ki - V_down_ui_ki_next, inf);
-            V_down_ui_ki = V_down_ui_ki_next;
-            num_V_iter = num_V_iter + 1;
-        end
-
-        % 4.4.3
-        V_down_ui_ki_mi = q_down_ui_ki_mi + alpha * dot2(reshape(T_down_ui_ki_mi_up_uin_kin, ne_param.num_U, ne_param.num_K, ne_param.num_K, []), reshape(V_down_ui_ki, [], 1), 4, 1);
-
-        % 4.4.4
-        pi_i_down_ui_ki_up_mi_next = zeros(ne_param.num_U, ne_param.num_K, ne_param.num_K);
-        for i_u = 1 : ne_param.num_U
-            for i_k = 1 : ne_param.num_K
-                [~, i_z] = min(V_down_ui_ki_mi(i_u,i_k,1:i_k));
-                pi_i_down_ui_ki_up_mi_next(i_u,i_k,i_z) = 1;
+            i_adm_m = find(ne_param.M <= ne_param.K(i_k));
+            [min_rho, i_min_m] = min(ne_rho_down_u_k_m(i_u,i_k,i_adm_m));
+            if abs(min_rho - ne_v_down_u_k(i_u,i_k)) <= ne_param.br_v_tol
+                br_pi_down_u_k_up_m(i_u,i_k,:) = ne_pi_down_u_k_up_m(i_u,i_k,:);
+            else
+                br_pi_down_u_k_up_m(i_u,i_k,i_min_m) = 1;
             end
         end
-        pi_i_diff = pi_i_down_ui_ki_up_mi - pi_i_down_ui_ki_up_mi_next;
-        pi_i_error = norm(reshape(pi_i_diff, [], 1), inf);
+    end
+    br_pi_diff = ne_pi_down_u_k_up_m - br_pi_down_u_k_up_m;
+    br_pi_error = norm(reshape(br_pi_diff, [], 1), inf);
+
+    % 4.4/5
+    num_ne_pi_iter = 0;
+    num_br_pi_iter = 0;
+    % Display status
+    fprintf('Iteration %d best response policy iteration %d best response policy error %f\n', num_ne_pi_iter, num_br_pi_iter, br_pi_error);
+    while br_pi_error > ne_param.br_pi_tol && num_br_pi_iter < ne_param.br_pi_max_iter
+        % 4.5.1
+        q_down_u_k = dot2(br_pi_down_u_k_up_m, eta_down_u_k_m, 3, 3);
+        t_down_u_k_up_un_kn = squeeze(dot2(br_pi_down_u_k_up_m, chi_down_u_k_m_up_un_kn, 3, 3));
+
+        % 4.5.2
+        v_down_u_k = zeros(ne_param.num_U, ne_param.num_K);
+        v_down_u_k_next = q_down_u_k + alpha * dot2(reshape(t_down_u_k_up_un_kn, ne_param.num_U, ne_param.num_K, []), reshape(v_down_u_k, [], 1), 3, 1);
+        v_error = norm(v_down_u_k - v_down_u_k_next, inf);
+        v_down_u_k = v_down_u_k_next;
+        num_v_iter = 0;
+        while v_error > ne_param.v_tol && num_v_iter < ne_param.v_max_iter
+            v_down_u_k_next = q_down_u_k + alpha * dot2(reshape(t_down_u_k_up_un_kn, ne_param.num_U, ne_param.num_K, []), reshape(v_down_u_k, [], 1), 3, 1);
+            v_error = norm(v_down_u_k - v_down_u_k_next, inf);
+            v_down_u_k = v_down_u_k_next;
+            num_v_iter = num_v_iter + 1;
+        end
+
+        % 4.5.3
+        omega_down_u_k_m = dot2(reshape(chi_down_u_k_m_up_un_kn, ne_param.num_U, ne_param.num_K, ne_param.num_M, []), reshape(ne_v_down_u_k, [], 1), 4, 1);
+        rho_down_u_k_m = eta_down_u_k_m + alpha * omega_down_u_k_m;
+
+        % 4.5.4
+        br_pi_down_u_k_up_m_next = zeros(ne_param.num_U, ne_param.num_K, ne_param.num_M);
+        for i_u = 1 : ne_param.num_U
+            for i_k = 1 : ne_param.num_K
+                i_adm_m = find(ne_param.M <= ne_param.K(i_k));
+                [min_rho, i_min_m] = min(rho_down_u_k_m(i_u,i_k,i_adm_m));
+                if abs(min_rho - ne_v_down_u_k(i_u,i_k)) <= ne_param.br_v_tol
+                    br_pi_down_u_k_up_m_next(i_u,i_k,:) = br_pi_down_u_k_up_m(i_u,i_k,:);
+                else
+                    br_pi_down_u_k_up_m_next(i_u,i_k,i_min_m) = 1;
+                end
+            end
+        end
+        br_pi_diff = br_pi_down_u_k_up_m - br_pi_down_u_k_up_m_next;
+        br_pi_error = norm(reshape(br_pi_diff, [], 1), inf);
 
         % 4.4.5
-        pi_i_down_ui_ki_up_mi = pi_i_down_ui_ki_up_mi_next;
-        num_pi_iter = num_pi_iter + 1;
+        br_pi_down_u_k_up_m = br_pi_down_u_k_up_m_next;
+        num_br_pi_iter = num_br_pi_iter + 1;
         % Display status
-        fprintf('Iteration %d policy-iteration %d policy_i error %f\n', num_ne_pi_iter, num_pi_iter, pi_i_error);
+        fprintf('Iteration %d best response policy iteration %d best response policy error %f\n', num_ne_pi_iter, num_br_pi_iter, br_pi_error);
     end
 
     % Plot
     if ne_param.plot
         br_pi_plot_fg = 3;
         br_pi_plot_pos = [default_width, default_height, default_width, default_height];
-        ne_func.plot_br_pi(br_pi_plot_fg, br_pi_plot_pos, RedColormap, pi_i_down_ui_ki_up_mi, ne_param.U, ne_param.K, alpha);
+        ne_func.plot_br_pi(br_pi_plot_fg, br_pi_plot_pos, RedColormap, br_pi_down_u_k_up_m, ne_param.U, ne_param.K, ne_param.M, alpha);
         drawnow;
     end
 
     %% Step 5
     % Apply momentum
-    pi_down_u_k_up_m_next = ne_param.policy_tau * pi_i_down_ui_ki_up_mi + (1 - ne_param.policy_tau) * pi_down_u_k_up_m;
-    ne_pi_diff = pi_down_u_k_up_m - pi_down_u_k_up_m_next;
+    ne_pi_down_u_k_up_m_next = ne_param.ne_pi_mom * br_pi_down_u_k_up_m + (1 - ne_param.ne_pi_mom) * ne_pi_down_u_k_up_m;
+    ne_pi_diff = ne_pi_down_u_k_up_m - ne_pi_down_u_k_up_m_next;
     ne_pi_error = rms(reshape(ne_pi_diff, [], 1));
-    pi_down_u_k_up_m = pi_down_u_k_up_m_next;
+    ne_pi_down_u_k_up_m = ne_pi_down_u_k_up_m_next;
 
     % Plot
     if ne_param.plot
-        ne_func.plot_ne_pi(ne_pi_plot_fg, ne_pi_plot_pos, RedColormap, pi_down_u_k_up_m, ne_param.U, ne_param.K, alpha);
+        ne_func.plot_ne_pi(ne_pi_plot_fg, ne_pi_plot_pos, RedColormap, ne_pi_down_u_k_up_m, ne_param.U, ne_param.K, ne_param.M, alpha);
     end
     % Display status and store history of policies
     fprintf('Iteration %d policy error %f\n', num_ne_pi_iter, ne_pi_error);
-    pi_hist_end = zeros(1, ne_param.num_X);
+    ne_pi_hist_end = zeros(1, ne_param.num_X);
     for i_u = 1 : ne_param.num_U
-        base_i_ui = (i_u - 1) * ne_param.num_K;
+        base_i_u = (i_u - 1) * ne_param.num_K;
         for i_k = 1 : ne_param.num_K
-            i_xi = base_i_ui + i_k;
-            [~, max_i] = max(pi_down_u_k_up_m(i_u,i_k,:));
-            pi_hist_end(i_xi) = ne_param.K(max_i);
-            if i_xi == 1
-                fprintf('Iteration %d policy:\n%d', num_ne_pi_iter, pi_hist_end(i_xi));
-            elseif mod(i_xi - 1, ne_param.num_K) == 0
-                fprintf('\n%d', pi_hist_end(i_xi));
+            i_x = base_i_u + i_k;
+            [~, i_max_m] = max(ne_pi_down_u_k_up_m(i_u,i_k,:));
+            ne_pi_hist_end(i_x) = ne_param.M(i_max_m);
+            if i_x == 1
+                fprintf('Iteration %d policy:\n%.2f', num_ne_pi_iter, ne_pi_hist_end(i_x));
+            elseif mod(i_x - 1, ne_param.num_K) == 0
+                fprintf('\n%.2f', ne_pi_hist_end(i_x));
             else
-                fprintf('->%d', pi_hist_end(i_xi));
+                fprintf('->%.2f', ne_pi_hist_end(i_x));
             end
         end
     end
-    pi_hist = pi_hist_end;
+    ne_pi_hist = ne_pi_hist_end;
     fprintf('\n\n');
-    ne_policy_error_hist = ne_pi_error;
+    ne_pi_error_hist = ne_pi_error;
     num_ne_pi_iter = num_ne_pi_iter + 1;
-    while ne_pi_error > ne_param.policy_tol && num_ne_pi_iter < ne_param.ne_policy_max_iter
+    while ne_pi_error > ne_param.ne_pi_tol && num_ne_pi_iter < ne_param.ne_pi_max_iter
         %% Step 5.2
         % 5.2.1
-        T_down_ki_mi_uj_kj_up_uin_kin = permute(squeeze(dot2(permute(Phi_down_u_k_z_r_uj_kj_zj_rj_up_un_kn, [1 2 5 6 3 4]), permute(pi_down_u_k_up_m, [2 3 1]), 6, 2)), [1 2 6 5 3 4]);
-        T_down_ui_ki_uj_kj_up_uin_kin = permute(squeeze(dot2(permute(T_down_ki_mi_uj_kj_up_uin_kin, [3 4 5 6 1 2]), permute(pi_down_u_k_up_m, [2 3 1]), 6, 2)), [6 5 1 2 3 4]);
+        lambda_down_u_k_m_uj_kj_up_un_kn = permute(squeeze(dot2(ne_pi_down_u_k_up_m, permute(psi_down_u_k_m_kj_mj_up_un_kn, [4 5 1 2 3 6 7]), 3, 2)), [3 4 5 1 2 6 7]);
+        sigma_down_u_k_uj_kj_up_un_kn = squeeze(dot2(ne_pi_down_u_k_up_m, lambda_down_u_k_m_uj_kj_up_un_kn, 3, 3));
 
         % 5.2.2
-        D_up_u_k_next = D_up_u * D_up_k_init.';
-        T_down_u_k_up_un_kn = squeeze(dot2(reshape(D_up_u_k_next, [], 1), reshape(T_down_ui_ki_uj_kj_up_uin_kin, ne_param.num_U, ne_param.num_K, [], ne_param.num_U, ne_param.num_K), 1, 3));
-        D_up_u_k_next_next = squeeze(dot2(reshape(T_down_u_k_up_un_kn, [], ne_param.num_U, ne_param.num_K), reshape(D_up_u_k_next, [], 1), 1, 1));
-        D_up_u_k_next_next = D_up_u_k_next_next / sum(D_up_u_k_next_next(:));
-        D_error = norm(D_up_u_k_next - D_up_u_k_next_next, inf);
-        D_up_u_k_next = D_up_u_k_next_next;
-        num_D_iter = 0;
-        while D_error > ne_param.D_tol && num_D_iter < ne_param.D_max_iter
-            T_down_u_k_up_un_kn = squeeze(dot2(reshape(D_up_u_k_next, [], 1), reshape(T_down_ui_ki_uj_kj_up_uin_kin, ne_param.num_U, ne_param.num_K, [], ne_param.num_U, ne_param.num_K), 1, 3));
-            D_up_u_k_next_next = squeeze(dot2(reshape(T_down_u_k_up_un_kn, [], ne_param.num_U, ne_param.num_K), reshape(D_up_u_k_next, [], 1), 1, 1));
-            D_up_u_k_next_next = D_up_u_k_next_next / sum(D_up_u_k_next_next(:));
-            D_error = norm(D_up_u_k_next - D_up_u_k_next_next, inf);
-            D_up_u_k_next = D_up_u_k_next_next;
-            num_D_iter = num_D_iter + 1;
+        ne_d_up_u_k_next = D_up_u_k_init;
+        
+        % 5.2.3
+        t_down_u_k_up_un_kn = squeeze(dot2(reshape(ne_d_up_u_k_next, [], 1), reshape(sigma_down_u_k_uj_kj_up_un_kn, ne_param.num_U, ne_param.num_K, [], ne_param.num_U, ne_param.num_K), 1, 3));
+        ne_d_up_u_k_next_next = squeeze(dot2(reshape(t_down_u_k_up_un_kn, [], ne_param.num_U, ne_param.num_K), reshape(ne_d_up_u_k_next, [], 1), 1, 1));
+        ne_d_up_u_k_next_next = ne_d_up_u_k_next_next / sum(ne_d_up_u_k_next_next(:));
+        ne_d_error = norm(ne_d_up_u_k_next - ne_d_up_u_k_next_next, inf);
+        ne_d_up_u_k_next = ne_d_up_u_k_next_next;
+        num_d_iter = 0;
+        while ne_d_error > ne_param.d_tol && num_d_iter < ne_param.d_max_iter
+            t_down_u_k_up_un_kn = squeeze(dot2(reshape(ne_d_up_u_k_next, [], 1), reshape(sigma_down_u_k_uj_kj_up_un_kn, ne_param.num_U, ne_param.num_K, [], ne_param.num_U, ne_param.num_K), 1, 3));
+            ne_d_up_u_k_next_next = squeeze(dot2(reshape(t_down_u_k_up_un_kn, [], ne_param.num_U, ne_param.num_K), reshape(ne_d_up_u_k_next, [], 1), 1, 1));
+            ne_d_up_u_k_next_next = ne_d_up_u_k_next_next / sum(ne_d_up_u_k_next_next(:));
+            ne_d_error = norm(ne_d_up_u_k_next - ne_d_up_u_k_next_next, inf);
+            ne_d_up_u_k_next = ne_d_up_u_k_next_next;
+            num_d_iter = num_d_iter + 1;
         end
         % Apply momentum
-        D_up_u_k = ne_param.D_tau * D_up_u_k_next + (1 - ne_param.D_tau) * D_up_u_k;
+        ne_d_up_u_k = ne_param.d_mom * ne_d_up_u_k_next + (1 - ne_param.d_mom) * ne_d_up_u_k;
 
         % Plot
         if ne_param.plot
-            ne_func.plot_ne_D(ne_D_plot_fg, ne_D_plot_pos, D_up_u_k, ne_param.U, ne_param.K, alpha);
+            ne_func.plot_ne_d(ne_d_plot_fg, ne_d_plot_pos, ne_d_up_u_k, ne_param.U, ne_param.K, alpha);
         end
 
         %% Step 5.3
         % 5.3.1
-        D_up_mj = squeeze(dot2(reshape(D_up_u_k, [], 1), reshape(pi_down_u_k_up_m, [], ne_param.num_K), 1, 1));
-        q_down_ui_mi = dot2(D_up_mj, kappa_down_u_z_r_zj_rj, 2, 3);
-        q_down_ui_ki_mi = permute(outer(ones(ne_param.num_K, 1), q_down_ui_mi), [2 1 3]);
-        T_down_ki_mi_up_uin_kin = squeeze(dot2(reshape(D_up_u_k, [], 1), reshape(T_down_ki_mi_uj_kj_up_uin_kin, ne_param.num_K, ne_param.num_K, [], ne_param.num_U, ne_param.num_K), 1, 3));
-        T_down_ui_ki_mi_up_uin_kin = outer(ones(ne_param.num_U, 1), T_down_ki_mi_up_uin_kin);
-        q_down_u_k = dot2(pi_down_u_k_up_m, q_down_ui_ki_mi, 3, 3);
+        iota_up_mj = squeeze(dot2(reshape(ne_d_up_u_k, [], 1), reshape(ne_pi_down_u_k_up_m, [], ne_param.num_M), 1, 1));
+        xi_down_u_m = dot2(iota_up_mj, c_down_u_m_mj, 2, 3);
 
         % 5.3.2
-        V_down_u_k = zeros(ne_param.num_U, ne_param.num_K);
-        V_down_u_k_next = q_down_u_k + alpha * dot2(reshape(T_down_u_k_up_un_kn, ne_param.num_U, ne_param.num_K, []), reshape(V_down_u_k, [], 1), 3, 1);
-        V_error = norm(V_down_u_k - V_down_u_k_next, inf);
-        V_down_u_k = V_down_u_k_next;
-        num_V_iter = 0;
-        while V_error > ne_param.V_tol && num_V_iter < ne_param.V_max_iter
-            V_down_u_k_next = q_down_u_k + alpha * dot2(reshape(T_down_u_k_up_un_kn, ne_param.num_U, ne_param.num_K, []), reshape(V_down_u_k, [], 1), 3, 1);
-            V_error = norm(V_down_u_k - V_down_u_k_next, inf);
-            V_down_u_k = V_down_u_k_next;
-            num_V_iter = num_V_iter + 1;
+        ne_q_down_u_k = squeeze(dot2(xi_down_u_m, permute(ne_pi_down_u_k_up_m, [1 3 2]), 2, 2));
+        ne_t_down_u_k_up_un_kn = squeeze(dot2(reshape(ne_d_up_u_k, [], 1), reshape(sigma_down_u_k_uj_kj_up_un_kn, ne_param.num_U, ne_param.num_K, [], ne_param.num_U, ne_param.num_K), 1, 3));
+        
+        % 5.3.3
+        ne_v_down_u_k = zeros(ne_param.num_U, ne_param.num_K);
+        ne_v_down_u_k_next = ne_q_down_u_k + alpha * dot2(reshape(ne_t_down_u_k_up_un_kn, ne_param.num_U, ne_param.num_K, []), reshape(ne_v_down_u_k, [], 1), 3, 1);
+        v_error = norm(ne_v_down_u_k - ne_v_down_u_k_next, inf);
+        ne_v_down_u_k = ne_v_down_u_k_next;
+        num_v_iter = 0;
+        while v_error > ne_param.v_tol && num_v_iter < ne_param.v_max_iter
+            ne_v_down_u_k_next = ne_q_down_u_k + alpha * dot2(reshape(ne_t_down_u_k_up_un_kn, ne_param.num_U, ne_param.num_K, []), reshape(ne_v_down_u_k, [], 1), 3, 1);
+            v_error = norm(ne_v_down_u_k - ne_v_down_u_k_next, inf);
+            ne_v_down_u_k = ne_v_down_u_k_next;
+            num_v_iter = num_v_iter + 1;
         end
 
         %% Step 5.4
         % 5.4.1
-        V_down_u_k_m = q_down_ui_ki_mi + alpha * dot2(reshape(T_down_ui_ki_mi_up_uin_kin, ne_param.num_U, ne_param.num_K, ne_param.num_K, []), reshape(V_down_u_k, [], 1), 4, 1);
-
+        chi_down_u_k_m_up_un_kn = squeeze(dot2(reshape(ne_d_up_u_k, [], 1), reshape(lambda_down_u_k_m_uj_kj_up_un_kn, ne_param.num_U, ne_param.num_K, ne_param.num_M, [], ne_param.num_U, ne_param.num_K), 1, 4));
+        omega_down_u_k_m = dot2(reshape(chi_down_u_k_m_up_un_kn, ne_param.num_U, ne_param.num_K, ne_param.num_M, []), reshape(ne_v_down_u_k, [], 1), 4, 1);
+        eta_down_u_k_m = permute(outer(ones(ne_param.num_K, 1), xi_down_u_m), [2 1 3]);
+        
         % 5.4.2
-        pi_i_down_ui_ki_up_mi = zeros(ne_param.num_U, ne_param.num_K, ne_param.num_K);
+        ne_rho_down_u_k_m = eta_down_u_k_m + alpha * omega_down_u_k_m;
+
+        % 5.4.3
+        br_pi_down_u_k_up_m = zeros(ne_param.num_U, ne_param.num_K, ne_param.num_M);
         for i_u = 1 : ne_param.num_U
             for i_k = 1 : ne_param.num_K
-                [~, i_z] = min(V_down_u_k_m(i_u,i_k,1:i_k));
-                pi_i_down_ui_ki_up_mi(i_u,i_k,i_z) = 1;
-            end
-        end
-        pi_i_diff = pi_down_u_k_up_m - pi_i_down_ui_ki_up_mi;
-        pi_i_error = norm(reshape(pi_i_diff, [], 1), inf);
-
-        % 5.4.3/4
-        num_pi_iter = 0;
-        % Display status
-        fprintf('Iteration %d policy-iteration %d policy_i error %f\n', num_ne_pi_iter, num_pi_iter, pi_i_error);
-        while pi_i_error > ne_param.policy_tol && num_pi_iter < ne_param.policy_max_iter
-            % 5.4.4.1
-            q_down_ui_ki = dot2(pi_i_down_ui_ki_up_mi, q_down_ui_ki_mi, 3, 3);
-            T_down_ui_ki_up_uin_kin = squeeze(dot2(pi_i_down_ui_ki_up_mi, T_down_ui_ki_mi_up_uin_kin, 3, 3));
-
-            % 5.4.4.2
-            V_down_ui_ki = zeros(ne_param.num_U, ne_param.num_K);
-            V_down_ui_ki_next = q_down_ui_ki + alpha * dot2(reshape(T_down_ui_ki_up_uin_kin, ne_param.num_U, ne_param.num_K, []), reshape(V_down_ui_ki, [], 1), 3, 1);
-            V_error = norm(V_down_ui_ki - V_down_ui_ki_next, inf);
-            V_down_ui_ki = V_down_ui_ki_next;
-            num_V_iter = 0;
-            while V_error > ne_param.V_tol && num_V_iter < ne_param.V_max_iter
-                V_down_ui_ki_next = q_down_ui_ki + alpha * dot2(reshape(T_down_ui_ki_up_uin_kin, ne_param.num_U, ne_param.num_K, []), reshape(V_down_ui_ki, [], 1), 3, 1);
-                V_error = norm(V_down_ui_ki - V_down_ui_ki_next, inf);
-                V_down_ui_ki = V_down_ui_ki_next;
-                num_V_iter = num_V_iter + 1;
-            end
-
-            % 5.4.4.3
-            V_down_ui_ki_mi = q_down_ui_ki_mi + alpha * dot2(reshape(T_down_ui_ki_mi_up_uin_kin, ne_param.num_U, ne_param.num_K, ne_param.num_K, []), reshape(V_down_ui_ki, [], 1), 4, 1);
-
-            % 5.4.4.4
-            pi_i_down_ui_ki_up_mi_next = zeros(ne_param.num_U, ne_param.num_K, ne_param.num_K);
-            for i_u = 1 : ne_param.num_U
-                for i_k = 1 : ne_param.num_K
-                    [~, i_z] = min(V_down_ui_ki_mi(i_u,i_k,1:i_k));
-                    pi_i_down_ui_ki_up_mi_next(i_u,i_k,i_z) = 1;
+                i_m_adm = find(ne_param.M <= ne_param.K(i_k));
+                [min_rho, i_min_m] = min(ne_rho_down_u_k_m(i_u,i_k,i_m_adm));
+                if abs(min_rho - ne_v_down_u_k(i_u,i_k)) <= ne_param.br_v_tol
+                    br_pi_down_u_k_up_m(i_u,i_k,:) = ne_pi_down_u_k_up_m(i_u,i_k,:);
+                else
+                    br_pi_down_u_k_up_m(i_u,i_k,i_min_m) = 1;
                 end
             end
-            pi_i_diff = pi_i_down_ui_ki_up_mi - pi_i_down_ui_ki_up_mi_next;
-            pi_i_error = norm(reshape(pi_i_diff, [], 1), inf);
+        end
+        br_pi_diff = ne_pi_down_u_k_up_m - br_pi_down_u_k_up_m;
+        br_pi_error = norm(reshape(br_pi_diff, [], 1), inf);
+
+        % 5.4.4/5
+        num_br_pi_iter = 0;
+        % Display status
+        fprintf('Iteration %d best response policy iteration %d best response policy error %f\n', num_ne_pi_iter, num_br_pi_iter, br_pi_error);
+        while br_pi_error > ne_param.br_pi_tol && num_br_pi_iter < ne_param.br_pi_max_iter
+            % 5.4.5.1
+            q_down_u_k = dot2(br_pi_down_u_k_up_m, eta_down_u_k_m, 3, 3);
+            t_down_u_k_up_un_kn = squeeze(dot2(br_pi_down_u_k_up_m, chi_down_u_k_m_up_un_kn, 3, 3));
+
+            % 5.4.5.2
+            v_down_u_k = zeros(ne_param.num_U, ne_param.num_K);
+            v_down_u_k_next = q_down_u_k + alpha * dot2(reshape(t_down_u_k_up_un_kn, ne_param.num_U, ne_param.num_K, []), reshape(v_down_u_k, [], 1), 3, 1);
+            v_error = norm(v_down_u_k - v_down_u_k_next, inf);
+            v_down_u_k = v_down_u_k_next;
+            num_v_iter = 0;
+            while v_error > ne_param.v_tol && num_v_iter < ne_param.v_max_iter
+                v_down_u_k_next = q_down_u_k + alpha * dot2(reshape(t_down_u_k_up_un_kn, ne_param.num_U, ne_param.num_K, []), reshape(v_down_u_k, [], 1), 3, 1);
+                v_error = norm(v_down_u_k - v_down_u_k_next, inf);
+                v_down_u_k = v_down_u_k_next;
+                num_v_iter = num_v_iter + 1;
+            end
+
+            % 5.4.5.3
+            omega_down_u_k_m = dot2(reshape(chi_down_u_k_m_up_un_kn, ne_param.num_U, ne_param.num_K, ne_param.num_M, []), reshape(ne_v_down_u_k, [], 1), 4, 1);
+            rho_down_u_k_m = eta_down_u_k_m + alpha * omega_down_u_k_m;
+
+            % 5.4.5.4
+            br_pi_down_u_k_up_m_next = zeros(ne_param.num_U, ne_param.num_K, ne_param.num_M);
+            for i_u = 1 : ne_param.num_U
+                for i_k = 1 : ne_param.num_K
+                    i_m_adm = find(ne_param.M <= ne_param.K(i_k));
+                    [min_rho, i_min_m] = min(rho_down_u_k_m(i_u,i_k,i_m_adm));
+                    if abs(min_rho - ne_v_down_u_k(i_u,i_k)) <= ne_param.br_v_tol
+                        br_pi_down_u_k_up_m_next(i_u,i_k,:) = br_pi_down_u_k_up_m(i_u,i_k,:);
+                    else
+                        br_pi_down_u_k_up_m_next(i_u,i_k,i_min_m) = 1;
+                    end
+                end
+            end
+            br_pi_diff = br_pi_down_u_k_up_m - br_pi_down_u_k_up_m_next;
+            br_pi_error = norm(reshape(br_pi_diff, [], 1), inf);
 
             % 5.4.4.5
-            pi_i_down_ui_ki_up_mi = pi_i_down_ui_ki_up_mi_next;
-            num_pi_iter = num_pi_iter + 1;
+            br_pi_down_u_k_up_m = br_pi_down_u_k_up_m_next;
+            num_br_pi_iter = num_br_pi_iter + 1;
             % Display status
-            fprintf('Iteration %d policy-iteration %d policy_i error %f\n', num_ne_pi_iter, num_pi_iter, pi_i_error);
+            fprintf('Iteration %d best response policy iteration %d best response policy error %f\n', num_ne_pi_iter, num_br_pi_iter, br_pi_error);
         end
 
         % Plot
         if ne_param.plot
-            ne_func.plot_br_pi(br_pi_plot_fg, br_pi_plot_pos, RedColormap, pi_i_down_ui_ki_up_mi, ne_param.U, ne_param.K, alpha);
+            ne_func.plot_br_pi(br_pi_plot_fg, br_pi_plot_pos, RedColormap, br_pi_down_u_k_up_m, ne_param.U, ne_param.K, ne_param.M, alpha);
             drawnow;
         end
 
         %% Step 5.5
         % Apply momentum
-        pi_down_u_k_up_m_next = ne_param.policy_tau * pi_i_down_ui_ki_up_mi + (1 - ne_param.policy_tau) * pi_down_u_k_up_m;
-        ne_pi_diff = pi_down_u_k_up_m - pi_down_u_k_up_m_next;
+        ne_pi_down_u_k_up_m_next = ne_param.ne_pi_mom * br_pi_down_u_k_up_m + (1 - ne_param.ne_pi_mom) * ne_pi_down_u_k_up_m;
+        ne_pi_diff = ne_pi_down_u_k_up_m - ne_pi_down_u_k_up_m_next;
         ne_pi_error = rms(reshape(ne_pi_diff, [], 1));
-        pi_down_u_k_up_m = pi_down_u_k_up_m_next;
+        ne_pi_down_u_k_up_m = ne_pi_down_u_k_up_m_next;
 
         % Plot
         if ne_param.plot
-            ne_func.plot_ne_pi(ne_pi_plot_fg, ne_pi_plot_pos, RedColormap, pi_down_u_k_up_m, ne_param.U, ne_param.K, alpha);
+            ne_func.plot_ne_pi(ne_pi_plot_fg, ne_pi_plot_pos, RedColormap, ne_pi_down_u_k_up_m, ne_param.U, ne_param.K, ne_param.M, alpha);
         end
 
         % Display status and store history of policies
         fprintf('Iteration %d policy error %f\n', num_ne_pi_iter, ne_pi_error);
         for i_u = 1 : ne_param.num_U
-            base_i_ui = (i_u - 1) * ne_param.num_K;
+            base_i_u = (i_u - 1) * ne_param.num_K;
             for i_k = 1 : ne_param.num_K
-                i_xi = base_i_ui + i_k;
-                [~, max_i] = max(pi_down_u_k_up_m(i_u,i_k,:));
-                pi_hist_end(i_xi) = ne_param.K(max_i);
-                if i_xi == 1
-                    fprintf('Iteration %d policy:\n%d', num_ne_pi_iter, pi_hist_end(i_xi));
-                elseif mod(i_xi - 1, ne_param.num_K) == 0
-                    fprintf('\n%d', pi_hist_end(i_xi));
+                i_x = base_i_u + i_k;
+                [~, i_max_m] = max(ne_pi_down_u_k_up_m(i_u,i_k,:));
+                ne_pi_hist_end(i_x) = ne_param.M(i_max_m);
+                if i_x == 1
+                    fprintf('Iteration %d policy:\n%.2f', num_ne_pi_iter, ne_pi_hist_end(i_x));
+                elseif mod(i_x - 1, ne_param.num_K) == 0
+                    fprintf('\n%.2f', ne_pi_hist_end(i_x));
                 else
-                    fprintf('->%d', pi_hist_end(i_xi));
+                    fprintf('->%.2f', ne_pi_hist_end(i_x));
                 end
             end
         end
-        % Detect a limit cycle
+        % Detect a limit cycle (only if momentum is turned off)
         limit_cycle = false;
-        for pi_hist_i = 1 : size(pi_hist, 1)
-            if isequal(pi_hist(pi_hist_i,:), pi_hist_end)
-                % Limit cycle found
-                limit_cycle = true;
-                pi_limit_cycle = pi_hist(pi_hist_i:end,:);
-                pi_limit_cycle_code = pi_limit_cycle * repmat((1 : ne_param.num_K).', ne_param.num_U, 1);
-                break;
+        if ne_param.ne_pi_mom == 1 && ne_param.d_mom == 1
+            for pi_hist_i = 1 : size(ne_pi_hist, 1)
+                if isequal(ne_pi_hist(pi_hist_i,:), ne_pi_hist_end)
+                    % Limit cycle found
+                    limit_cycle = true;
+                    ne_pi_limit_cycle = ne_pi_hist(pi_hist_i:end,:);
+                    ne_pi_limit_cycle_code = ne_pi_limit_cycle * repmat((1 : ne_param.num_K).', ne_param.num_U, 1);
+                    break;
+                end
             end
         end
-        pi_hist = [pi_hist; pi_hist_end];
+        ne_pi_hist = [ne_pi_hist; ne_pi_hist_end];
         fprintf('\n\n');
-        ne_policy_error_hist = [ne_policy_error_hist; ne_pi_error];
+        ne_pi_error_hist = [ne_pi_error_hist; ne_pi_error];
         num_ne_pi_iter = num_ne_pi_iter + 1;
-        if ne_param.policy_tau == 1 && ne_param.D_tau == 1 && limit_cycle && size(pi_limit_cycle, 1) > 1
+        if  limit_cycle && size(ne_pi_limit_cycle, 1) > 1
             fprintf('Limit cycle found!\n\n');
             break;
         end
@@ -487,24 +481,24 @@ for i_alpha = 1 : length(ne_param.alpha)
     % Plot remaining statistics
     if ne_param.plot
         % NE expected utility plot
-        ne_V_plot_fg = 4;
-        ne_V_plot_pos = [0, 0, default_width, default_height];
-        ne_func.plot_ne_V(ne_V_plot_fg, ne_V_plot_pos, V_down_u_k, ne_param.U, ne_param.K, alpha)
+        ne_v_plot_fg = 4;
+        ne_v_plot_pos = [0, 0, default_width, default_height];
+        ne_func.plot_ne_v(ne_v_plot_fg, ne_v_plot_pos, ne_v_down_u_k, ne_param.U, ne_param.K, alpha);
 
         % NE expected utiliy per message plot
-        ne_V_m_plot_fg = 5;
-        ne_V_m_plot_pos = [default_width, 0, default_width, default_height];
-        ne_func.plot_ne_V_m(ne_V_m_plot_fg, ne_V_m_plot_pos, parula, V_down_u_k_m, ne_param.U, ne_param.K, alpha)
+        ne_rho_plot_fg = 5;
+        ne_rho_plot_pos = [default_width, 0, default_width, default_height];
+        ne_func.plot_ne_rho(ne_rho_plot_fg, ne_rho_plot_pos, parula, ne_rho_down_u_k_m, ne_param.U, ne_param.K, ne_param.M, alpha);
         
         % NE state transitions plot
-        ne_T_plot_fg = 6;
-        ne_T_plot_pos = [0, 0, screenwidth, screenheight];
-        ne_func.plot_ne_T(ne_T_plot_fg, ne_T_plot_pos, RedColormap, T_down_u_k_up_un_kn, ne_param.U, ne_param.K, alpha);
+        ne_t_plot_fg = 6;
+        ne_t_plot_pos = [0, 0, screenwidth, screenheight];
+        ne_func.plot_ne_t(ne_t_plot_fg, ne_t_plot_pos, RedColormap, ne_t_down_u_k_up_un_kn, ne_param.U, ne_param.K, alpha);
         
         % NE policy error plot
         ne_pi_error_plot_fg = 7;
         ne_pi_error_plot_pos = [default_width, 0, default_width, default_height];
-        ne_func.plot_ne_pi_error(ne_pi_error_plot_fg, ne_pi_error_plot_pos, ne_policy_error_hist, alpha);
+        ne_func.plot_ne_pi_error(ne_pi_error_plot_fg, ne_pi_error_plot_pos, ne_pi_error_hist, alpha);
     end
     
     % Store end results
@@ -518,37 +512,37 @@ if ~ne_param.plot
     % NE policy plot
     ne_pi_plot_fg = 1;
     ne_pi_plot_pos = [0, default_height, default_width, default_height];
-    ne_func.plot_ne_pi(ne_pi_plot_fg, ne_pi_plot_pos, RedColormap, pi_down_u_k_up_m, ne_param.U, ne_param.K, alpha);
+    ne_func.plot_ne_pi(ne_pi_plot_fg, ne_pi_plot_pos, RedColormap, ne_pi_down_u_k_up_m, ne_param.U, ne_param.K, ne_param.M, alpha);
     
     % NE stationary distribution plot
-    ne_D_plot_fg = 2;
-    ne_D_plot_pos = [0, 0, default_width, default_height];
-    ne_func.plot_ne_D(ne_D_plot_fg, ne_D_plot_pos, D_up_u_k, ne_param.U, ne_param.K, alpha);
+    ne_d_plot_fg = 2;
+    ne_d_plot_pos = [0, 0, default_width, default_height];
+    ne_func.plot_ne_d(ne_d_plot_fg, ne_d_plot_pos, ne_d_up_u_k, ne_param.U, ne_param.K, alpha);
     
     % Agent i best response policy plot
     br_pi_plot_fg = 3;
     br_pi_plot_pos = [default_width, default_height, default_width, default_height];
-    ne_func.plot_br_pi(br_pi_plot_fg, br_pi_plot_pos, RedColormap, pi_i_down_ui_ki_up_mi, ne_param.U, ne_param.K, alpha);
+    ne_func.plot_br_pi(br_pi_plot_fg, br_pi_plot_pos, RedColormap, br_pi_down_u_k_up_m, ne_param.U, ne_param.K, ne_param.M, alpha);
 
     % NE expected utility plot
-    ne_V_plot_fg = 4;
-    ne_V_plot_pos = [0, 0, default_width, default_height];
-    ne_func.plot_ne_V(ne_V_plot_fg, ne_V_plot_pos, V_down_u_k, ne_param.U, ne_param.K, alpha)
+    ne_v_plot_fg = 4;
+    ne_v_plot_pos = [0, 0, default_width, default_height];
+    ne_func.plot_ne_v(ne_v_plot_fg, ne_v_plot_pos, ne_v_down_u_k, ne_param.U, ne_param.K, alpha);
 
     % NE expected utiliy per message plot
-    ne_V_m_plot_fg = 5;
-    ne_V_m_plot_pos = [default_width, 0, default_width, default_height];
-    ne_func.plot_ne_V_m(ne_V_m_plot_fg, ne_V_m_plot_pos, parula, V_down_u_k_m, ne_param.U, ne_param.K, alpha)
+    ne_rho_plot_fg = 5;
+    ne_rho_plot_pos = [default_width, 0, default_width, default_height];
+    ne_func.plot_ne_rho(ne_rho_plot_fg, ne_rho_plot_pos, parula, ne_rho_down_u_k_m, ne_param.U, ne_param.K, ne_param.M, alpha);
 
     % NE state transitions plot
-    ne_T_plot_fg = 6;
-    ne_T_plot_pos = [0, 0, screenwidth, screenheight];
-    ne_func.plot_ne_T(ne_T_plot_fg, ne_T_plot_pos, RedColormap, T_down_u_k_up_un_kn, ne_param.U, ne_param.K, alpha);
+    ne_t_plot_fg = 6;
+    ne_t_plot_pos = [0, 0, screenwidth, screenheight];
+    ne_func.plot_ne_t(ne_t_plot_fg, ne_t_plot_pos, RedColormap, ne_t_down_u_k_up_un_kn, ne_param.U, ne_param.K, alpha);
 
     % NE policy error plot
     ne_pi_error_plot_fg = 7;
     ne_pi_error_plot_pos = [default_width, 0, default_width, default_height];
-    ne_func.plot_ne_pi_error(ne_pi_error_plot_fg, ne_pi_error_plot_pos, ne_policy_error_hist, alpha);
+    ne_func.plot_ne_pi_error(ne_pi_error_plot_fg, ne_pi_error_plot_pos, ne_pi_error_hist, alpha);
 end
 
 %% Inform user when done

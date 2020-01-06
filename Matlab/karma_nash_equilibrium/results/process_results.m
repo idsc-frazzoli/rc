@@ -20,7 +20,7 @@ while true
     
     for i_alpha = 1 : length(alpha_vec)
     alpha = alpha_vec(i_alpha);
-        
+
     % Load workspace for computation for that alpha
     workspace = load(['karma_nash_equilibrium/results/alpha_', num2str(alpha, '%.2f'), '.mat']);
     ne_param = workspace.ne_param;
@@ -44,7 +44,7 @@ while true
     % NE policy plot
     ne_pi_plot_fg = 1;
     ne_pi_plot_pos = [0, 0, screenwidth, screenheight / 2];
-    ne_func.plot_ne_pi(ne_pi_plot_fg, ne_pi_plot_pos, RedColormap, ne_pi_down_u_k_up_m, ne_param.U, ne_param.K, alpha);
+    ne_func.plot_ne_pi(ne_pi_plot_fg, ne_pi_plot_pos, RedColormap, ne_pi_down_u_k_up_m, ne_param.U, ne_param.K, ne_param.M, alpha);
 
     % NE stationary distribution plot
     ne_d_plot_fg = 2;
@@ -59,7 +59,7 @@ while true
     % NE expected utiliy per message plot
     ne_rho_plot_fg = 4;
     ne_rho_plot_pos = [0, screenheight / 2, screenwidth, screenheight / 2];
-    ne_func.plot_ne_rho(ne_rho_plot_fg, ne_rho_plot_pos, parula, ne_rho_down_u_k_m, ne_param.U, ne_param.K, alpha);
+    ne_func.plot_ne_rho(ne_rho_plot_fg, ne_rho_plot_pos, parula, ne_rho_down_u_k_m, ne_param.U, ne_param.K, ne_param.M, alpha);
     
     % NE state transitions plot
     ne_t_plot_fg = 5;
