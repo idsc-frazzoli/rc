@@ -22,8 +22,8 @@ for i_m = 1 : ne_param.num_M
     m = ne_param.M(i_m);
     for i_mj = 1 : ne_param.num_M
         mj = ne_param.M(i_mj);        
-%         gamma_down_m_mj_up_o(i_m,i_mj,1) = max([0, min([(m - mj + 1) / 2, 1])]);
-        gamma_down_m_mj_up_o(i_m,i_mj,1) = 0.5 * (1 + erf((m - mj) / (sqrt(2) * ne_param.gamma_s)));
+        gamma_down_m_mj_up_o(i_m,i_mj,1) = max([0, min([(m - mj + 1) / 2, 1])]);
+%         gamma_down_m_mj_up_o(i_m,i_mj,1) = 0.5 * (1 + erf((m - mj) / (sqrt(2) * ne_param.gamma_s)));
 %         gamma_down_m_mj_up_o(i_m,i_mj,1) = 1 / (1 + exp(-(m - mj) / ne_param.gamma_s));
         gamma_down_m_mj_up_o(i_m,i_mj,2) = 1 - gamma_down_m_mj_up_o(i_m,i_mj,1);
     end
@@ -32,6 +32,7 @@ end
 % Game cost tensor
 zeta_down_u_o = outer(ne_param.U, ne_param.O);
 c_down_u_m_mj = squeeze(dot2(zeta_down_u_o, permute(gamma_down_m_mj_up_o, [3 1 2]), 2, 1));
+clearvars zeta_down_u_o;
 
 % Game state transition tensor
 beta_down_k_m_up_mb = zeros(ne_param.num_K, ne_param.num_M, ne_param.num_K);
@@ -44,8 +45,8 @@ for i_k = 1 : ne_param.num_K
         end
         for i_mb = 1 : i_k
             mb = ne_param.K(i_mb);
-%             beta_down_k_m_up_mb(i_k,i_m,i_mb) = max([0, 1 - abs(mb - m)]);
-            beta_down_k_m_up_mb(i_k,i_m,i_mb) = exp(-(mb - m)^2 / (2 * ne_param.beta_s^2));
+            beta_down_k_m_up_mb(i_k,i_m,i_mb) = max([0, 1 - abs(mb - m)]);
+%             beta_down_k_m_up_mb(i_k,i_m,i_mb) = exp(-(mb - m)^2 / (2 * ne_param.beta_s^2));
 %             beta_down_k_m_up_mb(i_k,i_m,i_mb) = exp(-(mb - m) / ne_param.beta_s) / ((1 + exp(-(mb - m) / ne_param.beta_s))^2);
         end
         beta_down_k_m_up_mb(i_k,i_m,:) = beta_down_k_m_up_mb(i_k,i_m,:) / sum(beta_down_k_m_up_mb(i_k,i_m,:));
@@ -71,11 +72,38 @@ for i_k = 1 : ne_param.num_K
         end
     end
 end
-upsilon_down_k_kb_kj_mj_o_up_kn = permute(squeeze(dot2(permute(epsilon_down_k_mb_kj_mbj_o_up_kn, [1 2 5 6 3 4]), permute(beta_down_k_m_up_mb, [1 3 2]), 6, 2)), [1 2 5 6 3 4]);
-phi_down_k_m_kj_mj_o_up_kn = permute(squeeze(dot2(permute(upsilon_down_k_kb_kj_mj_o_up_kn, [3 4 5 6 1 2]), permute(beta_down_k_m_up_mb, [1 3 2]), 6, 2)), [5 6 1 2 3 4]);
-
+upsilon_down_k_mb_kj_mj_o_up_kn = permute(squeeze(dot2(permute(epsilon_down_k_mb_kj_mbj_o_up_kn, [1 2 5 6 3 4]), permute(beta_down_k_m_up_mb, [1 3 2]), 6, 2)), [1 2 5 6 3 4]);
+clearvars epsilon_down_k_mb_kj_mbj_o_up_kn;
+phi_down_k_m_kj_mj_o_up_kn = permute(squeeze(dot2(permute(upsilon_down_k_mb_kj_mj_o_up_kn, [3 4 5 6 1 2]), permute(beta_down_k_m_up_mb, [1 3 2]), 6, 2)), [5 6 1 2 3 4]);
+% phi_down_k_m_kj_mj_o_up_kn = zeros(ne_param.num_K, ne_param.num_M, ne_param.num_K, ne_param.num_M, ne_param.num_O, ne_param.num_K);
+% parfor i_k = 1 : ne_param.num_K
+%     v = zeros(ne_param.num_M, ne_param.num_K, ne_param.num_M, ne_param.num_O, ne_param.num_K);
+%     k = ne_param.K(i_k);
+%     for i_m = 1 : ne_param.num_M
+%         if ne_param.M(i_m) > k
+%             continue;
+%         end
+%         for i_kj = 1 : ne_param.num_K
+%             kj = ne_param.K(i_kj);
+%             for i_mj = 1 : ne_param.num_M
+%                 if ne_param.M(i_mj) > kj
+%                     continue;
+%                 end
+%                 for i_o = 1 : ne_param.num_O
+%                     for i_kn = 1 : ne_param.num_K
+%                         v(i_m,i_kj,i_mj,i_o,i_kn) = dot(squeeze(upsilon_down_k_mb_kj_mj_o_up_kn(i_k,:,i_kj,i_mj,i_o,i_kn)), squeeze(beta_down_k_m_up_mb(i_k,i_m,:)));
+%                     end
+%                 end
+%             end
+%         end
+%     end
+%     phi_down_k_m_kj_mj_o_up_kn(i_k,:,:,:,:,:) = v;
+% end
+clearvars beta_down_k_m_up_mb upsilon_down_k_mb_kj_mj_o_up_kn;
 kappa_down_k_m_kj_mj_up_kn = permute(dot2(permute(phi_down_k_m_kj_mj_o_up_kn, [1 3 6 2 4 5]), gamma_down_m_mj_up_o, 6, 3), [1 4 2 5 3]);
+clearvars gamma_down_m_mj_up_o phi_down_k_m_kj_mj_o_up_kn;
 psi_down_u_k_m_kj_mj_up_un_kn = permute(reshape(outer(reshape(ne_param.mu_down_u_up_un, [], 1), kappa_down_k_m_kj_mj_up_kn), [ne_param.num_U, ne_param.num_U, size(kappa_down_k_m_kj_mj_up_kn)]), [1 3 4 5 6 2 7]);
+clearvars kappa_down_k_m_kj_mj_up_kn;
 
 %% Loop over alphas
 for i_alpha = 1 : length(ne_param.alpha)

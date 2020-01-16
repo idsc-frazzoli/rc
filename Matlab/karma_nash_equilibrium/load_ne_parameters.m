@@ -53,7 +53,7 @@ ne_param.num_O = length(ne_param.O);
 
 % Future discount factor(s)
 ne_param.alpha = 0 : 0.05 : 0.95;
-% ne_param.alpha = 0.75;
+% ne_param.alpha = 0.5;
 
 % Tolerance for convergence of stationary distribution
 ne_param.d_tol = 1e-3;
@@ -100,6 +100,6 @@ ne_param.beta_s = 0.5;
 ne_param.plot = false;
 
 % Save results
-ne_param.save = true;
+ne_param.save = false;
 
 end
