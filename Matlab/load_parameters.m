@@ -87,10 +87,10 @@ param.lim_mem_num_steps = length(param.lim_mem_steps);
 param.k_min = 0;
 
 % Maximum karma level
-param.k_max = 12;
+param.k_max = 24;
 
 % Average karma laevel
-param.k_ave = 6;
+param.k_ave = 5;
 
 end
 

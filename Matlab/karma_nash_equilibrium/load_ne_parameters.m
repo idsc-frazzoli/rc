@@ -36,8 +36,8 @@ ne_param.k_max = param.k_max;
 ne_param.k_ave = param.k_ave;
 
 % Vector of all message values
-m_interval = 1.0;
-ne_param.M = 0 : m_interval : ne_param.k_max;
+ne_param.m_interval = 1.0;
+ne_param.M = 0 : ne_param.m_interval : ne_param.k_max;
 
 % Number of message values
 ne_param.num_M = length(ne_param.M);
@@ -52,8 +52,8 @@ ne_param.O = [0; 1];
 ne_param.num_O = length(ne_param.O);
 
 % Future discount factor(s)
-ne_param.alpha = 0 : 0.05 : 0.95;
-% ne_param.alpha = 0.5;
+ne_param.alpha = [0 : 0.05 : 0.95, 1 - eps];
+% ne_param.alpha = 1 - eps;
 
 % Tolerance for convergence of stationary distribution
 ne_param.d_tol = 1e-3;
@@ -90,6 +90,12 @@ ne_param.ne_pi_max_iter = 1000;
 ne_param.ne_pi_mom = 0.05;
 % ne_param.ne_pi_mom = 1;
 
+% Controls smoothing of winning and karma exchange probabilities
+% 0 => No smoothing
+% 1 => Smoothing using normal distributions
+% 2 => Smoothing using logistic distributions
+ne_param.smoothing = 0;
+
 % Smoothing factor for winning probability
 ne_param.gamma_s = 0.75;
 
@@ -100,6 +106,6 @@ ne_param.beta_s = 0.5;
 ne_param.plot = false;
 
 % Save results
-ne_param.save = false;
+ne_param.save = true;
 
 end
