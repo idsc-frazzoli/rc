@@ -26,7 +26,7 @@ classdef ne_func
                 ne_pi_plot = cell(num_U, 1);
                 for i_u = 1 : num_U
                     pi_mat = squeeze(ne_pi_down_u_k_up_m(i_u,:,:));
-                    pi_mat(pi_mat == 0) = nan;
+                    pi_mat(pi_mat <= eps) = nan;
                     subplot(1, num_U, i_u);
                     ne_pi_plot{i_u} = heatmap(K, M, pi_mat.', 'ColorbarVisible','off');
                     ne_pi_plot{i_u}.YDisplayData = flipud(ne_pi_plot{i_u}.YDisplayData);
@@ -44,7 +44,7 @@ classdef ne_func
             else
                 for i_u = 1 : num_U
                     pi_mat = squeeze(ne_pi_down_u_k_up_m(i_u,:,:));
-                    pi_mat(pi_mat == 0) = nan;
+                    pi_mat(pi_mat <= eps) = nan;
                     ne_pi_plot{i_u}.ColorData = pi_mat.';
                     ne_pi_plot{i_u}.Title = ['\alpha = ', num2str(alpha, '%.2f'), ' NE policy for u = ', num2str(U(i_u))];
                 end
@@ -62,7 +62,7 @@ classdef ne_func
                 br_pi_plot = cell(num_U, 1);
                 for i_u = 1 : num_U
                     pi_mat = squeeze(br_pi_down_u_k_up_m(i_u,:,:));
-                    pi_mat(pi_mat == 0) = nan;
+                    pi_mat(pi_mat <= eps) = nan;
                     subplot(1, num_U, i_u);
                     br_pi_plot{i_u} = heatmap(K, M, pi_mat.', 'ColorbarVisible','off');
                     br_pi_plot{i_u}.YDisplayData = flipud(br_pi_plot{i_u}.YDisplayData);
@@ -80,9 +80,45 @@ classdef ne_func
             else
                 for i_u = 1 : num_U
                     pi_mat = squeeze(br_pi_down_u_k_up_m(i_u,:,:));
-                    pi_mat(pi_mat == 0) = nan;
+                    pi_mat(pi_mat <= eps) = nan;
                     br_pi_plot{i_u}.ColorData = pi_mat.';
                     br_pi_plot{i_u}.Title = ['\alpha = ', num2str(alpha, '%.2f'), ' BR policy for u = ', num2str(U(i_u))];
+                end
+            end
+        end
+        
+        % Plot social welfare policy
+        function plot_sw_pi(fg, position, colormap, sw_pi_down_u_k_up_m, U, K, M, k_ave)
+            persistent sw_pi_plot
+            num_U = length(U);
+            if ~ishandle(fg)
+                figure(fg);
+                fig = gcf;
+                fig.Position = position;
+                sw_pi_plot = cell(num_U, 1);
+                for i_u = 1 : num_U
+                    pi_mat = squeeze(sw_pi_down_u_k_up_m(i_u,:,:));
+                    pi_mat(pi_mat <= 1e-6) = nan;
+                    subplot(1, num_U, i_u);
+                    sw_pi_plot{i_u} = heatmap(K, M, pi_mat.', 'ColorbarVisible','off');
+                    sw_pi_plot{i_u}.YDisplayData = flipud(sw_pi_plot{i_u}.YDisplayData);
+                    sw_pi_plot{i_u}.Title = ['k_{ave} = ', num2str(k_ave, '%02d'), ' SW policy for u = ', num2str(U(i_u))];
+                    sw_pi_plot{i_u}.XLabel = 'Karma';
+                    sw_pi_plot{i_u}.YLabel = 'Message';
+                    sw_pi_plot{i_u}.FontName = 'Ubuntu';
+                    sw_pi_plot{i_u}.FontSize = 10;
+                    if exist('colormap', 'var')
+                        sw_pi_plot{i_u}.Colormap = colormap;
+                    end
+                    sw_pi_plot{i_u}.ColorLimits = [0 1];
+                    sw_pi_plot{i_u}.CellLabelFormat = '%.2f';
+                end
+            else
+                for i_u = 1 : num_U
+                    pi_mat = squeeze(sw_pi_down_u_k_up_m(i_u,:,:));
+                    pi_mat(pi_mat <= 1e-6) = nan;
+                    sw_pi_plot{i_u}.ColorData = pi_mat.';
+                    sw_pi_plot{i_u}.Title = ['k_{ave} = ', num2str(k_ave, '%02d'), ' SW policy for u = ', num2str(U(i_u))];
                 end
             end
         end
@@ -117,6 +153,40 @@ classdef ne_func
                 for i_u = 1 : num_U
                     ne_d_plot{i_u}.YData = ne_d_up_u_k(i_u,:);
                     ne_d_plot{i_u}.Parent.Title.String = ['\alpha = ', num2str(alpha, '%.2f'), ' NE stationary distribution for u = ', num2str(U(i_u))];
+                end
+            end
+        end
+        
+        % Plot SW stationary distribution
+        function plot_sw_d(fg, position, sw_d_up_u_k, U, K, k_ave)
+            persistent sw_d_plot
+            num_U = length(U);
+            if ~ishandle(fg)
+                figure(fg);
+                fig = gcf;
+                fig.Position = position;
+                sw_d_plot = cell(num_U, 1);
+                for i_u = 1 : num_U
+                    subplot(1, num_U, i_u);
+                    sw_d_plot{i_u} = bar(K, sw_d_up_u_k(i_u,:));
+                    axis tight;
+                    axes = gca;
+                    axes.Title.FontName = 'ubuntu';
+                    axes.Title.String = ['k_{ave} = ', num2str(k_ave, '%02d'), ' SW stationary distribution for u = ', num2str(U(i_u))];
+                    axes.Title.FontSize = 12;
+                    axes.XAxis.FontSize = 10;
+                    axes.YAxis.FontSize = 10;
+                    axes.XLabel.FontName = 'ubuntu';
+                    axes.XLabel.String = 'Karma';
+                    axes.XLabel.FontSize = 12;
+                    axes.YLabel.FontName = 'ubuntu';
+                    axes.YLabel.String = 'Probability';
+                    axes.YLabel.FontSize = 12;
+                end
+            else
+                for i_u = 1 : num_U
+                    sw_d_plot{i_u}.YData = sw_d_up_u_k(i_u,:);
+                    sw_d_plot{i_u}.Parent.Title.String = ['k_{ave} = ', num2str(k_ave, '%02d'), ' SW stationary distribution for u = ', num2str(U(i_u))];
                 end
             end
         end
@@ -160,6 +230,48 @@ classdef ne_func
                     ne_v_plot{i_u}.YData = -ne_v_down_u_k(i_u,:);
                 end
                 ne_v_plot{1}.Parent.Title.String = ['\alpha = ', num2str(alpha, '%.2f'), ' NE expected utility'];
+            end
+        end
+        
+        % Plot SW expected stage reward
+        function plot_sw_q(fg, position, sw_q_down_u_k, U, K, k_ave)
+            persistent sw_q_plot
+            num_U = length(U);
+            if ~ishandle(fg)
+                figure(fg);
+                fig = gcf;
+                fig.Position = position;
+                sw_q_plot = cell(num_U, 1);
+                lgd_text = cell(num_U, 1);
+                sw_q_plot{1} = plot(K, -sw_q_down_u_k(1,:), '-x', 'LineWidth', 2);
+                lgd_text{1} = ['u = ', num2str(U(1))];
+                hold on;
+                for i_u = 2 : num_U
+                    sw_q_plot{i_u} = plot(K, -sw_q_down_u_k(i_u,:), '-x', 'LineWidth', 2);
+                    lgd_text{i_u} = ['u = ', num2str(U(i_u))];
+                end
+                axis tight;
+                axes = gca;
+                axes.Title.FontName = 'ubuntu';
+                axes.Title.String = ['k_{ave} = ', num2str(k_ave, '%02d'), ' SW expected stage reward'];
+                axes.Title.FontSize = 12;
+                axes.XAxis.FontSize = 10;
+                axes.YAxis.FontSize = 10;
+                axes.XLabel.FontName = 'ubuntu';
+                axes.XLabel.String = 'Karma';
+                axes.XLabel.FontSize = 12;
+                axes.YLabel.FontName = 'ubuntu';
+                axes.YLabel.String = 'Utility';
+                axes.YLabel.FontSize = 12;
+                lgd = legend(lgd_text);
+                lgd.FontSize = 12;
+                lgd.FontName = 'ubuntu';
+                lgd.Location = 'bestoutside';
+            else
+                for i_u = 1 : num_U
+                    sw_q_plot{i_u}.YData = -sw_q_down_u_k(i_u,:);
+                end
+                sw_q_plot{1}.Parent.Title.String = ['k_{ave} = ', num2str(k_ave, '%02d'), ' SW expected stage reward'];
             end
         end
         
@@ -257,6 +369,63 @@ classdef ne_func
                 end
                 ne_t_plot.ColorData = t_mat.';
                 ne_t_plot.Title = ['\alpha = ', num2str(alpha, '%.2f'), ' NE state transitions'];
+            end
+        end
+        
+        % Plot SW state transitions
+        function plot_sw_t(fg, position, colormap, sw_t_down_u_k_up_un_kn, U, K, k_ave)
+            persistent sw_t_plot
+            num_U = length(U);
+            num_K = length(K);
+            num_X = num_U * num_K;
+            if ~ishandle(fg)
+                figure(fg);
+                fig = gcf;
+                fig.Position = position;
+                label = cell(num_X, 1);
+                for i_u = 1 : num_U
+                    base_i_u = (i_u - 1) * num_K;
+                    u_str = num2str(U(i_u));
+                    for i_k = 1 : num_K
+                        label{base_i_u+i_k} = ['(', u_str, ',', num2str(K(i_k)), ')'];
+                    end
+                end
+                t_mat = zeros(num_X);
+                for i_u = 1 : num_U
+                    start_i_u = (i_u - 1) * num_K + 1;
+                    end_i_u = i_u * num_K;
+                    for i_un = 1 : num_U
+                        start_i_un = (i_un - 1) * num_K + 1;
+                        end_i_un = i_un * num_K;
+                        t_mat(start_i_u:end_i_u,start_i_un:end_i_un) =...
+                            squeeze(sw_t_down_u_k_up_un_kn(i_u,:,i_un,:));
+                    end
+                end
+                sw_t_plot = heatmap(label, label, t_mat.', 'ColorbarVisible','off');
+                sw_t_plot.YDisplayData = flipud(sw_t_plot.YDisplayData);
+                sw_t_plot.Title = ['k_{ave} = ', num2str(k_ave, '%02d'), ' SW state transitions'];
+                sw_t_plot.XLabel = 'State now (urgency,karma)';
+                sw_t_plot.YLabel = 'State next (urgency,karma)';
+                sw_t_plot.FontName = 'Ubuntu';
+                sw_t_plot.FontSize = 10;
+                if exist('colormap', 'var')
+                    sw_t_plot.Colormap = colormap;
+                end
+                sw_t_plot.CellLabelFormat = '%.2f';
+            else
+                t_mat = zeros(num_X);
+                for i_u = 1 : num_U
+                    start_i_u = (i_u - 1) * num_K + 1;
+                    end_i_u = i_u * num_K;
+                    for i_un = 1 : num_U
+                        start_i_un = (i_un - 1) * num_K + 1;
+                        end_i_un = i_un * num_K;
+                        t_mat(start_i_u:end_i_u,start_i_un:end_i_un) =...
+                            squeeze(sw_t_down_u_k_up_un_kn(i_u,:,i_un,:));
+                    end
+                end
+                sw_t_plot.ColorData = t_mat.';
+                sw_t_plot.Title = ['k_{ave} = ', num2str(k_ave, '%02d'), ' SW state transitions'];
             end
         end
         

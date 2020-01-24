@@ -33,11 +33,6 @@ for i_m = 1 : ne_param.num_M
     end
 end
 
-% Game cost tensor
-zeta_down_u_o = outer(ne_param.U, ne_param.O);
-c_down_u_m_mj = squeeze(dot2(zeta_down_u_o, permute(gamma_down_m_mj_up_o, [3 1 2]), 2, 1));
-clearvars zeta_down_u_o;
-
 % Game state transition tensor
 beta_down_k_m_up_mb = zeros(ne_param.num_K, ne_param.num_M, ne_param.num_K);
 for i_k = 1 : ne_param.num_K
@@ -120,16 +115,6 @@ psi_down_u_k_m_kj_mj_up_un_kn = permute(reshape(outer(reshape(ne_param.mu_down_u
 clearvars kappa_down_k_m_kj_mj_up_kn;
 
 %% From game tensors to cells of 2 dimensional matrices
-C = cell(ne_param.num_X, 1);
-for i_u = 1 : ne_param.num_U
-    i_u_base = (i_u - 1) * ne_param.num_K;
-    for i_k = 1 : ne_param.num_K
-        i_x = i_u_base + i_k;
-        C{i_x} = squeeze(c_down_u_m_mj(i_u,:,:));
-    end
-end
-clearvars c_down_u_m_mj;
-
 Psi = cell(ne_param.num_X);
 for i_u = 1 : ne_param.num_U
     i_u_base = (i_u - 1) * ne_param.num_K;
@@ -157,62 +142,173 @@ for i_u = 1 : ne_param.num_U
 end
 clearvars psi_down_u_k_m_kj_mj_up_un_kn;
 
-%% Optimization variables
-pi = sdpvar(ne_param.num_X, ne_param.num_M, 'full');
-d = sdpvar(ne_param.num_X, 1, 'full');
-b = sdpvar(ne_param.num_X * ne_param.num_M, 1, 'full');
-t = sdpvar(ne_param.num_X, ne_param.num_X, 'full');
-a = sdpvar(ne_param.num_M, 1, 'full');
-q = sdpvar(ne_param.num_X, 1, 'full');
+%% Optimization variables:
+% [pi; d; b; t]
+pi_ind = 0;
+pi_size = ne_param.num_X * ne_param.num_M;
+d_ind = pi_ind + pi_size;
+d_size = ne_param.num_X;
+b_ind = d_ind + d_size;
+b_size = ne_param.num_X * ne_param.num_M;
+t_ind = b_ind + b_size;
+t_size = ne_param.num_X * ne_param.num_X;
 
-%% Constraints
-constraints = [];
+num_vars = pi_size + d_size + b_size + t_size;
+
+%% Quadratic cost matrix
+Q = zeros(num_vars);
+for i_u = 1 : ne_param.num_U
+    if ne_param.U(i_u) == 0
+        continue;
+    end
+    i_u_base = (i_u - 1) * ne_param.num_K;
+    for i_k = 1 : ne_param.num_K
+        i_x = i_u_base + i_k;
+        i_x_base = (i_x - 1) * ne_param.num_M;
+        Q(pi_ind+i_x_base+1,d_ind+i_x) = 0.5;
+        Q(d_ind+i_x,pi_ind+i_x_base+1) = 0.5;
+    end
+end
+
+grb_model.Q = sparse(Q);
+
+%% Bound constraints
+% Everything is positive in program so Gurobi default bounds (0,inf) is good
+
+%% Linear equality constraints
+% Initialize constraints
+A = [];
+b = [];
+
+% pi is a probability distribution for each state. Messages that are higher
+% than karma for given state are disallowed
 for i_u = 1 : ne_param.num_U
     i_u_base = (i_u - 1) * ne_param.num_K;
     for i_k = 1 : ne_param.num_K
         i_x = i_u_base + i_k;
-        i_adm_m = find(ne_param.M <= ne_param.K(i_k));
-        constraints = [constraints; pi(i_x,i_adm_m) >= 0];
-        constraints = [constraints; sum(pi(i_x,i_adm_m)) == 1];
-        constraints = [constraints; pi(i_x,i_adm_m(end)+1:end) == 0];
+        i_x_base = (i_x - 1) * ne_param.num_M;
+        k = ne_param.K(i_k);
+        if ne_param.U(i_u) == 0 || k == 0
+            A_temp = zeros(ne_param.num_M, num_vars);
+            A_temp(:,i_x_base+1:i_x_base+ne_param.num_M) = eye(ne_param.num_M);
+            b_temp = zeros(ne_param.num_M, 1);
+            b_temp(1) = 1;
+            A = [A; A_temp];
+            b = [b; b_temp];
+        else
+            i_adm_m = find(ne_param.M <= k);
+            num_adm_m = length(i_adm_m);
+            A_temp = zeros(1, num_vars);
+            A_temp(:,pi_ind+i_x_base+i_adm_m) = ones(1, num_adm_m);
+            b_temp = 1;
+            A = [A; A_temp];
+            b = [b; b_temp];
+
+            i_nadm_m = find(ne_param.M > k);
+            num_nadm_m = length(i_nadm_m);
+            if num_nadm_m > 0
+                A_temp = zeros(num_nadm_m, num_vars);
+                A_temp(:,pi_ind+i_x_base+i_nadm_m) = eye(num_nadm_m);
+                b_temp = zeros(num_nadm_m, 1);
+                A = [A; A_temp];
+                b = [b; b_temp];
+            end
+        end
     end
-end
-constraints = [constraints; d >= 0];
-constraints = [constraints; sum(d) == 1];
-constraints = [constraints; repmat(ne_param.K, ne_param.num_U, 1).' * d == ne_param.k_ave];
-for i_x = 1 : ne_param.num_X
-    start_i = (i_x - 1) * ne_param.num_M + 1;
-    end_i = i_x * ne_param.num_M;
-    constraints = [constraints; b(start_i:end_i) == d(i_x) * pi(i_x,:).'];
-end
-for i_x = 1 : ne_param.num_X
-    for i_xn = 1 : ne_param.num_X
-        constraints = [constraints; t(i_x,i_xn) == pi(i_x,:) * Psi{i_x,i_xn} * b];
-    end
-end
-constraints = [constraints; d == t.' * d];
-constraints = [constraints; a == pi.' * d];
-for i_x = 1 : ne_param.num_X
-    constraints = [constraints; q(i_x) == pi(i_x,:) * C{i_x} * a];
 end
 
-%% Objective
-objective = d.' * q;
+% d is a probability distribution with average karma k_ave
+A_temp = zeros(2, num_vars);
+A_temp(1,d_ind+1:d_ind+d_size) = ones(1, d_size);
+A_temp(2,d_ind+1:d_ind+d_size) = repmat(ne_param.K, ne_param.num_U, 1).';
+b_temp = [1; ne_param.k_ave];
+A = [A; A_temp];
+b = [b; b_temp];
+
+grb_model.A = sparse(A);
+grb_model.rhs = b;
+grb_model.sense = repmat('=', 1, size(A,1));
+
+%% Quadratic equality constraints
+% Initialize constraints
+quadcon_i = 1;
+
+% Constraints for b
+for i_x = 1 : ne_param.num_X
+    i_x_base = (i_x - 1) * ne_param.num_M;
+    for i_m = 1 : ne_param.num_M
+        Qc = zeros(num_vars);
+        Qc(d_ind+i_x,pi_ind+i_x_base+i_m) = 0.5;
+        Qc(pi_ind+i_x_base+i_m,d_ind+i_x) = 0.5;
+        q = zeros(num_vars, 1);
+        q(b_ind+i_x_base+i_m) = -1;
+        beta = 0;
+
+        grb_model.quadcon(quadcon_i).Qc = sparse(Qc);
+        grb_model.quadcon(quadcon_i).q = sparse(q);
+        grb_model.quadcon(quadcon_i).rhs = beta;
+        grb_model.quadcon(quadcon_i).sense = '=';
+
+        quadcon_i = quadcon_i + 1;
+    end
+end
+
+% Constraints for t
+for i_x = 1 : ne_param.num_X
+    i_x_base_pi = (i_x - 1) * ne_param.num_M;
+    i_x_base_t = (i_x - 1) * ne_param.num_X;
+    for i_xn = 1 : ne_param.num_X
+        Qc = zeros(num_vars);
+        Qc(pi_ind+i_x_base_pi+1:pi_ind+i_x_base_pi+ne_param.num_M,b_ind+1:b_ind+b_size) = 0.5 * Psi{i_x,i_xn};
+        Qc(b_ind+1:b_ind+b_size,pi_ind+i_x_base_pi+1:pi_ind+i_x_base_pi+ne_param.num_M) = 0.5 * Psi{i_x,i_xn}.';
+        q = zeros(num_vars, 1);
+        q(t_ind+i_x_base_t+i_xn) = -1;
+        beta = 0;
+
+        grb_model.quadcon(quadcon_i).Qc = sparse(Qc);
+        grb_model.quadcon(quadcon_i).q = sparse(q);
+        grb_model.quadcon(quadcon_i).rhs = beta;
+        grb_model.quadcon(quadcon_i).sense = '=';
+
+        quadcon_i = quadcon_i + 1;
+    end
+end
+
+% Constraints for d
+for i_xn = 1 : ne_param.num_X
+    Qc = zeros(num_vars);
+    for i_x = 1 : ne_param.num_X
+        i_x_base = (i_x - 1) * ne_param.num_X;
+        Qc(d_ind+i_x,t_ind+i_x_base+i_xn) = 0.5;
+        Qc(t_ind+i_x_base+i_xn,d_ind+i_x) = 0.5;
+    end
+    q = zeros(num_vars, 1);
+    q(d_ind+i_xn) = -1;
+    beta = 0;
+    
+    grb_model.quadcon(quadcon_i).Qc = sparse(Qc);
+    grb_model.quadcon(quadcon_i).q = sparse(q);
+    grb_model.quadcon(quadcon_i).rhs = beta;
+    grb_model.quadcon(quadcon_i).sense = '=';
+    
+    quadcon_i = quadcon_i + 1;
+end
 
 %% Initial guess
 % Try bid 1 if urgent policy
-pi_0 = zeros(ne_param.num_X, ne_param.num_M);
+pi_mat_0 = zeros(ne_param.num_X, ne_param.num_M);
 for i_u = 1 : ne_param.num_U
     i_u_base = (i_u - 1) * ne_param.num_K;
     for i_k = 1 : ne_param.num_K
         i_x = i_u_base + i_k;
         if ne_param.U(i_u) == 0 || ne_param.K(i_k) == 0
-            pi_0(i_x,1) = 1;
+            pi_mat_0(i_x,1) = 1;
         else
-            pi_0(i_x,2) = 1;
+            pi_mat_0(i_x,2) = 1;
         end
     end
 end
+pi_0 = reshape(pi_mat_0.', [], 1);
 
 % % Try stationary distribution all at k_max
 % d_0 = zeros(ne_param.num_X, 1);
@@ -255,62 +351,51 @@ b_0 = zeros(ne_param.num_X * ne_param.num_M, 1);
 for i_x = 1 : ne_param.num_X
     start_i = (i_x - 1) * ne_param.num_M + 1;
     end_i = i_x * ne_param.num_M;
-    b_0(start_i:end_i) = d_0(i_x) * pi_0(i_x,:).';
+    b_0(start_i:end_i) = d_0(i_x) * pi_mat_0(i_x,:).';
 end
 
 % Get initial guess of t
-t_0 = zeros(ne_param.num_X);
+t_mat_0 = zeros(ne_param.num_X);
 for i_x = 1 : ne_param.num_X
     for i_xn = 1 : ne_param.num_X
-        t_0(i_x,i_xn) = pi_0(i_x,:) * Psi{i_x,i_xn} * b_0;
+        t_mat_0(i_x,i_xn) = pi_mat_0(i_x,:) * Psi{i_x,i_xn} * b_0;
     end
 end
 
-% Update initial guesses d_0, b_0, t_0 until convergence
-while norm(d_0 - t_0.' * d_0, inf) > 1e-12
-    d_0 = t_0.' * d_0;
+% Update initial guesses d_0, b_0, t_mat_0 until convergence
+while norm(d_0 - t_mat_0.' * d_0, inf) > 1e-12
+    d_0 = t_mat_0.' * d_0;
     d_0 = d_0 / sum(d_0);
     
     for i_x = 1 : ne_param.num_X
         start_i = (i_x - 1) * ne_param.num_M + 1;
         end_i = i_x * ne_param.num_M;
-        b_0(start_i:end_i) = d_0(i_x) * pi_0(i_x,:).';
+        b_0(start_i:end_i) = d_0(i_x) * pi_mat_0(i_x,:).';
     end
     
     for i_x = 1 : ne_param.num_X
         for i_xn = 1 : ne_param.num_X
-            t_0(i_x,i_xn) = pi_0(i_x,:) * Psi{i_x,i_xn} * b_0;
+            t_mat_0(i_x,i_xn) = pi_mat_0(i_x,:) * Psi{i_x,i_xn} * b_0;
         end
     end
 end
+t_0 = reshape(t_mat_0.', [], 1);
 
-% Get initial guess of a
-a_0 = pi_0.' * d_0;
+% Assign to start vector
+grb_model.start = [pi_0; d_0; b_0; t_0];
 
-% Get initial guess of q
-q_0 = zeros(ne_param.num_X, 1);
-for i_x = 1 : ne_param.num_X
-    q_0(i_x) = pi_0(i_x,:) * C{i_x} * a_0;
-end
+%% Optimization parameters
+grb_params.NonConvex = 2;
+% grb_params.MIPFocus = 1;
 
-assign(pi, pi_0);
-assign(d, d_0);
-assign(b, b_0);
-for i_x = 1 : ne_param.num_X
-    assign(t(i_x,:), t_0(i_x,:));
-end
-assign(a, a_0);
-assign(q, q_0);
+%% Now hope for the best and solve
+result = gurobi(grb_model, grb_params);
 
-%% Solve
-options = sdpsettings('solver', 'ipopt', 'usex0', 1, 'verbose', 2);
-optimize(constraints, objective, options);
-
-%% Get solution
-pi_val = double(pi);
-d_val = double(d);
-b_val = double(b);
-t_val = double(t);
-a_val = double(a);
-q_val = double(q);
-obj_val = double(objective);
+%% Get optimization variable values
+pi = result.x(pi_ind+1:pi_ind+pi_size);
+pi_mat = reshape(pi, ne_param.num_M, []);
+d = result.x(d_ind+1:d_ind+d_size);
+b = result.x(b_ind+1:b_ind+b_size);
+t = result.x(t_ind+1:t_ind+t_size);
+t_mat = reshape(t, ne_param.num_X, []);
+obj = result;
