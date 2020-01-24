@@ -56,11 +56,11 @@ for i_alpha = 2 : num_alpha
     lgd_text{i_alpha} = ['\alpha = ', num2str(alpha_vec(i_alpha), '%.2f')];
 end
 plot(k_ave_vec, sw_e, '-o', 'LineWidth', 4);
-lgd_text{end} = 'SW';
+lgd_text{end} = 'SW policy';
 axis tight;
 axes = gca;
 axes.Title.FontName = 'ubuntu';
-axes.Title.String = 'Efficiency for different discount factors vs. social welfare';
+axes.Title.String = 'Efficiency of different policies';
 axes.Title.FontSize = 12;
 axes.XAxis.FontSize = 10;
 axes.YAxis.FontSize = 10;
@@ -74,3 +74,37 @@ lgd = legend(lgd_text);
 lgd.FontSize = 12;
 lgd.FontName = 'ubuntu';
 lgd.Location = 'bestoutside';
+
+%% Plot slices through k_ave
+figure(fg);
+fg = fg + 1;
+fig = gcf;
+fig.Position = [0, 0, screenwidth, screenheight];
+num_cols = round(sqrt(screenwidth / screenheight * num_k_ave));
+num_rows = ceil(num_k_ave / num_cols);
+for i_k_ave = 1 : num_k_ave
+    subplot(num_rows,num_cols,i_k_ave);
+    lgd_text = cell(2, 1);
+    plot(alpha_vec, ne_e(i_k_ave,:), '-x', 'LineWidth', 2);
+    lgd_text{1} = 'NE';
+    hold on;
+    plot(alpha_vec, repmat(sw_e(i_k_ave), 1, num_alpha), '-', 'LineWidth', 4);
+    lgd_text{2} = 'SW';
+    axis tight;
+    axes = gca;
+    axes.Title.FontName = 'ubuntu';
+    axes.Title.String = ['k_{ave} = ', num2str(k_ave_vec(i_k_ave), '%02d'), ' efficiency'];
+    axes.Title.FontSize = 12;
+    axes.XAxis.FontSize = 10;
+    axes.YAxis.FontSize = 10;
+    axes.XLabel.FontName = 'ubuntu';
+    axes.XLabel.String = 'Future discount factor';
+    axes.XLabel.FontSize = 12;
+    axes.YLabel.FontName = 'ubuntu';
+    axes.YLabel.String = 'Efficiency';
+    axes.YLabel.FontSize = 12;
+%     lgd = legend(lgd_text);
+%     lgd.FontSize = 12;
+%     lgd.FontName = 'ubuntu';
+%     lgd.Location = 'bestoutside';
+end

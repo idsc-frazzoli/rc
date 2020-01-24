@@ -21,7 +21,7 @@ ne_param.u_low = param.u_low;
 ne_param.u_high = param.u_high;
 
 % Vector of all karma values
-ne_param.K = (param.k_min : param.k_max).';
+ne_param.K = param.K;
 
 % Number of karma values
 ne_param.num_K = length(ne_param.K);
@@ -35,9 +35,11 @@ ne_param.k_max = param.k_max;
 % Average karma
 ne_param.k_ave = param.k_ave;
 
+% Message discretization interval
+ne_param.m_interval = param.m_interval;
+
 % Vector of all message values
-ne_param.m_interval = 1.0;
-ne_param.M = 0 : ne_param.m_interval : ne_param.k_max;
+ne_param.M = param.M;
 
 % Number of message values
 ne_param.num_M = length(ne_param.M);
@@ -52,8 +54,10 @@ ne_param.O = [0; 1];
 ne_param.num_O = length(ne_param.O);
 
 % Future discount factor(s)
-ne_param.alpha = [0 : 0.05 : 0.95, 1 - eps];
-% ne_param.alpha = 1 - eps;
+ne_param.alpha = param.alpha;
+
+% Number of future discount factor(s)
+ne_param.num_alpha = param.num_alpha;
 
 % Tolerance for convergence of stationary distribution
 ne_param.d_tol = 1e-3;

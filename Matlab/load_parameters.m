@@ -26,11 +26,11 @@ param.u_high = max(param.U);
 % Number of agents in one intersection
 param.I_size = 2;
 
-% Number of agents that pass
-param.num_p = 1;
+% Number of agents that win
+param.num_win = 1;
 
-% Number of agents that get delayed
-param.num_d = param.I_size - param.num_p;
+% Number of agents that lose
+param.num_lose = param.I_size - param.num_win;
 
 % Number of days. Urgency of agents stays contant during day
 param.num_days = 10000;
@@ -66,9 +66,9 @@ param.t_warm_up = param.warm_up_days * param.num_inter_per_day;
 % Total expected number of interactions per agent
 param.num_inter_per_agent = param.tot_num_inter / (param.N / param.I_size);
 
-% Centralized cost policies - optimize based on accumulated cost or
-% normalized accumulated cost
-param.centralized_cost_norm = true;
+% Flag to normalize all costs based on how many times agents have been
+% picked to interact
+param.normalize_cost = true;
 
 % Standardization method for accumulated cost
 % 0 => 0-mean 1-variance standardization
@@ -81,7 +81,7 @@ param.standardization_method = 2;
 param.lim_mem_steps = 2.^(0 : ceil(log2(param.num_inter_per_agent)));
 
 % Limited memory number of steps
-param.lim_mem_num_steps = length(param.lim_mem_steps);
+param.num_lim_mem_steps = length(param.lim_mem_steps);
 
 % Minimum karma level
 param.k_min = 0;
@@ -89,9 +89,24 @@ param.k_min = 0;
 % Maximum karma level
 param.k_max = 12;
 
-% Average karma laevel
+% Vector of all karma values
+param.K = (param.k_min : param.k_max).';
+
+% Average karma level(s)
 % param.k_ave = 0 : 12;
 param.k_ave = 6;
 
-end
+% Message discretization interval
+param.m_interval = 1.0;
 
+% Vector of all message values
+param.M = param.k_min : param.m_interval : param.k_max;
+
+% Future discount factor(s)
+param.alpha = [0 : 0.05 : 0.95, 1 - eps];
+% param.alpha = 1 - eps;
+
+% Number of future discount factor(s)
+param.num_alpha = length(param.alpha);
+
+end

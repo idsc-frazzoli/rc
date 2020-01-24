@@ -121,7 +121,7 @@ psi_down_u_k_m_kj_mj_up_un_kn = permute(reshape(outer(reshape(ne_param.mu_down_u
 clearvars kappa_down_k_m_kj_mj_up_kn;
 
 %% Loop over alphas
-for i_alpha = 1 : length(ne_param.alpha)
+for i_alpha = 1 : ne_param.num_alpha
     alpha = ne_param.alpha(i_alpha);
     fprintf('%%%%ALPHA = %f%%%%\n\n', alpha);
 

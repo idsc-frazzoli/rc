@@ -2,48 +2,48 @@ classdef func
     % Functions used in scripts
     methods(Static)
         % Returns all maximizers (if there are multiple)
-        function [max_v, max_i] = multi_maxes(input)
-            [max_v, max_i] = max(input);
-            input(max_i) = -realmax;
-            [next_max_v, next_max_i] = max(input);
-            while next_max_v == max_v
-                max_i = [max_i, next_max_i];
-                input(next_max_i) = -realmax;
-                [next_max_v, next_max_i] = max(input);
+        function [v_max, i_max] = multi_maxes(input)
+            [v_max, i_max] = max(input);
+            input(i_max) = -realmax;
+            [next_v_max, next_i_max] = max(input);
+            while next_v_max == v_max
+                i_max = [i_max, next_i_max];
+                input(next_i_max) = -realmax;
+                [next_v_max, next_i_max] = max(input);
             end
         end
 
         % Checks if there are multiple maximizers and returns one uniformly at
         % random
-        function [max_v, max_i] = multi_max(input)
+        function [v_max, i_max] = multi_max(input)
             % Get maximizers
-            [max_v, max_i] = func.multi_maxes(input);
+            [v_max, i_max] = func.multi_maxes(input);
             % Choose one uniformly at random if there are multiple
-            num_max = length(max_i);
+            num_max = length(i_max);
             if num_max > 1
-                max_i = max_i(ceil(rand(1) * num_max));
+                i_max = datasample(i_max, 1);
             end
         end
 
-        % Gets delayed agents given index of passing agent
-        function d = get_d(I, p_i)    
-            d = I;
-            d(p_i) = [];
+        % Gets agents that lose given indeces of agents that win
+        function lose = get_lose(I, win_i)
+            lose = I;
+            lose(win_i) = [];
         end
 
-        % Gets karma paid by passing agent to delayed agents
-        function [k_p, k_d] = get_karma_payments(m_p, d, curr_k, param)
-            % Distribute karma evenly over delayed agents. If an agent will max
+        % Gets karma paid by winning agent to losing agents
+        function [k_win, k_lose] = get_karma_payments(m_win, lose, k, param)
+            % Distribute karma evenly over losing agents. If an agent will max
             % out their karma, tough luck!
-            k_p_per_d = floor(m_p / param.num_d);
-            k_d = zeros(1, param.num_d);
-            for i = 1 : param.num_d
-                k_d(i) = min([k_p_per_d, param.k_max - curr_k(d(i))]);
+            k_win_per_lose = floor(m_win / param.num_lose);
+            k_lose = zeros(1, param.num_win);
+            for i_win = 1 : param.num_win
+                k_lose(i_win) = min([k_win_per_lose, param.k_max - k(lose(i_win))]);
             end
             % Sum back the total karma distributed, which takes into account
-            % delayed agents for which karma will saturate. This is the final
-            % total paid by passing agent
-            k_p = sum(k_d);
+            % losing agents for which karma will saturate. This is the final
+            % total paid by wining agent
+            k_win = sum(k_lose);
         end
 
         % Gets accumulated costs counting in warm-up period reset
@@ -70,13 +70,11 @@ classdef func
         % scaled between 0 and 1
         function output = order_rank_norm(input)
             output = zeros(size(input));
-            min_v = 1;
-            max_v = size(output, 2);
+            v_min = 1;
+            v_max = size(output, 2);
             for i = 1 : size(input, 1)
                 output(i,:) = tiedrank(input(i,:));
-%                 min_v = nanmin(output(i,:));
-%                 max_v = nanmax(output(i,:));
-                output(i,:) = (output(i,:) - min_v) / (max_v - min_v);
+                output(i,:) = (output(i,:) - v_min) / (v_max - v_min);
             end
             output(isnan(output)) = 0;
         end
