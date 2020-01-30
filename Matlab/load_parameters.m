@@ -92,9 +92,15 @@ param.k_max = 12;
 % Vector of all karma values
 param.K = (param.k_min : param.k_max).';
 
+% Number of karma values
+param.num_K = length(param.K);
+
 % Average karma level(s)
 % param.k_ave = 0 : 12;
 param.k_ave = 6;
+
+% Total karma in the system
+param.k_tot = param.k_ave * param.N;
 
 % Message discretization interval
 param.m_interval = 1.0;
@@ -108,5 +114,28 @@ param.alpha = [0 : 0.05 : 0.95, 1 - eps];
 
 % Number of future discount factor(s)
 param.num_alpha = length(param.alpha);
+
+% Karma initialization method
+% 0 => Initialize all policies with all agents having k_ave
+% 1 => Initialize all policies with the same initial karma, as per uniform
+% distribution (modified to have average karma k_ave)
+% 2 => Initialize policies with their respective predicted stationary
+% distribution
+param.karma_initialization = 2;
+
+% Save results
+param.save = true;
+
+% Plot flags
+% Global plot flag
+param.plot = true;
+% Flag to plot accumulated costs
+param.plot_a = true;
+% Flag to plot fairness vs. time
+param.plot_W2 = true;
+% Flag to plot standardized accumulated costs
+param.plot_a_std = false;
+% Flag to plot accumulated costs autocorrelation
+param.plot_a_acorr = true;
 
 end

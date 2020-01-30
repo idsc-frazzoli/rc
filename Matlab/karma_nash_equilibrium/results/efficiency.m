@@ -20,11 +20,17 @@ num_k_ave = length(k_ave_vec);
 num_alpha = length(alpha_vec);
 
 ne_dir_str = ['karma_nash_equilibrium/results/k_max_', num2str(k_max, '%2d'), '_k_ave_'];
-sw_dir = ['karma_nash_equilibrium/results/sw_k_max_', num2str(k_max, '%2d')];
+
+sw_computed = true;
+if sw_computed
+    sw_dir = ['karma_nash_equilibrium/results/sw_k_max_', num2str(k_max, '%2d')];
+end
 
 %% Efficiency arrays
 ne_e = zeros(num_k_ave, num_alpha);
-sw_e = zeros(num_k_ave, 1);
+if sw_computed
+    sw_e = zeros(num_k_ave, 1);
+end
 
 for i_k_ave = 1 : num_k_ave
     k_ave = k_ave_vec(i_k_ave);
@@ -37,9 +43,11 @@ for i_k_ave = 1 : num_k_ave
         ne_e(i_k_ave,i_alpha) = dot(reshape(ne_d_up_u_k, [], 1), reshape(ne_q_down_u_k, [], 1));
     end
     % SW efficiencies
-    sw_file = [sw_dir, '/k_ave_', num2str(k_ave, '%02d'), '.mat'];
-    load(sw_file, 'sw_d_up_u_k', 'sw_q_down_u_k');
-    sw_e(i_k_ave) = dot(reshape(sw_d_up_u_k, [], 1), reshape(sw_q_down_u_k, [], 1));
+    if sw_computed
+        sw_file = [sw_dir, '/k_ave_', num2str(k_ave, '%02d'), '.mat'];
+        load(sw_file, 'sw_d_up_u_k', 'sw_q_down_u_k');
+        sw_e(i_k_ave) = dot(reshape(sw_d_up_u_k, [], 1), reshape(sw_q_down_u_k, [], 1));
+    end
 end
 
 %% Plot
@@ -47,7 +55,11 @@ figure(fg);
 fg = fg + 1;
 fig = gcf;
 fig.Position = [0, 0, screenwidth, screenheight];
-lgd_text = cell(num_alpha + 1, 1);
+if sw_computed
+    lgd_text = cell(num_alpha + 1, 1);
+else
+    lgd_text = cell(num_alpha, 1);
+end
 plot(k_ave_vec, ne_e(:,1), '-x', 'LineWidth', 2);
 lgd_text{1} = ['\alpha = ', num2str(alpha_vec(1), '%.2f')];
 hold on;
@@ -55,8 +67,10 @@ for i_alpha = 2 : num_alpha
     plot(k_ave_vec, ne_e(:,i_alpha), '-x', 'LineWidth', 2);
     lgd_text{i_alpha} = ['\alpha = ', num2str(alpha_vec(i_alpha), '%.2f')];
 end
-plot(k_ave_vec, sw_e, '-o', 'LineWidth', 4);
-lgd_text{end} = 'SW policy';
+if sw_computed
+    plot(k_ave_vec, sw_e, '-o', 'LineWidth', 4);
+    lgd_text{end} = 'SW policy';
+end
 axis tight;
 axes = gca;
 axes.Title.FontName = 'ubuntu';
@@ -88,8 +102,10 @@ for i_k_ave = 1 : num_k_ave
     plot(alpha_vec, ne_e(i_k_ave,:), '-x', 'LineWidth', 2);
     lgd_text{1} = 'NE';
     hold on;
-    plot(alpha_vec, repmat(sw_e(i_k_ave), 1, num_alpha), '-', 'LineWidth', 4);
-    lgd_text{2} = 'SW';
+    if sw_computed
+        plot(alpha_vec, repmat(sw_e(i_k_ave), 1, num_alpha), '-', 'LineWidth', 4);
+        lgd_text{2} = 'SW';
+    end
     axis tight;
     axes = gca;
     axes.Title.FontName = 'ubuntu';

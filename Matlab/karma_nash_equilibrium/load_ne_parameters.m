@@ -24,7 +24,7 @@ ne_param.u_high = param.u_high;
 ne_param.K = param.K;
 
 % Number of karma values
-ne_param.num_K = length(ne_param.K);
+ne_param.num_K = param.num_K;
 
 % Minimum karma
 ne_param.k_min = param.k_min;
