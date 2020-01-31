@@ -33,7 +33,7 @@ param.num_win = 1;
 param.num_lose = param.I_size - param.num_win;
 
 % Number of days. Urgency of agents stays contant during day
-param.num_days = 10000;
+param.num_days = 100000;
 
 % Number of interactions per day
 param.num_inter_per_day = 1;
@@ -110,6 +110,7 @@ param.M = param.k_min : param.m_interval : param.k_max;
 
 % Future discount factor(s)
 param.alpha = [0 : 0.05 : 0.95, 1 - eps];
+% param.alpha = 0 : 0.05 : 0.95;
 % param.alpha = 1 - eps;
 
 % Number of future discount factor(s)
@@ -124,18 +125,18 @@ param.num_alpha = length(param.alpha);
 param.karma_initialization = 2;
 
 % Save results
-param.save = true;
+param.save = false;
 
 % Plot flags
 % Global plot flag
 param.plot = true;
 % Flag to plot accumulated costs
-param.plot_a = true;
+param.plot_a = false;
 % Flag to plot fairness vs. time
-param.plot_W2 = true;
+param.plot_W2 = false;
 % Flag to plot standardized accumulated costs
 param.plot_a_std = false;
 % Flag to plot accumulated costs autocorrelation
-param.plot_a_acorr = true;
+param.plot_a_acorr = false;
 
 end

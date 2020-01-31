@@ -7,10 +7,10 @@ rng(0);
 
 %% Code control bits
 % Autocorrelation takes long time to compute
-control.compute_a_acorr = true;
+control.compute_a_acorr = false;
 
 % Flag to simulate centralized limited memory policies
-control.lim_mem_policies = true;
+control.lim_mem_policies = false;
 
 % Flag to simulate heuristic karma policies
 control.karma_heuristic_policies = true;
@@ -44,13 +44,9 @@ c_1_2 = zeros(param.tot_num_inter, param.N);
 
 % Centralized policies with limited memory
 if control.lim_mem_policies
-    c_lim_mem = cell(param.num_lim_mem_steps, 1);
-    c_in_mem  = cell(param.num_lim_mem_steps, 1);
     c_lim_mem_u = cell(param.num_lim_mem_steps, 1);
     c_in_mem_u  = cell(param.num_lim_mem_steps, 1);
     for i_lim_mem = 1 : param.num_lim_mem_steps
-        c_lim_mem{i_lim_mem} = zeros(param.tot_num_inter, param.N);
-        c_in_mem{i_lim_mem} = zeros(param.lim_mem_steps(i_lim_mem), param.N);
         c_lim_mem_u{i_lim_mem} = zeros(param.tot_num_inter, param.N);
         c_in_mem_u{i_lim_mem} = zeros(param.lim_mem_steps(i_lim_mem), param.N);
     end
@@ -122,6 +118,8 @@ if control.karma_ne_policies
             % algorithm
             load([file_str, num2str(param.alpha(i_alpha), '%.2f'), '.mat'], 'ne_d_up_u_k');
             k_ne{i_alpha}(1,:) = func.get_init_k(sum(ne_d_up_u_k), param);
+%             load([file_str, num2str(param.alpha(i_alpha), '%.2f'), '.mat'], 'D_up_u_k');
+%             k_ne{i_alpha}(1,:) = func.get_init_k(sum(D_up_u_k), param);
         else
             k_ne{i_alpha}(1,:) = init_k;
         end
@@ -150,6 +148,8 @@ if control.karma_ne_policies
     for i_alpha = 1 : param.num_alpha
         load([file_str, num2str(param.alpha(i_alpha), '%.2f'), '.mat'], 'ne_pi_down_u_k_up_m');
         pi_ne{i_alpha} = ne_pi_down_u_k_up_m;
+%         load([file_str, num2str(param.alpha(i_alpha), '%.2f'), '.mat'], 'pi_down_u_k_up_m');
+%         pi_ne{i_alpha} = pi_down_u_k_up_m;
         % Eliminate the possibility of very unlikely messages, which have
         % non-zero probability due to algorithm numerics
         pi_ne{i_alpha}(pi_ne{i_alpha} < 1e-3) = 0;
@@ -285,26 +285,6 @@ for day = 1 : param.num_days
         %% Centralized policies with limited memroy
         if control.lim_mem_policies
             for i_lim_mem = 1 : param.num_lim_mem_steps
-                %% Centralized cost with limited memory
-                % Minimize accumulated cost up to limited number of interactions per
-                % agent, coin-flip if tie
-                % Agent with maximum accumulated cost in memory (counting current
-                % urgency) passes
-                a_u = sum(c_in_mem{i_lim_mem}(:,I)) + u;
-                if param.normalize_cost
-                    a_u = a_u ./ min([num_inter(t,I); param.lim_mem_steps(i_lim_mem) * ones(1, param.I_size)]);
-                end
-                [~, i_win] = max(a_u);
-                win = I(i_win);
-
-                % Agents incur cost equal to their urgency, except passing agent
-                c_lim_mem{i_lim_mem}(t,I) = u;
-                c_lim_mem{i_lim_mem}(t,win) = 0;
-
-                % Update limited memory with most recent cost
-                c_in_mem{i_lim_mem}(1:end-1,I) = c_in_mem{i_lim_mem}(2:end,I);
-                c_in_mem{i_lim_mem}(end,I) = c_lim_mem{i_lim_mem}(t,I);
-                
                 %% Centralized urgency then cost with limited memory
                 % Agent(s) with max urgency, which are candidates for passing, were
                 % already found in first step of centralized policy 1
@@ -509,37 +489,50 @@ end
 fprintf('Computing performance measures\n');
 
 % Accumulated costs per agent at each time step
+fprintf('Computing accumulated costs\n');
 a_rand = func.get_accumulated_cost(c_rand, param);
+clear c_rand;
 a_1 = func.get_accumulated_cost(c_1, param);
+clear c_1;
 a_2 = func.get_accumulated_cost(c_2, param);
+clear c_2;
 a_1_2 = func.get_accumulated_cost(c_1_2, param);
+clear c_1_2;
 if control.lim_mem_policies
-    a_lim_mem = cell(param.num_lim_mem_steps, 1);
     a_lim_mem_u = cell(param.num_lim_mem_steps, 1);
     for i_lim_mem = 1 : param.num_lim_mem_steps
-        a_lim_mem{i_lim_mem} = func.get_accumulated_cost(c_lim_mem{i_lim_mem}, param);
         a_lim_mem_u{i_lim_mem} = func.get_accumulated_cost(c_lim_mem_u{i_lim_mem}, param);
+        c_lim_mem_u{i_lim_mem} = [];
     end
+    clear c_lim_mem_u;
 end
 if control.karma_heuristic_policies
     a_bid_1 = func.get_accumulated_cost(c_bid_1, param);
+    clear c_bid_1;
     a_bid_1_u = func.get_accumulated_cost(c_bid_1_u, param);
+    clear c_bid_1_u;
     a_bid_all = func.get_accumulated_cost(c_bid_all, param);
+    clear c_bid_all;
     a_bid_all_u = func.get_accumulated_cost(c_bid_all_u, param);
+    clear c_bid_all_u;
 end
 if control.karma_ne_policies
     a_ne = cell(param.num_alpha, 1);
     for i_alpha = 1 : param.num_alpha
         a_ne{i_alpha} = func.get_accumulated_cost(c_ne{i_alpha}, param);
+        c_ne{i_alpha} = [];
     end
+    clear c_ne;
 end
 if control.karma_sw_policy
     a_sw = func.get_accumulated_cost(c_sw, param);
+    clear c_sw;
 end
 
 % If number of interactions per agent is fixed, true time is interprated as
 % the time after which all agents have participated in an interaction
 if param.same_num_inter
+    fprintf('Collapsing time to instances where all agents have participated in an interaction\n');
     actual_t = param.num_inter_in_N : param.num_inter_in_N : param.tot_num_inter;
     num_inter = num_inter(actual_t,:);
     a_rand = a_rand(actual_t,:);
@@ -548,7 +541,6 @@ if param.same_num_inter
     a_1_2 = a_1_2(actual_t,:);
     if control.lim_mem_policies
         for i_lim_mem = 1 : param.num_lim_mem_steps
-            a_lim_mem{i_lim_mem} = a_lim_mem{i_lim_mem}(actual_t,:);
             a_lim_mem_u{i_lim_mem} = a_lim_mem_u{i_lim_mem}(actual_t,:);
         end
     end
@@ -572,6 +564,7 @@ end
 % respective number of interactions. Only compute if normalization flag is
 % on
 if param.normalize_cost
+    fprintf('Normalizing accumulated costs\n');
     % Zeros in number of interactions are replaces by 1 to avoid division by 0
     num_inter_div = num_inter;
     num_inter_div(num_inter_div == 0) = 1;
@@ -581,7 +574,6 @@ if param.normalize_cost
     a_1_2 = a_1_2 ./ num_inter_div;
     if control.lim_mem_policies
         for i_lim_mem = 1 : param.num_lim_mem_steps
-            a_lim_mem{i_lim_mem} = a_lim_mem{i_lim_mem} ./ num_inter_div;
             a_lim_mem_u{i_lim_mem} = a_lim_mem_u{i_lim_mem} ./ num_inter_div;
         end
     end
@@ -602,15 +594,14 @@ if param.normalize_cost
 end
 
 % Inefficiency vs. time
+fprintf('Computing efficiencies\n');
 W1_rand = mean(a_rand, 2);
 W1_1 = mean(a_1, 2);
 W1_2 = mean(a_2, 2);
 W1_1_2 = mean(a_1_2, 2);
 if control.lim_mem_policies
-    W1_lim_mem = cell(param.num_lim_mem_steps, 1);
     W1_lim_mem_u = cell(param.num_lim_mem_steps, 1);
     for i_lim_mem = 1 : param.num_lim_mem_steps
-        W1_lim_mem{i_lim_mem} = mean(a_lim_mem{i_lim_mem}, 2);
         W1_lim_mem_u{i_lim_mem} = mean(a_lim_mem_u{i_lim_mem}, 2);
     end
 end
@@ -631,15 +622,14 @@ if control.karma_sw_policy
 end
 
 % Unfairness vs. time
+fprintf('Computing fairness\n');
 W2_rand = var(a_rand, [], 2);
 W2_1 = var(a_1, [], 2);
 W2_2 = var(a_2, [], 2);
 W2_1_2 = var(a_1_2, [], 2);
 if control.lim_mem_policies
-    W2_lim_mem = cell(param.num_lim_mem_steps, 1);
     W2_lim_mem_u = cell(param.num_lim_mem_steps, 1);
     for i_lim_mem = 1 : param.num_lim_mem_steps
-        W2_lim_mem{i_lim_mem} = var(a_lim_mem{i_lim_mem}, [], 2);
         W2_lim_mem_u{i_lim_mem} = var(a_lim_mem_u{i_lim_mem}, [], 2);
     end
 end
@@ -661,96 +651,93 @@ end
 
 % Standardized accumulated costs. Standardization method is a parameter.
 % Required for autocorrelation and allows to investigate 'mixing' ability
-% of policies
-switch param.standardization_method
-    % 0-mean 1-variance standardization
-    case 0
-        a_rand_std = func.standardize_mean_var(a_rand, W1_rand, W2_rand);
-        a_1_std = func.standardize_mean_var(a_1, W1_1, W2_1);
-        a_2_std = func.standardize_mean_var(a_2, W1_2, W2_2);
-        a_1_2_std = func.standardize_mean_var(a_1_2, W1_1_2, W2_1_2);
-        if control.lim_mem_policies
-            a_lim_mem_std = cell(param.num_lim_mem_steps, 1);
-            a_lim_mem_u_std = cell(param.num_lim_mem_steps, 1);
-            for i_lim_mem = 1 : param.num_lim_mem_steps
-                a_lim_mem_std{i_lim_mem} = func.standardize_mean_var(a_lim_mem{i_lim_mem}, W1_lim_mem{i_lim_mem}, W2_lim_mem{i_lim_mem});
-                a_lim_mem_u_std{i_lim_mem} = func.standardize_mean_var(a_lim_mem_u{i_lim_mem}, W1_lim_mem_u{i_lim_mem}, W2_lim_mem_u{i_lim_mem});
+% of policies. Only compute if autocorrelation flag is on
+if control.compute_a_acorr
+    fprintf('Standardizing accumulated costs\n');
+    switch param.standardization_method
+        % 0-mean 1-variance standardization
+        case 0
+            a_rand_std = func.standardize_mean_var(a_rand, W1_rand, W2_rand);
+            a_1_std = func.standardize_mean_var(a_1, W1_1, W2_1);
+            a_2_std = func.standardize_mean_var(a_2, W1_2, W2_2);
+            a_1_2_std = func.standardize_mean_var(a_1_2, W1_1_2, W2_1_2);
+            if control.lim_mem_policies
+                a_lim_mem_u_std = cell(param.num_lim_mem_steps, 1);
+                for i_lim_mem = 1 : param.num_lim_mem_steps
+                    a_lim_mem_u_std{i_lim_mem} = func.standardize_mean_var(a_lim_mem_u{i_lim_mem}, W1_lim_mem_u{i_lim_mem}, W2_lim_mem_u{i_lim_mem});
+                end
             end
-        end
-        if control.karma_heuristic_policies
-            a_bid_1_std = func.standardize_mean_var(a_bid_1, W1_bid_1, W2_bid_1);
-            a_bid_1_u_std = func.standardize_mean_var(a_bid_1_u, W1_bid_1_u, W2_bid_1_u);
-            a_bid_all_std = func.standardize_mean_var(a_bid_all, W1_bid_all, W2_bid_all);
-            a_bid_all_u_std = func.standardize_mean_var(a_bid_all, W1_bid_all_u, W2_bid_all_u);
-        end
-        if control.karma_ne_policies
-            a_ne_std = cell(param.num_alpha, 1);
-            for i_alpha = 1 : param.num_alpha
-                a_ne_std{i_alpha} = func.standardize_mean_var(a_ne{i_alpha}, W1_ne{i_alpha}, W2_ne{i_alpha});
+            if control.karma_heuristic_policies
+                a_bid_1_std = func.standardize_mean_var(a_bid_1, W1_bid_1, W2_bid_1);
+                a_bid_1_u_std = func.standardize_mean_var(a_bid_1_u, W1_bid_1_u, W2_bid_1_u);
+                a_bid_all_std = func.standardize_mean_var(a_bid_all, W1_bid_all, W2_bid_all);
+                a_bid_all_u_std = func.standardize_mean_var(a_bid_all, W1_bid_all_u, W2_bid_all_u);
             end
-        end
-        if control.karma_sw_policy
-            a_sw_std = func.standardize_mean_var(a_sw, W1_sw, W2_sw);
-        end
-    % Order ranking standardization
-    case 1
-        a_rand_std = func.order_rank(a_rand);
-        a_1_std = func.order_rank(a_1);
-        a_2_std = func.order_rank(a_2);
-        a_1_2_std = func.order_rank(a_1_2);
-        if control.lim_mem_policies
-            a_lim_mem_std = cell(param.num_lim_mem_steps, 1);
-            a_lim_mem_u_std = cell(param.num_lim_mem_steps, 1);
-            for i_lim_mem = 1 : param.num_lim_mem_steps
-                a_lim_mem_std{i_lim_mem} = func.order_rank(a_lim_mem{i_lim_mem});
-                a_lim_mem_u_std{i_lim_mem} = func.order_rank(a_lim_mem_u{i_lim_mem});
+            if control.karma_ne_policies
+                a_ne_std = cell(param.num_alpha, 1);
+                for i_alpha = 1 : param.num_alpha
+                    a_ne_std{i_alpha} = func.standardize_mean_var(a_ne{i_alpha}, W1_ne{i_alpha}, W2_ne{i_alpha});
+                end
             end
-        end
-        if control.karma_heuristic_policies
-            a_bid_1_std = func.order_rank(a_bid_1);
-            a_bid_1_u_std = func.order_rank(a_bid_1_u);
-            a_bid_all_std = func.order_rank(a_bid_all);
-            a_bid_all_u_std = func.order_rank(a_bid_all);
-        end
-        if control.karma_ne_policies
-            a_ne_std = cell(param.num_alpha, 1);
-            for i_alpha = 1 : param.num_alpha
-                a_ne_std{i_alpha} = func.order_rank(a_ne{i_alpha});
+            if control.karma_sw_policy
+                a_sw_std = func.standardize_mean_var(a_sw, W1_sw, W2_sw);
             end
-        end
-        if control.karma_sw_policy
-            a_sw_std = func.order_rank(a_sw);
-        end
-    % normalized order ranking standardization, i.e. order ranking scaled
-    % between 0-1
-    case 2
-        a_rand_std = func.order_rank_norm(a_rand);
-        a_1_std = func.order_rank_norm(a_1);
-        a_2_std = func.order_rank_norm(a_2);
-        a_1_2_std = func.order_rank_norm(a_1_2);
-        if control.lim_mem_policies
-            a_lim_mem_std = cell(param.num_lim_mem_steps, 1);
-            a_lim_mem_u_std = cell(param.num_lim_mem_steps, 1);
-            for i_lim_mem = 1 : param.num_lim_mem_steps
-                a_lim_mem_std{i_lim_mem} = func.order_rank_norm(a_lim_mem{i_lim_mem});
-                a_lim_mem_u_std{i_lim_mem} = func.order_rank_norm(a_lim_mem_u{i_lim_mem});
+        % Order ranking standardization
+        case 1
+            a_rand_std = func.order_rank(a_rand);
+            a_1_std = func.order_rank(a_1);
+            a_2_std = func.order_rank(a_2);
+            a_1_2_std = func.order_rank(a_1_2);
+            if control.lim_mem_policies
+                a_lim_mem_u_std = cell(param.num_lim_mem_steps, 1);
+                for i_lim_mem = 1 : param.num_lim_mem_steps
+                    a_lim_mem_u_std{i_lim_mem} = func.order_rank(a_lim_mem_u{i_lim_mem});
+                end
             end
-        end
-        if control.karma_heuristic_policies
-            a_bid_1_std = func.order_rank_norm(a_bid_1);
-            a_bid_1_u_std = func.order_rank_norm(a_bid_1_u);
-            a_bid_all_std = func.order_rank_norm(a_bid_all);
-            a_bid_all_u_std = func.order_rank_norm(a_bid_all);
-        end
-        if control.karma_ne_policies
-            a_ne_std = cell(param.num_alpha, 1);
-            for i_alpha = 1 : param.num_alpha
-                a_ne_std{i_alpha} = func.order_rank_norm(a_ne{i_alpha});
+            if control.karma_heuristic_policies
+                a_bid_1_std = func.order_rank(a_bid_1);
+                a_bid_1_u_std = func.order_rank(a_bid_1_u);
+                a_bid_all_std = func.order_rank(a_bid_all);
+                a_bid_all_u_std = func.order_rank(a_bid_all);
             end
-        end
-        if control.karma_sw_policy
-            a_sw_std = func.order_rank_norm(a_sw);
-        end
+            if control.karma_ne_policies
+                a_ne_std = cell(param.num_alpha, 1);
+                for i_alpha = 1 : param.num_alpha
+                    a_ne_std{i_alpha} = func.order_rank(a_ne{i_alpha});
+                end
+            end
+            if control.karma_sw_policy
+                a_sw_std = func.order_rank(a_sw);
+            end
+        % normalized order ranking standardization, i.e. order ranking scaled
+        % between 0-1
+        case 2
+            a_rand_std = func.order_rank_norm(a_rand);
+            a_1_std = func.order_rank_norm(a_1);
+            a_2_std = func.order_rank_norm(a_2);
+            a_1_2_std = func.order_rank_norm(a_1_2);
+            if control.lim_mem_policies
+                a_lim_mem_u_std = cell(param.num_lim_mem_steps, 1);
+                for i_lim_mem = 1 : param.num_lim_mem_steps
+                    a_lim_mem_u_std{i_lim_mem} = func.order_rank_norm(a_lim_mem_u{i_lim_mem});
+                end
+            end
+            if control.karma_heuristic_policies
+                a_bid_1_std = func.order_rank_norm(a_bid_1);
+                a_bid_1_u_std = func.order_rank_norm(a_bid_1_u);
+                a_bid_all_std = func.order_rank_norm(a_bid_all);
+                a_bid_all_u_std = func.order_rank_norm(a_bid_all);
+            end
+            if control.karma_ne_policies
+                a_ne_std = cell(param.num_alpha, 1);
+                for i_alpha = 1 : param.num_alpha
+                    a_ne_std{i_alpha} = func.order_rank_norm(a_ne{i_alpha});
+                end
+            end
+            if control.karma_sw_policy
+                a_sw_std = func.order_rank_norm(a_sw);
+            end
+    end
 end
 
 %% Autocorrelation of accumulated cost
@@ -765,11 +752,8 @@ if control.compute_a_acorr
     fprintf('Computing autocorrelation for centralized-urgency-then-cost\n');
     a_1_2_acorr = func.autocorrelation(a_1_2_std);
     if control.lim_mem_policies
-        a_lim_mem_acorr = cell(param.num_lim_mem_steps, 1);
         a_lim_mem_u_acorr = cell(param.num_lim_mem_steps, 1);
         for i_lim_mem = 1 : param.num_lim_mem_steps
-            fprintf('Computing autocorrelation for centralized-cost-mem-%d\n', param.lim_mem_steps(i_lim_mem));
-            a_lim_mem_acorr{i_lim_mem} = func.autocorrelation(a_lim_mem_std{i_lim_mem});
             fprintf('Computing autocorrelation for centralized-urgency-then-cost-mem-%d\n', param.lim_mem_steps(i_lim_mem));
             a_lim_mem_u_acorr{i_lim_mem} = func.autocorrelation(a_lim_mem_u_std{i_lim_mem});
         end
@@ -800,7 +784,11 @@ end
 %% Store results
 if param.save
     fprintf('Saving workspace\n');
-    save(['results/k_ave_', num2str(param.k_ave, '%02d'), '.mat']);
+    if control.karma_heuristic_policies || control.karma_ne_policies || control.karma_sw_policy
+        save(['results/k_max_', num2str(param.k_max, '%02d'), '_k_ave_', num2str(param.k_ave, '%02d'), '.mat']);
+    else
+        save('results/centralized_policies.mat');
+    end
 end
 
 %% Plots

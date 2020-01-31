@@ -38,7 +38,7 @@ classdef func
             else
                 d_k_uniform = 1 / param.num_K * ones(param.num_K, 1);
                 K_small = param.k_min : param.k_ave - 1;
-                K_big = param.k_ave + 1 : ne_param.k_max;
+                K_big = param.k_ave + 1 : param.k_max;
                 num_K_small = length(K_small);
                 num_K_big = length(K_big);
                 delta_constant = sum(K_small) / num_K_small - sum(K_big) / num_K_big;
@@ -62,7 +62,7 @@ classdef func
             while missing_agents ~= 0 || missing_karma ~= 0
                 if missing_agents ~= 0
                     % Need to adjust agent count (and possibly karma)
-                    karma_to_adjust = floor(missing_karma / missing_agents);
+                    karma_to_adjust = min([floor(missing_karma / missing_agents), param.k_max]);
                     if karma_to_adjust >= 0
                         % Need to either add both agents and karma or
                         % remove both agents and karma
