@@ -11,8 +11,8 @@ default_height = screenheight / 2;
 fg = 1;
 
 %% Some parameters
-k_max = 24;
-k_ave_vec = 3 : 12;
+k_max = 12;
+k_ave_vec = 0 : 12;
 alpha_vec = 0 : 0.05 : 1;
 
 num_k_ave = length(k_ave_vec);
@@ -20,7 +20,7 @@ num_alpha = length(alpha_vec);
 
 file_str = ['results/k_max_', num2str(k_max, '%2d'), '_k_ave_'];
 
-sw_computed = false;
+sw_computed = true;
 
 %% Efficiency arrays
 ne_W1 = zeros(num_k_ave, num_alpha);
@@ -40,6 +40,11 @@ for i_k_ave = 1 : num_k_ave
         load(file, 'W1_sw');
         sw_W1(i_k_ave) = W1_sw(end);
     end
+    % Centralized urgency efficiency (get once for comparison)
+    if i_k_ave == 1
+        load(file, 'W1_1');
+        u_W1 = W1_1(end);
+    end
 end
 
 %% Plot all
@@ -48,9 +53,9 @@ fg = fg + 1;
 fig = gcf;
 fig.Position = [0, 0, screenwidth, screenheight];
 if sw_computed
-    lgd_text = cell(num_alpha + 1, 1);
+    lgd_text = cell(num_alpha + 2, 1);
 else
-    lgd_text = cell(num_alpha, 1);
+    lgd_text = cell(num_alpha + 1, 1);
 end
 plot(k_ave_vec, -ne_W1(:,1), '-x', 'LineWidth', 2);
 lgd_text{1} = ['$\alpha$ = ', num2str(alpha_vec(1), '%.2f')];
@@ -60,9 +65,11 @@ for i_alpha = 2 : num_alpha
     lgd_text{i_alpha} = ['$\alpha$ = ', num2str(alpha_vec(i_alpha), '%.2f')];
 end
 if sw_computed
-    plot(k_ave_vec, -sw_W1, '-o', 'LineWidth', 4);
-    lgd_text{end} = 'SW policy';
+    plot(k_ave_vec, -sw_W1, 'g-', 'LineWidth', 3);
+    lgd_text{end-1} = 'social-welfare';
 end
+plot(k_ave_vec, repmat(-u_W1, 1, num_k_ave), 'r-', 'LineWidth', 4);
+lgd_text{end} = 'centralized-urgency';
 axis tight;
 axes = gca;
 axes.Title.Interpreter = 'latex';
@@ -95,13 +102,14 @@ for i_k_ave = 1 : num_k_ave
     plot(alpha_vec, -ne_W1(i_k_ave,:), '-x', 'LineWidth', 2);
     hold on;
     if sw_computed
-        plot(alpha_vec, repmat(-sw_W1(i_k_ave), 1, num_alpha), '-', 'LineWidth', 4);
+        plot(alpha_vec, repmat(-sw_W1(i_k_ave), 1, num_alpha), 'g-', 'LineWidth', 3);
     end
+    plot(alpha_vec, repmat(-u_W1, 1, num_alpha), 'r-', 'LineWidth', 4);
     axis tight;
     ylim(yl);
     axes = gca;
     axes.Title.Interpreter = 'latex';
-    axes.Title.String = ['$k_{ave}$ = ', num2str(k_ave_vec(i_k_ave), '%02d')];
+    axes.Title.String = ['$k_{avg}$ = ', num2str(k_ave_vec(i_k_ave), '%02d')];
     axes.Title.FontSize = 14;
     axes.XAxis.FontSize = 10;
     axes.YAxis.FontSize = 10;
@@ -129,8 +137,9 @@ for i_alpha = 1 : num_alpha
     plot(k_ave_vec, -ne_W1(:,i_alpha), '-x', 'LineWidth', 2);
     hold on;
     if sw_computed
-        plot(k_ave_vec, -sw_W1, '-', 'LineWidth', 4);
+        plot(k_ave_vec, -sw_W1, 'g-', 'LineWidth', 3);
     end
+    plot(k_ave_vec, repmat(-u_W1, 1, num_k_ave), 'r-', 'LineWidth', 4);
     axis tight;
     ylim(yl);
     axes = gca;
@@ -146,6 +155,6 @@ for i_alpha = 1 : num_alpha
     axes.YLabel.String = 'Efficiency';
     axes.YLabel.FontSize = 12;
 end
-title = sgtitle('Efficiency as a function of $k_{ave}$ for different future discount factors');
+title = sgtitle('Efficiency as a function of $k_{avg}$ for different future discount factors');
 title.Interpreter = 'latex';
 title.FontSize = 16;

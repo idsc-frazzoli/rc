@@ -17,12 +17,6 @@ for i_u = 1 : param.num_U
     param.mu_down_u_up_un(i_u,:) = param.p_U.';
 end
 
-% Low urgency
-param.u_low = min(param.U);
-
-% High urgency
-param.u_high = max(param.U);
-
 % Number of agents in one intersection
 param.I_size = 2;
 
@@ -125,7 +119,7 @@ param.num_alpha = length(param.alpha);
 param.karma_initialization = 2;
 
 % Save results
-param.save = false;
+param.save = true;
 
 % Plot flags
 % Global plot flag

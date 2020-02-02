@@ -73,17 +73,17 @@ for i_plot = 2 : num_alpha
     lgd_text{i_plot} = ['$\alpha$ = ', num2str(alpha_vec(i_plot), '%.2f')];
 end
 i_plot = num_alpha + 1;
-plot(k_ave_vec, repmat(-u_W2, 1, num_k_ave), '-', 'LineWidth', 4);
+if sw_computed
+    plot(k_ave_vec, -sw_W2, 'g-', 'LineWidth', 3);
+    lgd_text{i_plot} = 'social-welfare';
+    i_plot = i_plot + 1;
+end
+plot(k_ave_vec, repmat(-u_W2, 1, num_k_ave), 'r-', 'LineWidth', 4);
 lgd_text{i_plot} = 'centralized-urgency';
 if plot_u_c
     i_plot = i_plot + 1;
-    plot(k_ave_vec, repmat(-u_c_W2, 1, num_k_ave), '-', 'LineWidth', 4);
+    plot(k_ave_vec, repmat(-u_c_W2, 1, num_k_ave), 'o-', 'LineWidth', 4);
     lgd_text{i_plot} = 'centralized-urgency-then-cost';
-end
-if sw_computed
-    i_plot = i_plot + 1;
-    plot(k_ave_vec, -sw_W2, '-o', 'LineWidth', 3);
-    lgd_text{i_plot} = 'SW policy';
 end
 axis tight;
 axes = gca;
@@ -116,18 +116,18 @@ for i_k_ave = 1 : num_k_ave
     lgd_text = cell(2, 1);
     plot(alpha_vec, -ne_W2(i_k_ave,:), '-x', 'LineWidth', 2);
     hold on;
-    plot(alpha_vec, repmat(-u_W2, 1, num_alpha), '-', 'LineWidth', 4);
-    if plot_u_c
-        plot(alpha_vec, repmat(-u_c_W2, 1, num_alpha), '-', 'LineWidth', 4);
-    end
     if sw_computed
-        plot(alpha_vec, repmat(-sw_W2(i_k_ave), 1, num_alpha), '-', 'LineWidth', 2);
+        plot(alpha_vec, repmat(-sw_W2(i_k_ave), 1, num_alpha), 'g-', 'LineWidth', 2);
+    end
+    plot(alpha_vec, repmat(-u_W2, 1, num_alpha), 'r-', 'LineWidth', 4);
+    if plot_u_c
+        plot(alpha_vec, repmat(-u_c_W2, 1, num_alpha), 'o-', 'LineWidth', 4);
     end
     axis tight;
     ylim(yl);
     axes = gca;
     axes.Title.Interpreter = 'latex';
-    axes.Title.String = ['$k_{ave}$ = ', num2str(k_ave_vec(i_k_ave), '%02d')];
+    axes.Title.String = ['$k_{avg}$ = ', num2str(k_ave_vec(i_k_ave), '%02d')];
     axes.Title.FontSize = 14;
     axes.XAxis.FontSize = 10;
     axes.YAxis.FontSize = 10;
@@ -154,12 +154,12 @@ for i_alpha = 1 : num_alpha
     lgd_text = cell(2, 1);
     plot(k_ave_vec, -ne_W2(:,i_alpha), '-x', 'LineWidth', 2);
     hold on;
-    plot(k_ave_vec, repmat(-u_W2, 1, num_k_ave), '-', 'LineWidth', 4);
-    if plot_u_c
-        plot(k_ave_vec, repmat(-u_c_W2, 1, num_k_ave), '-', 'LineWidth', 4);
-    end
     if sw_computed
-        plot(k_ave_vec, -sw_W2, '-', 'LineWidth', 2);
+        plot(k_ave_vec, -sw_W2, 'g-', 'LineWidth', 2);
+    end
+    plot(k_ave_vec, repmat(-u_W2, 1, num_k_ave), 'r-', 'LineWidth', 4);
+    if plot_u_c
+        plot(k_ave_vec, repmat(-u_c_W2, 1, num_k_ave), 'o-', 'LineWidth', 4);
     end
     axis tight;
     ylim(yl);
@@ -176,6 +176,6 @@ for i_alpha = 1 : num_alpha
     axes.YLabel.String = 'Fairness';
     axes.YLabel.FontSize = 12;
 end
-title = sgtitle('Fairness as a function of $k_{ave}$ for different future discount factors');
+title = sgtitle('Fairness as a function of $k_{avg}$ for different future discount factors');
 title.Interpreter = 'latex';
 title.FontSize = 16;

@@ -2,8 +2,9 @@ clear;
 close all;
 clc;
 
-%% Fix rung for randomization
+%% Control randomization
 rng(0);
+[u_stream, agent_stream, karma_stream] = RandStream.create('mrg32k3a', 'NumStreams', 3);
 
 %% Code control bits
 % Autocorrelation takes long time to compute
@@ -58,10 +59,10 @@ if control.karma_heuristic_policies
     c_bid_1 = zeros(param.tot_num_inter, param.N);
     % Cost for bid 1 if urgent policy
     c_bid_1_u = zeros(param.tot_num_inter, param.N);
-    % Cost for bid all always policy
-    c_bid_all = zeros(param.tot_num_inter, param.N);
-    % Cost for bid all if urgent policy
-    c_bid_all_u = zeros(param.tot_num_inter, param.N);
+    % Cost for bid random always policy
+    c_bid_rand = zeros(param.tot_num_inter, param.N);
+    % Cost for bid random if urgent policy
+    c_bid_rand_u = zeros(param.tot_num_inter, param.N);
 end
 
 % Nash equilibrium karma policies
@@ -96,12 +97,12 @@ if control.karma_heuristic_policies
     % Karma for bid 1 if urgent policy
     k_bid_1_u = zeros(param.tot_num_inter, param.N);
     k_bid_1_u(1,:) = init_k;
-    % Karma for bid all always policy
-    k_bid_all = zeros(param.tot_num_inter, param.N);
-    k_bid_all(1,:) = init_k;
-    % Karma for bid all if urgent policy
-    k_bid_all_u = zeros(param.tot_num_inter, param.N);
-    k_bid_all_u(1,:) = init_k;
+    % Karma for bid random always policy
+    k_bid_rand = zeros(param.tot_num_inter, param.N);
+    k_bid_rand(1,:) = init_k;
+    % Karma for bid random if urgent policy
+    k_bid_rand_u = zeros(param.tot_num_inter, param.N);
+    k_bid_rand_u(1,:) = init_k;
 end
 
 % Nash equilibrium karma policies
@@ -175,7 +176,7 @@ for day = 1 : param.num_days
     % Pick urgency in {0,U} uniformly at random for all agents. Urgency
     % stays constant for agents per day
     if param.num_inter_per_day > 1
-        u_today = datasample(param.U, param.N).';
+        u_today = datasample(u_stream, param.U, param.N).';
     end
     
     for inter = 1 : param.num_inter_per_day
@@ -185,7 +186,7 @@ for day = 1 : param.num_days
 
         if ~param.same_num_inter
             % Sample agents i & j uniformly at random
-            I = datasample(population, param.I_size, 'Replace', false);
+            I = datasample(agent_stream, population, param.I_size, 'Replace', false);
         else
             % If all population has been sampled, re-fill population
             if isempty(population)
@@ -193,7 +194,7 @@ for day = 1 : param.num_days
             end
             % Sample agents i & j uniformly at random and remove them from
             % population
-            I = datasample(population, param.I_size, 'Replace', false);
+            I = datasample(agent_stream, population, param.I_size, 'Replace', false);
             for i_agent = 1 : param.I_size
                 population(population == I(i_agent)) = [];
             end
@@ -211,12 +212,13 @@ for day = 1 : param.num_days
         if param.num_inter_per_day > 1
             u = u_today(I);
         else
-            u = datasample(param.U, param.I_size).';
+            u = datasample(u_stream, param.U, param.I_size).';
         end
 
         %% Random policy
-        % Choose an agent to pass uniformly at random
-        win = I(ceil(rand(1) * length(I)));
+        % Simply choose 'first' agent, since there is already randomization
+        % in the agent order
+        win = I(1);
 
         % Agents incur cost equal to their urgency, except passing agent
         c_rand(t,I) = u;
@@ -315,7 +317,10 @@ for day = 1 : param.num_days
                 c_in_mem_u{i_lim_mem}(end,I) = c_lim_mem_u{i_lim_mem}(t,I);
             end
         end
-
+        
+        %% Prepare random stream for karma policies
+        karma_stream_state = karma_stream.State;
+        
         %% HEURISTIC KARMA POLICIES
         if control.karma_heuristic_policies
             %% Bid 1 always policy
@@ -365,53 +370,61 @@ for day = 1 : param.num_days
                 k_bid_1_u(t+1,lose) = k_bid_1_u(t+1,lose) + k_lose;
             end
 
-            %% Bid all always policy
-            % Agents simply bid all their karma, less the minimum allowed level (if
-            % applicable)
-            m = k_bid_all(t,I) - param.k_min;
-
-            % Agent bidding max karma passes and pays karma bidded
-            [m_win, i_win] = max(m);
-            win = I(i_win);
-
-            % Agents incur cost equal to their urgency, except passing agent
-            c_bid_all(t,I) = u;
-            c_bid_all(t,win) = 0;
-
-            % Get delayed agents. They will be getting karma
-            lose = func.get_lose(I, i_win);
-
-            % Update karma
-            if t < param.tot_num_inter
-                [k_win, k_lose] = func.get_karma_payments(m_win, lose, k_bid_all(t,:), param);
-                k_bid_all(t+1,:) = k_bid_all(t,:);
-                k_bid_all(t+1,win) = k_bid_all(t+1,win) - k_win;
-                k_bid_all(t+1,lose) = k_bid_all(t+1,lose) + k_lose;
+            %% Bid random always policy
+            % Agents simply bid random
+            k = k_bid_rand(t,I);
+            m = zeros(1, param.I_size);
+            for i_agent = 1 : param.I_size
+                m(i_agent) = datasample(karma_stream, param.k_min : k(i_agent), 1);
             end
 
-            %% Bid all if urgent policy
-            % Agents bid all their karma, less the minimum allowed level (if
-            % applicable), if they are urgent
-            m = k_bid_all_u(t,I) - param.k_min;
-            m(u == 0) = 0;
-
             % Agent bidding max karma passes and pays karma bidded
             [m_win, i_win] = max(m);
             win = I(i_win);
 
             % Agents incur cost equal to their urgency, except passing agent
-            c_bid_all_u(t,I) = u;
-            c_bid_all_u(t,win) = 0;
+            c_bid_rand(t,I) = u;
+            c_bid_rand(t,win) = 0;
 
             % Get delayed agents. They will be getting karma
             lose = func.get_lose(I, i_win);
 
             % Update karma
             if t < param.tot_num_inter
-                [k_win, k_lose] = func.get_karma_payments(m_win, lose, k_bid_all_u(t,:), param);
-                k_bid_all_u(t+1,:) = k_bid_all_u(t,:);
-                k_bid_all_u(t+1,win) = k_bid_all_u(t+1,win) - k_win;
-                k_bid_all_u(t+1,lose) = k_bid_all_u(t+1,lose) + k_lose;
+                [k_win, k_lose] = func.get_karma_payments(m_win, lose, k_bid_rand(t,:), param);
+                k_bid_rand(t+1,:) = k_bid_rand(t,:);
+                k_bid_rand(t+1,win) = k_bid_rand(t+1,win) - k_win;
+                k_bid_rand(t+1,lose) = k_bid_rand(t+1,lose) + k_lose;
+            end
+
+            %% Bid random if urgent policy
+            % Agents bid random if urgent, greater than zero if they can
+            k = k_bid_rand(t,I);
+            m = zeros(1, param.I_size);
+            karma_stream.State = karma_stream_state;
+            for i_agent = 1 : param.I_size
+                if u(i_agent) ~= 0 && k(i_agent) > 0
+                    m(i_agent) = datasample(karma_stream, 1 : k(i_agent), 1);
+                end
+            end
+
+            % Agent bidding max karma passes and pays karma bidded
+            [m_win, i_win] = max(m);
+            win = I(i_win);
+
+            % Agents incur cost equal to their urgency, except passing agent
+            c_bid_rand_u(t,I) = u;
+            c_bid_rand_u(t,win) = 0;
+
+            % Get delayed agents. They will be getting karma
+            lose = func.get_lose(I, i_win);
+
+            % Update karma
+            if t < param.tot_num_inter
+                [k_win, k_lose] = func.get_karma_payments(m_win, lose, k_bid_rand_u(t,:), param);
+                k_bid_rand_u(t+1,:) = k_bid_rand_u(t,:);
+                k_bid_rand_u(t+1,win) = k_bid_rand_u(t+1,win) - k_win;
+                k_bid_rand_u(t+1,lose) = k_bid_rand_u(t+1,lose) + k_lose;
             end
         end
         
@@ -421,15 +434,16 @@ for day = 1 : param.num_days
                 % Get agents' bids from their policies
                 k = k_ne{i_alpha}(t,I);
                 m = zeros(1, param.I_size);
+                karma_stream.State = karma_stream_state;
                 for i_agent = 1 : param.I_size
                     i_u = find(param.U == u(i_agent));
                     i_k = find(param.K == k(i_agent));
-                    m(i_agent) = datasample(param.M, 1, 'Weights', squeeze(pi_ne{i_alpha}(i_u,i_k,:)));
-                    % TEST CODE %
-                    if param.alpha(i_alpha) == 0 && u(i_agent) ~= 0 && m(i_agent) ~= k(i_agent)
-                        fprintf('DEBUG u = %d k = %d m = %d\n', u(i_agent), k(i_agent), m(i_agent));
-                        pause;
-                    end
+                    m(i_agent) = datasample(karma_stream, param.M, 1, 'Weights', squeeze(pi_ne{i_alpha}(i_u,i_k,:)));
+%                     % TEST CODE %
+%                     if param.alpha(i_alpha) == 0 && u(i_agent) ~= 0 && m(i_agent) ~= k(i_agent)
+%                         fprintf('DEBUG u = %d k = %d m = %d\n', u(i_agent), k(i_agent), m(i_agent));
+%                         pause;
+%                     end
                 end
                 
                 % Agent bidding max karma passes and pays karma bidded
@@ -457,10 +471,11 @@ for day = 1 : param.num_days
             % Get agents' bids from their policies
             k = k_sw(t,I);
             m = zeros(1, param.I_size);
+            karma_stream.State = karma_stream_state;
             for i_agent = 1 : param.I_size
                 i_u = find(param.U == u(i_agent));
                 i_k = find(param.K == k(i_agent));
-                m(i_agent) = datasample(param.M, 1, 'Weights', squeeze(pi_sw(i_u,i_k,:)));
+                m(i_agent) = datasample(karma_stream, param.M, 1, 'Weights', squeeze(pi_sw(i_u,i_k,:)));
             end
 
             % Agent bidding max karma wins and pays karma bidded
@@ -511,10 +526,10 @@ if control.karma_heuristic_policies
     clear c_bid_1;
     a_bid_1_u = func.get_accumulated_cost(c_bid_1_u, param);
     clear c_bid_1_u;
-    a_bid_all = func.get_accumulated_cost(c_bid_all, param);
-    clear c_bid_all;
-    a_bid_all_u = func.get_accumulated_cost(c_bid_all_u, param);
-    clear c_bid_all_u;
+    a_bid_rand = func.get_accumulated_cost(c_bid_rand, param);
+    clear c_bid_rand;
+    a_bid_rand_u = func.get_accumulated_cost(c_bid_rand_u, param);
+    clear c_bid_rand_u;
 end
 if control.karma_ne_policies
     a_ne = cell(param.num_alpha, 1);
@@ -547,8 +562,8 @@ if param.same_num_inter
     if control.karma_heuristic_policies
         a_bid_1 = a_bid_1(actual_t,:);
         a_bid_1_u = a_bid_1_u(actual_t,:);
-        a_bid_all = a_bid_all(actual_t,:);
-        a_bid_all_u = a_bid_all_u(actual_t,:);
+        a_bid_rand = a_bid_rand(actual_t,:);
+        a_bid_rand_u = a_bid_rand_u(actual_t,:);
     end
     if control.karma_ne_policies
         for i_alpha = 1 : param.num_alpha
@@ -580,8 +595,8 @@ if param.normalize_cost
     if control.karma_heuristic_policies
         a_bid_1 = a_bid_1 ./ num_inter_div;
         a_bid_1_u = a_bid_1_u ./ num_inter_div;
-        a_bid_all = a_bid_all ./ num_inter_div;
-        a_bid_all_u = a_bid_all_u ./ num_inter_div;
+        a_bid_rand = a_bid_rand ./ num_inter_div;
+        a_bid_rand_u = a_bid_rand_u ./ num_inter_div;
     end
     if control.karma_ne_policies
         for i_alpha = 1 : param.num_alpha
@@ -608,8 +623,8 @@ end
 if control.karma_heuristic_policies
     W1_bid_1 = mean(a_bid_1, 2);
     W1_bid_1_u = mean(a_bid_1_u, 2);
-    W1_bid_all = mean(a_bid_all, 2);
-    W1_bid_all_u = mean(a_bid_all_u, 2);
+    W1_bid_rand = mean(a_bid_rand, 2);
+    W1_bid_rand_u = mean(a_bid_rand_u, 2);
 end
 if control.karma_ne_policies
     W1_ne = cell(param.num_alpha, 1);
@@ -636,8 +651,8 @@ end
 if control.karma_heuristic_policies
     W2_bid_1 = var(a_bid_1, [], 2);
     W2_bid_1_u = var(a_bid_1_u, [], 2);
-    W2_bid_all = var(a_bid_all, [], 2);
-    W2_bid_all_u = var(a_bid_all_u, [], 2);
+    W2_bid_rand = var(a_bid_rand, [], 2);
+    W2_bid_rand_u = var(a_bid_rand_u, [], 2);
 end
 if control.karma_ne_policies
     W2_ne = cell(param.num_alpha, 1);
@@ -670,8 +685,8 @@ if control.compute_a_acorr
             if control.karma_heuristic_policies
                 a_bid_1_std = func.standardize_mean_var(a_bid_1, W1_bid_1, W2_bid_1);
                 a_bid_1_u_std = func.standardize_mean_var(a_bid_1_u, W1_bid_1_u, W2_bid_1_u);
-                a_bid_all_std = func.standardize_mean_var(a_bid_all, W1_bid_all, W2_bid_all);
-                a_bid_all_u_std = func.standardize_mean_var(a_bid_all, W1_bid_all_u, W2_bid_all_u);
+                a_bid_rand_std = func.standardize_mean_var(a_bid_rand, W1_bid_rand, W2_bid_rand);
+                a_bid_rand_u_std = func.standardize_mean_var(a_bid_rand, W1_bid_rand_u, W2_bid_rand_u);
             end
             if control.karma_ne_policies
                 a_ne_std = cell(param.num_alpha, 1);
@@ -697,8 +712,8 @@ if control.compute_a_acorr
             if control.karma_heuristic_policies
                 a_bid_1_std = func.order_rank(a_bid_1);
                 a_bid_1_u_std = func.order_rank(a_bid_1_u);
-                a_bid_all_std = func.order_rank(a_bid_all);
-                a_bid_all_u_std = func.order_rank(a_bid_all);
+                a_bid_rand_std = func.order_rank(a_bid_rand);
+                a_bid_rand_u_std = func.order_rank(a_bid_rand);
             end
             if control.karma_ne_policies
                 a_ne_std = cell(param.num_alpha, 1);
@@ -725,8 +740,8 @@ if control.compute_a_acorr
             if control.karma_heuristic_policies
                 a_bid_1_std = func.order_rank_norm(a_bid_1);
                 a_bid_1_u_std = func.order_rank_norm(a_bid_1_u);
-                a_bid_all_std = func.order_rank_norm(a_bid_all);
-                a_bid_all_u_std = func.order_rank_norm(a_bid_all);
+                a_bid_rand_std = func.order_rank_norm(a_bid_rand);
+                a_bid_rand_u_std = func.order_rank_norm(a_bid_rand);
             end
             if control.karma_ne_policies
                 a_ne_std = cell(param.num_alpha, 1);
@@ -763,10 +778,10 @@ if control.compute_a_acorr
         a_bid_1_acorr = func.autocorrelation(a_bid_1_std);
         fprintf('Computing autocorrelation for bid-1-if-urgent\n');
         a_bid_1_u_acorr = func.autocorrelation(a_bid_1_u_std);
-        fprintf('Computing autocorrelation for bid-all-always\n');
-        a_bid_all_acorr = func.autocorrelation(a_bid_all_std);
-        fprintf('Computing autocorrelation for bid-all-if-urgent\n');
-        a_bid_all_u_acorr = func.autocorrelation(a_bid_all_u_std);
+        fprintf('Computing autocorrelation for bid-random-always\n');
+        a_bid_rand_acorr = func.autocorrelation(a_bid_rand_std);
+        fprintf('Computing autocorrelation for bid-random-if-urgent\n');
+        a_bid_rand_u_acorr = func.autocorrelation(a_bid_rand_u_std);
     end
     if control.karma_ne_policies
         a_ne_acorr = cell(param.num_alpha, 1);

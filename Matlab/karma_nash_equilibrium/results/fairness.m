@@ -11,8 +11,8 @@ default_height = screenheight / 2;
 fg = 1;
 
 %% Some parameters
-k_max = 24;
-k_ave_vec = 3 : 12;
+k_max = 12;
+k_ave_vec = 0 : 12;
 alpha_vec = 0 : 0.05 : 1;
 
 num_k_ave = length(k_ave_vec);
@@ -20,7 +20,7 @@ num_alpha = length(alpha_vec);
 
 ne_dir_str = ['karma_nash_equilibrium/results/k_max_', num2str(k_max, '%2d'), '_k_ave_'];
 
-sw_computed = false;
+sw_computed = true;
 if sw_computed
     sw_dir = ['karma_nash_equilibrium/results/sw_k_max_', num2str(k_max, '%2d')];
 end
@@ -68,8 +68,8 @@ for i_alpha = 2 : num_alpha
     lgd_text{i_alpha} = ['$\alpha$ = ', num2str(alpha_vec(i_alpha), '%.2f')];
 end
 if sw_computed
-    plot(k_ave_vec, -sw_W2, '-o', 'LineWidth', 4);
-    lgd_text{end} = 'SW policy';
+    plot(k_ave_vec, -sw_W2, 'g-', 'LineWidth', 3);
+    lgd_text{end} = 'social-welfare';
 end
 axis tight;
 axes = gca;
@@ -103,7 +103,7 @@ for i_k_ave = 1 : num_k_ave
     plot(alpha_vec, -ne_W2(i_k_ave,:), '-x', 'LineWidth', 2);
     hold on;
     if sw_computed
-        plot(alpha_vec, repmat(-sw_W2(i_k_ave), 1, num_alpha), '-', 'LineWidth', 4);
+        plot(alpha_vec, repmat(-sw_W2(i_k_ave), 1, num_alpha), 'g-', 'LineWidth', 3);
     end
     axis tight;
     ylim(yl);
@@ -137,7 +137,7 @@ for i_alpha = 1 : num_alpha
     plot(k_ave_vec, -ne_W2(:,i_alpha), '-x', 'LineWidth', 2);
     hold on;
     if sw_computed
-        plot(k_ave_vec, -sw_W2, '-', 'LineWidth', 4);
+        plot(k_ave_vec, -sw_W2, 'g-', 'LineWidth', 3);
     end
     axis tight;
     ylim(yl);
