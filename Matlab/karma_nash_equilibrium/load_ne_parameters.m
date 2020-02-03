@@ -11,14 +11,8 @@ ne_param.p_U = param.p_U;
 % Number of urgency values
 ne_param.num_U = param.num_U;
 
-% Transition matrix for urgency markov process
+% Transition matrix for urgency markov chain
 ne_param.mu_down_u_up_un = param.mu_down_u_up_un;
-
-% Low urgency
-ne_param.u_low = param.u_low;
-
-% High urgency
-ne_param.u_high = param.u_high;
 
 % Vector of all karma values
 ne_param.K = param.K;

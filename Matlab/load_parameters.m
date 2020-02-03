@@ -11,7 +11,7 @@ param.p_U = [0.5; 0.5];
 % Number of urgency values
 param.num_U = length(param.U);
 
-% Transition matrix for urgency markov process
+% Transition matrix for urgency markov chain
 param.mu_down_u_up_un = zeros(param.num_U, param.num_U);
 for i_u = 1 : param.num_U
     param.mu_down_u_up_un(i_u,:) = param.p_U.';
@@ -91,7 +91,7 @@ param.num_K = length(param.K);
 
 % Average karma level(s)
 % param.k_ave = 0 : 12;
-param.k_ave = 6;
+param.k_ave = 5;
 
 % Total karma in the system
 param.k_tot = param.k_ave * param.N;
@@ -103,9 +103,9 @@ param.m_interval = 1.0;
 param.M = param.k_min : param.m_interval : param.k_max;
 
 % Future discount factor(s)
-param.alpha = [0 : 0.05 : 0.95, 1 - eps];
+% param.alpha = [0 : 0.05 : 0.95, 1 - eps];
 % param.alpha = 0 : 0.05 : 0.95;
-% param.alpha = 1 - eps;
+param.alpha = 0.85;
 
 % Number of future discount factor(s)
 param.num_alpha = length(param.alpha);
