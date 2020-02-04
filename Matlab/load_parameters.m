@@ -81,7 +81,7 @@ param.num_lim_mem_steps = length(param.lim_mem_steps);
 param.k_min = 0;
 
 % Maximum karma level
-param.k_max = 12;
+param.k_max = 36;
 
 % Vector of all karma values
 param.K = (param.k_min : param.k_max).';
@@ -91,7 +91,7 @@ param.num_K = length(param.K);
 
 % Average karma level(s)
 % param.k_ave = 0 : 12;
-param.k_ave = 5;
+param.k_ave = 6;
 
 % Total karma in the system
 param.k_tot = param.k_ave * param.N;
@@ -104,8 +104,8 @@ param.M = param.k_min : param.m_interval : param.k_max;
 
 % Future discount factor(s)
 % param.alpha = [0 : 0.05 : 0.95, 1 - eps];
-% param.alpha = 0 : 0.05 : 0.95;
-param.alpha = 0.85;
+% param.alpha = [0.8 : 0.05 : 0.95, 1 - eps];
+param.alpha = 0.4;
 
 % Number of future discount factor(s)
 param.num_alpha = length(param.alpha);
@@ -119,7 +119,7 @@ param.num_alpha = length(param.alpha);
 param.karma_initialization = 2;
 
 % Save results
-param.save = true;
+param.save = false;
 
 % Plot flags
 % Global plot flag
