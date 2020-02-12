@@ -77,20 +77,17 @@ param.lim_mem_steps = 2.^(0 : ceil(log2(param.num_inter_per_agent)));
 % Limited memory number of steps
 param.num_lim_mem_steps = length(param.lim_mem_steps);
 
-% Minimum karma level
-param.k_min = 0;
-
 % Maximum karma level
-param.k_max = 36;
+param.k_max = 12;
 
 % Vector of all karma values
-param.K = (param.k_min : param.k_max).';
+param.K = (0 : param.k_max).';
 
 % Number of karma values
 param.num_K = length(param.K);
 
 % Average karma level(s)
-% param.k_ave = 0 : 12;
+% param.k_ave = 1 : 12;
 param.k_ave = 6;
 
 % Total karma in the system
@@ -100,12 +97,12 @@ param.k_tot = param.k_ave * param.N;
 param.m_interval = 1.0;
 
 % Vector of all message values
-param.M = param.k_min : param.m_interval : param.k_max;
+param.M = 0 : param.m_interval : param.k_max;
 
 % Future discount factor(s)
 % param.alpha = [0 : 0.05 : 0.95, 1 - eps];
-% param.alpha = [0.8 : 0.05 : 0.95, 1 - eps];
-param.alpha = 0.4;
+param.alpha = [0.05 : 0.05 : 0.95, 0.96 : 0.01 : 0.99, 0.9999];
+% param.alpha = 0.9999;
 
 % Number of future discount factor(s)
 param.num_alpha = length(param.alpha);

@@ -44,32 +44,32 @@ while true
         % NE policy plot
         ne_pi_plot_fg = 1;
         ne_pi_plot_pos = [0, 0, screenwidth, screenheight / 2];
-        ne_func.plot_ne_pi(ne_pi_plot_fg, ne_pi_plot_pos, RedColormap, ne_pi_down_u_k_up_m, ne_param.U, ne_param.K, ne_param.M, alpha);
+        ne_func.plot_ne_pi(ne_pi_plot_fg, ne_pi_plot_pos, RedColormap, ne_pi_down_u_k_up_m, ne_param.U, ne_param.K, ne_param.M, ne_param.k_ave, alpha);
 
         % NE stationary distribution plot
         ne_d_plot_fg = 2;
         ne_d_plot_pos = [0, screenheight / 2, screenwidth, screenheight / 2];
-        ne_func.plot_ne_d(ne_d_plot_fg, ne_d_plot_pos, ne_d_up_u_k, ne_param.U, ne_param.K, alpha);
+        ne_func.plot_ne_d(ne_d_plot_fg, ne_d_plot_pos, ne_d_up_u_k, ne_param.U, ne_param.K, ne_param.k_ave, alpha);
 
         % NE expected utility plot
         ne_v_plot_fg = 3;
         ne_v_plot_pos = [0, 0, screenwidth / 2, screenheight / 2];
-        ne_func.plot_ne_v(ne_v_plot_fg, ne_v_plot_pos, ne_v_down_u_k, ne_param.U, ne_param.K, alpha);
+        ne_func.plot_ne_v(ne_v_plot_fg, ne_v_plot_pos, ne_v_down_u_k, ne_param.U, ne_param.K, ne_param.k_ave, alpha);
 
         % NE expected utiliy per message plot
         ne_rho_plot_fg = 4;
         ne_rho_plot_pos = [0, screenheight / 2, screenwidth, screenheight / 2];
-        ne_func.plot_ne_rho(ne_rho_plot_fg, ne_rho_plot_pos, parula, ne_rho_down_u_k_m, ne_param.U, ne_param.K, ne_param.M, alpha);
+        ne_func.plot_ne_rho(ne_rho_plot_fg, ne_rho_plot_pos, parula, ne_rho_down_u_k_m, ne_param.U, ne_param.K, ne_param.M, ne_param.k_ave, alpha);
 
         % NE state transitions plot
         ne_t_plot_fg = 5;
         ne_t_plot_pos = [0, 0, screenwidth, screenheight];
-        ne_func.plot_ne_t(ne_t_plot_fg, ne_t_plot_pos, RedColormap, ne_t_down_u_k_up_un_kn, ne_param.U, ne_param.K, alpha);
+        ne_func.plot_ne_t(ne_t_plot_fg, ne_t_plot_pos, RedColormap, ne_t_down_u_k_up_un_kn, ne_param.U, ne_param.K, ne_param.k_ave, alpha);
 
         % NE policy error plot
         ne_pi_error_plot_fg = 6;
         ne_pi_error_plot_pos = [0, 0, screenwidth, screenheight / 2];
-        ne_func.plot_ne_pi_error(ne_pi_error_plot_fg, ne_pi_error_plot_pos, ne_pi_error_hist, alpha);
+        ne_func.plot_ne_pi_error(ne_pi_error_plot_fg, ne_pi_error_plot_pos, ne_pi_error_hist, ne_param.k_ave, alpha);
     
         if save_data
             if ~exist('karma_nash_equilibrium/results/policies', 'dir')

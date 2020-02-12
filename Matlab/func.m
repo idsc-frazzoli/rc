@@ -27,71 +27,79 @@ classdef func
         
         % Gets uniform distribution over karma adjusted to have correct
         % average karma k_ave for infinite population N
-        function d_k_uniform = get_d_k_uniform(param)
+        function s_up_k_uniform = get_s_up_k_uniform(param)
             i_kave = find(param.K == param.k_ave);
             if param.k_ave * 2 <= param.k_max
                 i_kave2 = find(param.K == param.k_ave * 2);
-                d_k_uniform = [1 / i_kave2 * ones(i_kave2, 1); zeros(param.num_K - i_kave2, 1)];
+                s_up_k_uniform = [1 / i_kave2 * ones(i_kave2, 1); zeros(param.num_K - i_kave2, 1)];
             elseif param.k_ave >= param.k_max
-                d_k_uniform = zeros(param.num_K, 1);
-                d_k_uniform(end) = 1;
+                s_up_k_uniform = zeros(param.num_K, 1);
+                s_up_k_uniform(end) = 1;
             else
-                d_k_uniform = 1 / param.num_K * ones(param.num_K, 1);
-                K_small = param.k_min : param.k_ave - 1;
+                s_up_k_uniform = 1 / param.num_K * ones(param.num_K, 1);
+                K_small = 0 : param.k_ave - 1;
                 K_big = param.k_ave + 1 : param.k_max;
                 num_K_small = length(K_small);
                 num_K_big = length(K_big);
                 delta_constant = sum(K_small) / num_K_small - sum(K_big) / num_K_big;
-                delta_k_ave = param.k_ave - param.K.' * d_k_uniform;
+                delta_k_ave = param.k_ave - param.K.' * s_up_k_uniform;
                 delta_p = delta_k_ave / delta_constant;
-                d_k_uniform(1:i_kave-1) = d_k_uniform(1:i_kave-1) + delta_p / num_K_small;
-                d_k_uniform(i_kave+1:end) = d_k_uniform(i_kave+1:end) - delta_p / num_K_big;
+                s_up_k_uniform(1:i_kave-1) = s_up_k_uniform(1:i_kave-1) + delta_p / num_K_small;
+                s_up_k_uniform(i_kave+1:end) = s_up_k_uniform(i_kave+1:end) - delta_p / num_K_big;
             end
+        end
+        
+        % Gets uniform distribution over karma without karma saturation for
+        % infinite population N
+        function [s_up_k_uniform, K_uniform] = get_s_up_k_uniform_dynamic(k_ave)
+            K_uniform = (0 : k_ave * 2).';
+            num_K = length(K_uniform);
+            s_up_k_uniform = 1 / num_K * ones(num_K, 1);
         end
         
         % Gets a karma initialization for finite N agents that is close in
         % distribution to specified infinite N distribution and has the
         % correct k_ave/k_tot
-        function init_k = get_init_k(d_k_inf, param)
+        function init_k = get_init_k(s_up_k_inf, K, param)
             % Get finite N distribution close to infinite N distribution
             % and with correct k_ave/k_tot
-            d_k_N = round(param.N * d_k_inf);
-            d_k_N = reshape(d_k_N, 1, []);
-            missing_agents = param.N - sum(d_k_N);
-            missing_karma = param.k_tot - d_k_N * param.K;
+            s_up_k_N = round(param.N * s_up_k_inf);
+            s_up_k_N = reshape(s_up_k_N, 1, []);
+            missing_agents = param.N - sum(s_up_k_N);
+            missing_karma = param.k_tot - s_up_k_N * K;
             while missing_agents ~= 0 || missing_karma ~= 0
                 if missing_agents ~= 0
                     % Need to adjust agent count (and possibly karma)
-                    karma_to_adjust = min([floor(missing_karma / missing_agents), param.k_max]);
+                    karma_to_adjust = min([floor(missing_karma / missing_agents), K(end)]);
                     if karma_to_adjust >= 0
                         % Need to either add both agents and karma or
                         % remove both agents and karma
-                        i_karma_to_adjust = find(param.K == karma_to_adjust);
+                        i_karma_to_adjust = find(K == karma_to_adjust);
                         agents_to_adjust = missing_agents - rem(missing_karma, missing_agents);
-                        if agents_to_adjust < 0 && d_k_N(i_karma_to_adjust) == 0
+                        if agents_to_adjust < 0 && s_up_k_N(i_karma_to_adjust) == 0
                             % Need to remove agents from a karma that
                             % doesn't have agents. Find closest karma with
                             % agents
-                            karma_with_agents = param.K(d_k_N > 0);
-                            [~, i_closest_karma_with_agents] = min(abs(karma_with_agents - param.K(i_karma_to_adjust)));
-                            i_karma_to_adjust = find(param.K == karma_with_agents(i_closest_karma_with_agents));
+                            karma_with_agents = K(s_up_k_N > 0);
+                            [~, i_closest_karma_with_agents] = min(abs(karma_with_agents - K(i_karma_to_adjust)));
+                            i_karma_to_adjust = find(K == karma_with_agents(i_closest_karma_with_agents));
                         end
-                        d_k_N(i_karma_to_adjust) = max([d_k_N(i_karma_to_adjust) + agents_to_adjust, 0]);
+                        s_up_k_N(i_karma_to_adjust) = max([s_up_k_N(i_karma_to_adjust) + agents_to_adjust, 0]);
                     else
                         if missing_agents > 0
                             % Need to add agents and remove karma
                             % First remove one agent with the closest
                             % amount of karma to what needs to be removed
-                            i_karma_to_remove = find(param.K == min([abs(missing_karma), param.k_max]));
-                            if d_k_N(i_karma_to_remove) == 0
-                                karma_with_agents = param.K(d_k_N > 0);
-                                [~, i_closest_karma_with_agents] = min(abs(karma_with_agents - param.K(i_karma_to_remove)));
-                                i_karma_to_remove = find(param.K == karma_with_agents(i_closest_karma_with_agents));
+                            i_karma_to_remove = find(K == min([abs(missing_karma), K(end)]));
+                            if s_up_k_N(i_karma_to_remove) == 0
+                                karma_with_agents = K(s_up_k_N > 0);
+                                [~, i_closest_karma_with_agents] = min(abs(karma_with_agents - K(i_karma_to_remove)));
+                                i_karma_to_remove = find(K == karma_with_agents(i_closest_karma_with_agents));
                             end
-                            d_k_N(i_karma_to_remove) = d_k_N(i_karma_to_remove) - 1;
+                            s_up_k_N(i_karma_to_remove) = s_up_k_N(i_karma_to_remove) - 1;
                             % Now add the required amount of agents with
                             % zero karma to not change karma count
-                            d_k_N(1) = d_k_N(1) + missing_agents + 1;
+                            s_up_k_N(1) = s_up_k_N(1) + missing_agents + 1;
                         else
                             % Need to remove agents and add karma
                             % First remove agents with least amount of
@@ -103,17 +111,17 @@ classdef func
                             agents_removed = 0;
                             karma_removed = 0;
                             i_karma_to_remove = 1;
-                            while agents_removed < agents_to_remove && i_karma_to_remove <= param.num_K
-                                agents_can_remove = min(agents_to_remove - agents_removed, d_k_N(i_karma_to_remove));
-                                d_k_N(i_karma_to_remove) = d_k_N(i_karma_to_remove)- agents_can_remove;
+                            while agents_removed < agents_to_remove && i_karma_to_remove <= length(K)
+                                agents_can_remove = min(agents_to_remove - agents_removed, s_up_k_N(i_karma_to_remove));
+                                s_up_k_N(i_karma_to_remove) = s_up_k_N(i_karma_to_remove)- agents_can_remove;
                                 agents_removed = agents_removed + agents_can_remove;
-                                karma_removed = karma_removed + agents_can_remove * param.K(i_karma_to_remove);
+                                karma_removed = karma_removed + agents_can_remove * K(i_karma_to_remove);
                                 i_karma_to_remove = i_karma_to_remove + 1;
                             end
                             % Now add one agent with the required amount of
                             % karma
-                            i_karma_to_add = find(param.K == min([missing_karma + karma_removed, param.k_max]));
-                            d_k_N(i_karma_to_add) = d_k_N(i_karma_to_add) + 1;
+                            i_karma_to_add = find(K == min([missing_karma + karma_removed, K(end)]));
+                            s_up_k_N(i_karma_to_add) = s_up_k_N(i_karma_to_add) + 1;
                         end
                     end
                 else
@@ -121,36 +129,36 @@ classdef func
                         % Need to add karma only
                         % Remove one agent with least karma and add one
                         % with the required amount of karma
-                        karma_with_agents = param.K(d_k_N > 0);
-                        i_karma_to_remove = find(param.K == karma_with_agents(1));
-                        d_k_N(i_karma_to_remove) = d_k_N(i_karma_to_remove) - 1;
-                        i_karma_to_add = find(param.K == min([missing_karma + param.K(i_karma_to_remove), param.k_max]));
-                        d_k_N(i_karma_to_add) = d_k_N(i_karma_to_add) + 1;
+                        karma_with_agents = K(s_up_k_N > 0);
+                        i_karma_to_remove = find(K == karma_with_agents(1));
+                        s_up_k_N(i_karma_to_remove) = s_up_k_N(i_karma_to_remove) - 1;
+                        i_karma_to_add = find(K == min([missing_karma + K(i_karma_to_remove), K(end)]));
+                        s_up_k_N(i_karma_to_add) = s_up_k_N(i_karma_to_add) + 1;
                     else
                         % Need to remove karma only
                         % Remove one agent with the closest amount of karma
                         % to what needs to be removed and add one agent
                         % with zero karma
-                        i_karma_to_remove = find(param.K == min([abs(missing_karma), param.k_max]));
-                        if d_k_N(i_karma_to_remove) == 0
-                            karma_with_agents = param.K(d_k_N > 0);
-                            [~, i_closest_karma_with_agents] = min(abs(karma_with_agents - param.K(i_karma_to_remove)));
-                            i_karma_to_remove = find(param.K == karma_with_agents(i_closest_karma_with_agents));
+                        i_karma_to_remove = find(K == min([abs(missing_karma), K(end)]));
+                        if s_up_k_N(i_karma_to_remove) == 0
+                            karma_with_agents = K(s_up_k_N > 0);
+                            [~, i_closest_karma_with_agents] = min(abs(karma_with_agents - K(i_karma_to_remove)));
+                            i_karma_to_remove = find(K == karma_with_agents(i_closest_karma_with_agents));
                         end
-                        d_k_N(i_karma_to_remove) = d_k_N(i_karma_to_remove) - 1;
-                        d_k_N(1) = d_k_N(1) + 1;
+                        s_up_k_N(i_karma_to_remove) = s_up_k_N(i_karma_to_remove) - 1;
+                        s_up_k_N(1) = s_up_k_N(1) + 1;
                     end
                 end
-                missing_agents = param.N - sum(d_k_N);
-                missing_karma = param.k_tot - d_k_N * param.K;
+                missing_agents = param.N - sum(s_up_k_N);
+                missing_karma = param.k_tot - s_up_k_N * K;
             end
             
             % Initialize karma for N agents as per finite N distribution
             init_k = zeros(1, param.N);
             start_i = 0;
-            for i_k = 1 : param.num_K
-                num_agents = d_k_N(i_k);
-                init_k(start_i+1:start_i+num_agents) = param.K(i_k);
+            for i_k = 1 : length(K)
+                num_agents = s_up_k_N(i_k);
+                init_k(start_i+1:start_i+num_agents) = K(i_k);
                 start_i = start_i + num_agents;
             end
             
@@ -166,16 +174,27 @@ classdef func
 
         % Gets karma paid by winning agent to losing agents
         function [k_win, k_lose] = get_karma_payments(m_win, lose, k, param)
-            % Distribute karma evenly over losing agents. If an agent will max
-            % out their karma, tough luck!
+            % Distribute karma evenly over losing agents. If an agent will
+            % max out their karma, tough luck!
             k_win_per_lose = floor(m_win / param.num_lose);
-            k_lose = zeros(1, param.num_win);
-            for i_win = 1 : param.num_win
-                k_lose(i_win) = min([k_win_per_lose, param.k_max - k(lose(i_win))]);
+            k_lose = zeros(1, param.num_lose);
+            for i_lose = 1 : param.num_lose
+                k_lose(i_lose) = min([k_win_per_lose, param.k_max - k(lose(i_lose))]);
             end
-            % Sum back the total karma distributed, which takes into account
-            % losing agents for which karma will saturate. This is the final
-            % total paid by wining agent
+            % Sum back the total karma distributed, which takes into
+            % account losing agents for which karma will saturate. This is
+            % the final total paid by winning agent
+            k_win = sum(k_lose);
+        end
+        
+        % Gets karma paid by winning agent to losing agents
+        function [k_win, k_lose] = get_karma_payments_dynamic(m_win, param)
+            % Distribute karma evenly over losing agents, flooring
+            k_win_per_lose = floor(m_win / param.num_lose);
+            k_lose = k_win_per_lose * ones(1, param.num_lose);
+            % Sum back the total karma distributed, which takes into
+            % account flooring effect. This is the final total paid by
+            % winning agent
             k_win = sum(k_lose);
         end
 

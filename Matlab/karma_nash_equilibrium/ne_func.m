@@ -16,7 +16,7 @@ classdef ne_func
         end
         
         % Plot NE policy
-        function plot_ne_pi(fg, position, colormap, ne_pi_down_u_k_up_m, U, K, M, alpha)
+        function plot_ne_pi(fg, position, colormap, ne_pi_down_u_k_up_m, U, K, M, k_ave, alpha)
             persistent ne_pi_plot
             num_U = length(U);
             if ~ishandle(fg)
@@ -30,7 +30,7 @@ classdef ne_func
                     subplot(1, num_U, i_u);
                     ne_pi_plot{i_u} = heatmap(K, M, pi_mat.', 'ColorbarVisible','off');
                     ne_pi_plot{i_u}.YDisplayData = flipud(ne_pi_plot{i_u}.YDisplayData);
-                    ne_pi_plot{i_u}.Title = ['\alpha = ', num2str(alpha, '%.2f'), ' NE policy for u = ', num2str(U(i_u))];
+                    ne_pi_plot{i_u}.Title = ['k_{avg} = ', num2str(k_ave, '%02d'), ' \alpha = ', num2str(alpha, '%.2f'), ' NE policy for u = ', num2str(U(i_u))];
                     ne_pi_plot{i_u}.XLabel = 'Karma';
                     ne_pi_plot{i_u}.YLabel = 'Message';
                     ne_pi_plot{i_u}.FontName = 'Ubuntu';
@@ -46,13 +46,13 @@ classdef ne_func
                     pi_mat = squeeze(ne_pi_down_u_k_up_m(i_u,:,:));
                     pi_mat(pi_mat <= eps) = nan;
                     ne_pi_plot{i_u}.ColorData = pi_mat.';
-                    ne_pi_plot{i_u}.Title = ['\alpha = ', num2str(alpha, '%.2f'), ' NE policy for u = ', num2str(U(i_u))];
+                    ne_pi_plot{i_u}.Title = ['k_{avg} = ', num2str(k_ave, '%02d'), ' \alpha = ', num2str(alpha, '%.2f'), ' NE policy for u = ', num2str(U(i_u))];
                 end
             end
         end
         
         % Plot best response policy
-        function plot_br_pi(fg, position, colormap, br_pi_down_u_k_up_m, U, K, M, alpha)
+        function plot_br_pi(fg, position, colormap, br_pi_down_u_k_up_m, U, K, M, k_ave, alpha)
             persistent br_pi_plot
             num_U = length(U);
             if ~ishandle(fg)
@@ -66,7 +66,7 @@ classdef ne_func
                     subplot(1, num_U, i_u);
                     br_pi_plot{i_u} = heatmap(K, M, pi_mat.', 'ColorbarVisible','off');
                     br_pi_plot{i_u}.YDisplayData = flipud(br_pi_plot{i_u}.YDisplayData);
-                    br_pi_plot{i_u}.Title = ['\alpha = ', num2str(alpha, '%.2f'), ' BR policy for u = ', num2str(U(i_u))];
+                    br_pi_plot{i_u}.Title = ['k_{avg} = ', num2str(k_ave, '%02d'), ' \alpha = ', num2str(alpha, '%.2f'), ' BR policy for u = ', num2str(U(i_u))];
                     br_pi_plot{i_u}.XLabel = 'Karma';
                     br_pi_plot{i_u}.YLabel = 'Message';
                     br_pi_plot{i_u}.FontName = 'Ubuntu';
@@ -82,7 +82,7 @@ classdef ne_func
                     pi_mat = squeeze(br_pi_down_u_k_up_m(i_u,:,:));
                     pi_mat(pi_mat <= eps) = nan;
                     br_pi_plot{i_u}.ColorData = pi_mat.';
-                    br_pi_plot{i_u}.Title = ['\alpha = ', num2str(alpha, '%.2f'), ' BR policy for u = ', num2str(U(i_u))];
+                    br_pi_plot{i_u}.Title = ['k_{avg} = ', num2str(k_ave, '%02d'), ' \alpha = ', num2str(alpha, '%.2f'), ' BR policy for u = ', num2str(U(i_u))];
                 end
             end
         end
@@ -102,7 +102,7 @@ classdef ne_func
                     subplot(1, num_U, i_u);
                     sw_pi_plot{i_u} = heatmap(K, M, pi_mat.', 'ColorbarVisible','off');
                     sw_pi_plot{i_u}.YDisplayData = flipud(sw_pi_plot{i_u}.YDisplayData);
-                    sw_pi_plot{i_u}.Title = ['k_{ave} = ', num2str(k_ave, '%02d'), ' SW policy for u = ', num2str(U(i_u))];
+                    sw_pi_plot{i_u}.Title = ['k_{avg} = ', num2str(k_ave, '%02d'), ' SW policy for u = ', num2str(U(i_u))];
                     sw_pi_plot{i_u}.XLabel = 'Karma';
                     sw_pi_plot{i_u}.YLabel = 'Message';
                     sw_pi_plot{i_u}.FontName = 'Ubuntu';
@@ -118,13 +118,13 @@ classdef ne_func
                     pi_mat = squeeze(sw_pi_down_u_k_up_m(i_u,:,:));
                     pi_mat(pi_mat <= 1e-6) = nan;
                     sw_pi_plot{i_u}.ColorData = pi_mat.';
-                    sw_pi_plot{i_u}.Title = ['k_{ave} = ', num2str(k_ave, '%02d'), ' SW policy for u = ', num2str(U(i_u))];
+                    sw_pi_plot{i_u}.Title = ['k_{avg} = ', num2str(k_ave, '%02d'), ' SW policy for u = ', num2str(U(i_u))];
                 end
             end
         end
         
         % Plot NE stationary distribution
-        function plot_ne_d(fg, position, ne_d_up_u_k, U, K, alpha)
+        function plot_ne_d(fg, position, ne_d_up_u_k, U, K, k_ave, alpha)
             persistent ne_d_plot
             num_U = length(U);
             if ~ishandle(fg)
@@ -138,7 +138,7 @@ classdef ne_func
                     axis tight;
                     axes = gca;
                     axes.Title.FontName = 'ubuntu';
-                    axes.Title.String = ['\alpha = ', num2str(alpha, '%.2f'), ' NE stationary distribution for u = ', num2str(U(i_u))];
+                    axes.Title.String = ['k_{avg} = ', num2str(k_ave, '%02d'), ' \alpha = ', num2str(alpha, '%.2f'), ' NE stationary distribution for u = ', num2str(U(i_u))];
                     axes.Title.FontSize = 12;
                     axes.XAxis.FontSize = 10;
                     axes.YAxis.FontSize = 10;
@@ -152,7 +152,7 @@ classdef ne_func
             else
                 for i_u = 1 : num_U
                     ne_d_plot{i_u}.YData = ne_d_up_u_k(i_u,:);
-                    ne_d_plot{i_u}.Parent.Title.String = ['\alpha = ', num2str(alpha, '%.2f'), ' NE stationary distribution for u = ', num2str(U(i_u))];
+                    ne_d_plot{i_u}.Parent.Title.String = ['k_{avg} = ', num2str(k_ave, '%02d'), ' \alpha = ', num2str(alpha, '%.2f'), ' NE stationary distribution for u = ', num2str(U(i_u))];
                 end
             end
         end
@@ -172,7 +172,7 @@ classdef ne_func
                     axis tight;
                     axes = gca;
                     axes.Title.FontName = 'ubuntu';
-                    axes.Title.String = ['k_{ave} = ', num2str(k_ave, '%02d'), ' SW stationary distribution for u = ', num2str(U(i_u))];
+                    axes.Title.String = ['k_{avg} = ', num2str(k_ave, '%02d'), ' SW stationary distribution for u = ', num2str(U(i_u))];
                     axes.Title.FontSize = 12;
                     axes.XAxis.FontSize = 10;
                     axes.YAxis.FontSize = 10;
@@ -186,13 +186,13 @@ classdef ne_func
             else
                 for i_u = 1 : num_U
                     sw_d_plot{i_u}.YData = sw_d_up_u_k(i_u,:);
-                    sw_d_plot{i_u}.Parent.Title.String = ['k_{ave} = ', num2str(k_ave, '%02d'), ' SW stationary distribution for u = ', num2str(U(i_u))];
+                    sw_d_plot{i_u}.Parent.Title.String = ['k_{avg} = ', num2str(k_ave, '%02d'), ' SW stationary distribution for u = ', num2str(U(i_u))];
                 end
             end
         end
         
         % Plot NE expected utility        
-        function plot_ne_v(fg, position, ne_v_down_u_k, U, K, alpha)
+        function plot_ne_v(fg, position, ne_v_down_u_k, U, K, k_ave, alpha)
             persistent ne_v_plot
             num_U = length(U);
             if ~ishandle(fg)
@@ -211,7 +211,7 @@ classdef ne_func
                 axis tight;
                 axes = gca;
                 axes.Title.FontName = 'ubuntu';
-                axes.Title.String = ['\alpha = ', num2str(alpha, '%.2f'), ' NE expected utility'];
+                axes.Title.String = ['k_{avg} = ', num2str(k_ave, '%02d'), ' \alpha = ', num2str(alpha, '%.2f'), ' NE expected utility'];
                 axes.Title.FontSize = 12;
                 axes.XAxis.FontSize = 10;
                 axes.YAxis.FontSize = 10;
@@ -229,7 +229,7 @@ classdef ne_func
                 for i_u = 1 : num_U
                     ne_v_plot{i_u}.YData = -ne_v_down_u_k(i_u,:);
                 end
-                ne_v_plot{1}.Parent.Title.String = ['\alpha = ', num2str(alpha, '%.2f'), ' NE expected utility'];
+                ne_v_plot{1}.Parent.Title.String = ['k_{avg} = ', num2str(k_ave, '%02d'), ' \alpha = ', num2str(alpha, '%.2f'), ' NE expected utility'];
             end
         end
         
@@ -253,7 +253,7 @@ classdef ne_func
                 axis tight;
                 axes = gca;
                 axes.Title.FontName = 'ubuntu';
-                axes.Title.String = ['k_{ave} = ', num2str(k_ave, '%02d'), ' SW expected stage reward'];
+                axes.Title.String = ['k_{avg} = ', num2str(k_ave, '%02d'), ' SW expected stage reward'];
                 axes.Title.FontSize = 12;
                 axes.XAxis.FontSize = 10;
                 axes.YAxis.FontSize = 10;
@@ -271,12 +271,12 @@ classdef ne_func
                 for i_u = 1 : num_U
                     sw_q_plot{i_u}.YData = -sw_q_down_u_k(i_u,:);
                 end
-                sw_q_plot{1}.Parent.Title.String = ['k_{ave} = ', num2str(k_ave, '%02d'), ' SW expected stage reward'];
+                sw_q_plot{1}.Parent.Title.String = ['k_{avg} = ', num2str(k_ave, '%02d'), ' SW expected stage reward'];
             end
         end
         
         % Plot NE expected utility per message
-        function plot_ne_rho(fg, position, colormap, ne_rho_down_u_k_m, U, K, M, alpha)
+        function plot_ne_rho(fg, position, colormap, ne_rho_down_u_k_m, U, K, M, k_ave, alpha)
             persistent ne_rho_plot
             num_U = length(U);
             num_K = length(K);
@@ -293,7 +293,7 @@ classdef ne_func
                     subplot(1, num_U, i_u);
                     ne_rho_plot{i_u} = heatmap(K, M, -rho_mat.', 'ColorbarVisible','off');
                     ne_rho_plot{i_u}.YDisplayData = flipud(ne_rho_plot{i_u}.YDisplayData);
-                    ne_rho_plot{i_u}.Title = ['\alpha = ', num2str(alpha, '%.2f'), ' NE expected utility per message for u = ', num2str(U(i_u))];
+                    ne_rho_plot{i_u}.Title = ['k_{avg} = ', num2str(k_ave, '%02d'), ' \alpha = ', num2str(alpha, '%.2f'), ' NE expected utility per message for u = ', num2str(U(i_u))];
                     ne_rho_plot{i_u}.XLabel = 'Karma';
                     ne_rho_plot{i_u}.YLabel = 'Message';
                     ne_rho_plot{i_u}.FontName = 'Ubuntu';
@@ -310,13 +310,13 @@ classdef ne_func
                         rho_mat(i_k,M>K(i_k)) = nan;
                     end
                     ne_rho_plot{i_u}.ColorData = -rho_mat.';
-                    ne_rho_plot{i_u}.Title = ['\alpha = ', num2str(alpha, '%.2f'), ' NE expected utility per message for u = ', num2str(U(i_u))];
+                    ne_rho_plot{i_u}.Title = ['k_{avg} = ', num2str(k_ave, '%02d'), ' \alpha = ', num2str(alpha, '%.2f'), ' NE expected utility per message for u = ', num2str(U(i_u))];
                 end
             end
         end
         
         % Plot NE state transitions
-        function plot_ne_t(fg, position, colormap, ne_t_down_u_k_up_un_kn, U, K, alpha)
+        function plot_ne_t(fg, position, colormap, ne_t_down_u_k_up_un_kn, U, K, k_ave, alpha)
             persistent ne_t_plot
             num_U = length(U);
             num_K = length(K);
@@ -346,7 +346,7 @@ classdef ne_func
                 end
                 ne_t_plot = heatmap(label, label, t_mat.', 'ColorbarVisible','off');
                 ne_t_plot.YDisplayData = flipud(ne_t_plot.YDisplayData);
-                ne_t_plot.Title = ['\alpha = ', num2str(alpha, '%.2f'), ' NE state transitions'];
+                ne_t_plot.Title = ['k_{avg} = ', num2str(k_ave, '%02d'), ' \alpha = ', num2str(alpha, '%.2f'), ' NE state transitions'];
                 ne_t_plot.XLabel = 'State now (urgency,karma)';
                 ne_t_plot.YLabel = 'State next (urgency,karma)';
                 ne_t_plot.FontName = 'Ubuntu';
@@ -368,7 +368,7 @@ classdef ne_func
                     end
                 end
                 ne_t_plot.ColorData = t_mat.';
-                ne_t_plot.Title = ['\alpha = ', num2str(alpha, '%.2f'), ' NE state transitions'];
+                ne_t_plot.Title = ['k_{avg} = ', num2str(k_ave, '%02d'), ' \alpha = ', num2str(alpha, '%.2f'), ' NE state transitions'];
             end
         end
         
@@ -403,7 +403,7 @@ classdef ne_func
                 end
                 sw_t_plot = heatmap(label, label, t_mat.', 'ColorbarVisible','off');
                 sw_t_plot.YDisplayData = flipud(sw_t_plot.YDisplayData);
-                sw_t_plot.Title = ['k_{ave} = ', num2str(k_ave, '%02d'), ' SW state transitions'];
+                sw_t_plot.Title = ['k_{avg} = ', num2str(k_ave, '%02d'), ' SW state transitions'];
                 sw_t_plot.XLabel = 'State now (urgency,karma)';
                 sw_t_plot.YLabel = 'State next (urgency,karma)';
                 sw_t_plot.FontName = 'Ubuntu';
@@ -425,12 +425,12 @@ classdef ne_func
                     end
                 end
                 sw_t_plot.ColorData = t_mat.';
-                sw_t_plot.Title = ['k_{ave} = ', num2str(k_ave, '%02d'), ' SW state transitions'];
+                sw_t_plot.Title = ['k_{avg} = ', num2str(k_ave, '%02d'), ' SW state transitions'];
             end
         end
         
         % Plot NE policy error
-        function plot_ne_pi_error(fg, position, ne_pi_error_hist, alpha)
+        function plot_ne_pi_error(fg, position, ne_pi_error_hist, k_ave, alpha)
             persistent ne_pi_error_plot
             if ~ishandle(fg)
                 figure(fg);
@@ -440,7 +440,7 @@ classdef ne_func
                 axis tight;
                 axes = gca;
                 axes.Title.FontName = 'ubuntu';
-                axes.Title.String = ['\alpha = ', num2str(alpha, '%.2f'), ' NE policy error'];
+                axes.Title.String = ['k_{avg} = ', num2str(k_ave, '%02d'), ' \alpha = ', num2str(alpha, '%.2f'), ' NE policy error'];
                 axes.Title.FontSize = 12;
                 axes.XAxis.FontSize = 10;
                 axes.YAxis.FontSize = 10;
@@ -452,7 +452,7 @@ classdef ne_func
                 axes.YLabel.FontSize = 12;
             else
                 ne_pi_error_plot.YData = ne_pi_error_hist;
-                ne_pi_error_plot.Parent.Title.String = ['\alpha = ', num2str(alpha, '%.2f'), ' NE policy error'];
+                ne_pi_error_plot.Parent.Title.String = ['k_{avg} = ', num2str(k_ave, '%02d'), ' \alpha = ', num2str(alpha, '%.2f'), ' NE policy error'];
             end
         end
     end

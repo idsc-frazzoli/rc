@@ -62,6 +62,18 @@ if control.karma_heuristic_policies
         'MarkerSize', 10);
     pl.MarkerFaceColor = pl.Color;
     lgd_text = [lgd_text, "bid-1-if-urgent"];
+    pl = plot(-W1_bid_all(end), -W2_bid_all(end),...
+        'LineStyle', 'none',...
+        'Marker', 'd',...
+        'MarkerSize', 10);
+    pl.MarkerFaceColor = pl.Color;
+    lgd_text = [lgd_text, "bid-all-always"];
+    pl = plot(-W1_bid_all_u(end), -W2_bid_all_u(end),...
+        'LineStyle', 'none',...
+        'Marker', 'd',...
+        'MarkerSize', 10);
+    pl.MarkerFaceColor = pl.Color;
+    lgd_text = [lgd_text, "bid-all-if-urgent"];
     pl = plot(-W1_bid_rand(end), -W2_bid_rand(end),...
         'LineStyle', 'none',...
         'Marker', 'd',...
@@ -96,7 +108,11 @@ end
 axes = gca;
 func.axis_semi_tight(axes, 1.2);
 axes.Title.Interpreter = 'latex';
-axes.Title.String = ['$k_{max}$ = ', num2str(param.k_max, '%02d'), ' $k_{avg}$ = ', num2str(param.k_ave, '%02d'), ' performance comparison'];
+if ~exist('K_ne', 'var')
+    axes.Title.String = ['$k_{max}$ = ', num2str(param.k_max, '%02d'), ' $k_{avg}$ = ', num2str(param.k_ave, '%02d'), ' performance comparison'];
+else
+    axes.Title.String = ['$k_{avg}$ = ', num2str(param.k_ave, '%02d'), ' performance comparison'];
+end
 axes.Title.FontSize = 16;
 axes.XAxis.TickLabelInterpreter = 'latex';
 axes.XAxis.FontSize = 10;
@@ -248,7 +264,7 @@ if param.plot_a
         fig = gcf;
         fig.Position = [mod(vert_fg,2)*default_width, 0, default_width, screenheight];
         vert_fg = vert_fg + 1;
-        subplot(2,2,1);
+        subplot(3,2,1);
         hold off;
         plot(a_bid_1);
         hold on;
@@ -268,7 +284,7 @@ if param.plot_a
         axes.YLabel.Interpreter = 'latex';
         axes.YLabel.String = 'Accumulated cost';
         axes.YLabel.FontSize = 12;
-        subplot(2,2,2);
+        subplot(3,2,2);
         hold off;
         plot(a_bid_1_u);
         hold on;
@@ -288,7 +304,47 @@ if param.plot_a
         axes.YLabel.Interpreter = 'latex';
         axes.YLabel.String = 'Accumulated cost';
         axes.YLabel.FontSize = 12;
-        subplot(2,2,3);
+        subplot(3,2,3);
+        hold off;
+        plot(a_bid_all);
+        hold on;
+        plot(W1_bid_all, 'Linewidth', 3);
+        axes = gca;
+        axis tight;
+        axes.Title.Interpreter = 'latex';
+        axes.Title.String = 'bid-all-always';
+        axes.Title.FontSize = 14;
+        axes.XAxis.TickLabelInterpreter = 'latex';
+        axes.XAxis.FontSize = 10;
+        axes.YAxis.TickLabelInterpreter = 'latex';
+        axes.YAxis.FontSize = 10;
+        axes.XLabel.Interpreter = 'latex';
+        axes.XLabel.String = 'Time';
+        axes.XLabel.FontSize = 12;
+        axes.YLabel.Interpreter = 'latex';
+        axes.YLabel.String = 'Accumulated cost';
+        axes.YLabel.FontSize = 12;
+        subplot(3,2,4);
+        hold off;
+        plot(a_bid_all_u);
+        hold on;
+        plot(W1_bid_all_u, 'Linewidth', 3);
+        axes = gca;
+        axis tight;
+        axes.Title.Interpreter = 'latex';
+        axes.Title.String = 'bid-all-if-urgent';
+        axes.Title.FontSize = 14;
+        axes.XAxis.TickLabelInterpreter = 'latex';
+        axes.XAxis.FontSize = 10;
+        axes.YAxis.TickLabelInterpreter = 'latex';
+        axes.YAxis.FontSize = 10;
+        axes.XLabel.Interpreter = 'latex';
+        axes.XLabel.String = 'Time';
+        axes.XLabel.FontSize = 12;
+        axes.YLabel.Interpreter = 'latex';
+        axes.YLabel.String = 'Accumulated cost';
+        axes.YLabel.FontSize = 12;
+        subplot(3,2,5);
         hold off;
         plot(a_bid_rand);
         hold on;
@@ -308,7 +364,7 @@ if param.plot_a
         axes.YLabel.Interpreter = 'latex';
         axes.YLabel.String = 'Accumulated cost';
         axes.YLabel.FontSize = 12;
-        subplot(2,2,4);
+        subplot(3,2,6);
         hold off;
         plot(a_bid_rand_u);
         hold on;
@@ -329,7 +385,11 @@ if param.plot_a
         axes.YLabel.String = 'Accumulated cost';
         axes.YLabel.FontSize = 12;
         
-        title = sgtitle(['$k_{max}$ = ', num2str(param.k_max, '%02d'), ' $k_{avg}$ = ', num2str(param.k_ave, '%02d'), ' accumulated costs for heuristic karma policies']);
+        if ~exist('K_ne', 'var')
+            title = sgtitle(['$k_{max}$ = ', num2str(param.k_max, '%02d'), ' $k_{avg}$ = ', num2str(param.k_ave, '%02d'), ' accumulated costs for heuristic karma policies']);
+        else
+            title = sgtitle(['$k_{avg}$ = ', num2str(param.k_ave, '%02d'), ' accumulated costs for heuristic karma policies']);
+        end
         title.Interpreter = 'latex';
         title.FontSize = 16;
     end
@@ -398,7 +458,11 @@ if param.plot_a
             axes.YLabel.FontSize = 12;
         end
         
-        title = sgtitle(['$k_{max}$ = ', num2str(param.k_max, '%02d'), ' $k_{avg}$ = ', num2str(param.k_ave, '%02d'), ' accumulated costs for karma policies']);
+        if ~exist('K_ne', 'var')
+            title = sgtitle(['$k_{max}$ = ', num2str(param.k_max, '%02d'), ' $k_{avg}$ = ', num2str(param.k_ave, '%02d'), ' accumulated costs for karma policies']);
+        else
+            title = sgtitle(['$k_{avg}$ = ', num2str(param.k_ave, '%02d'), ' accumulated costs for karma policies']);
+        end
         title.Interpreter = 'latex';
         title.FontSize = 16;
     end
@@ -424,6 +488,8 @@ if param.plot_W2
     if control.karma_heuristic_policies
         plot(-W2_bid_1, '-.');
         plot(-W2_bid_1_u, '-.');
+        plot(-W2_bid_all, '-.');
+        plot(-W2_bid_all_u, '-.');
         plot(-W2_bid_rand, '-.');
         plot(-W2_bid_rand_u, '-.');
     end
@@ -438,7 +504,11 @@ if param.plot_W2
     axes = gca;
     axis tight;
     axes.Title.Interpreter = 'latex';
-    axes.Title.String = ['$k_{max}$ = ', num2str(param.k_max, '%02d'), ' $k_{avg}$ = ', num2str(param.k_ave, '%02d'), ' fairness vs. time'];
+    if ~exist('K_ne', 'var')
+        axes.Title.String = ['$k_{max}$ = ', num2str(param.k_max, '%02d'), ' $k_{avg}$ = ', num2str(param.k_ave, '%02d'), ' fairness vs. time'];
+    else
+        axes.Title.String = ['$k_{avg}$ = ', num2str(param.k_ave, '%02d'), ' fairness vs. time'];
+    end
     axes.Title.FontSize = 16;
     axes.XAxis.TickLabelInterpreter = 'latex';
     axes.XAxis.FontSize = 10;
@@ -576,7 +646,7 @@ if control.compute_a_acorr && param.plot_a_std
         fig = gcf;
         fig.Position = [mod(vert_fg,2)*default_width, 0, default_width, screenheight];
         vert_fg = vert_fg + 1;
-        subplot(2,2,1);
+        subplot(3,2,1);
         plot(a_bid_1_std);
         axes = gca;
         axis tight;
@@ -593,7 +663,7 @@ if control.compute_a_acorr && param.plot_a_std
         axes.YLabel.Interpreter = 'latex';
         axes.YLabel.String = 'Standardized accumulated cost';
         axes.YLabel.FontSize = 12;
-        subplot(2,2,2);
+        subplot(3,2,2);
         plot(a_bid_1_u_std);
         axes = gca;
         axis tight;
@@ -610,7 +680,41 @@ if control.compute_a_acorr && param.plot_a_std
         axes.YLabel.Interpreter = 'latex';
         axes.YLabel.String = 'Standardized accumulated cost';
         axes.YLabel.FontSize = 12;
-        subplot(2,2,3);
+        subplot(3,2,3);
+        plot(a_bid_all_std);
+        axes = gca;
+        axis tight;
+        axes.Title.Interpreter = 'latex';
+        axes.Title.String = 'bid-all-always';
+        axes.Title.FontSize = 14;
+        axes.XAxis.TickLabelInterpreter = 'latex';
+        axes.XAxis.FontSize = 10;
+        axes.YAxis.TickLabelInterpreter = 'latex';
+        axes.YAxis.FontSize = 10;
+        axes.XLabel.Interpreter = 'latex';
+        axes.XLabel.String = 'Time';
+        axes.XLabel.FontSize = 12;
+        axes.YLabel.Interpreter = 'latex';
+        axes.YLabel.String = 'Standardized accumulated cost';
+        axes.YLabel.FontSize = 12;
+        subplot(3,2,4);
+        plot(a_bid_all_u_std);
+        axes = gca;
+        axis tight;
+        axes.Title.Interpreter = 'latex';
+        axes.Title.String = 'bid-all-if-urgent';
+        axes.Title.FontSize = 14;
+        axes.XAxis.TickLabelInterpreter = 'latex';
+        axes.XAxis.FontSize = 10;
+        axes.YAxis.TickLabelInterpreter = 'latex';
+        axes.YAxis.FontSize = 10;
+        axes.XLabel.Interpreter = 'latex';
+        axes.XLabel.String = 'Time';
+        axes.XLabel.FontSize = 12;
+        axes.YLabel.Interpreter = 'latex';
+        axes.YLabel.String = 'Standardized accumulated cost';
+        axes.YLabel.FontSize = 12;
+        subplot(3,2,5);
         plot(a_bid_rand_std);
         axes = gca;
         axis tight;
@@ -627,7 +731,7 @@ if control.compute_a_acorr && param.plot_a_std
         axes.YLabel.Interpreter = 'latex';
         axes.YLabel.String = 'Standardized accumulated cost';
         axes.YLabel.FontSize = 12;
-        subplot(2,2,4);
+        subplot(3,2,6);
         plot(a_bid_rand_u_std);
         axes = gca;
         axis tight;
@@ -645,7 +749,11 @@ if control.compute_a_acorr && param.plot_a_std
         axes.YLabel.String = 'Standardized accumulated cost';
         axes.YLabel.FontSize = 12;
         
-        title = sgtitle(['$k_{max}$ = ', num2str(param.k_max, '%02d'), ' $k_{avg}$ = ', num2str(param.k_ave, '%02d'), ' standardized accumulated costs for heuristic karma policies']);
+        if ~exist('K_ne', 'var')
+            title = sgtitle(['$k_{max}$ = ', num2str(param.k_max, '%02d'), ' $k_{avg}$ = ', num2str(param.k_ave, '%02d'), ' standardized accumulated costs for heuristic karma policies']);
+        else
+            title = sgtitle(['$k_{avg}$ = ', num2str(param.k_ave, '%02d'), ' standardized accumulated costs for heuristic karma policies']);
+        end
         title.Interpreter = 'latex';
         title.FontSize = 16;
     end
@@ -708,7 +816,11 @@ if control.compute_a_acorr && param.plot_a_std
             axes.YLabel.FontSize = 12;
         end
         
-        title = sgtitle(['$k_{max}$ = ', num2str(param.k_max, '%02d'), ' $k_{avg}$ = ', num2str(param.k_ave, '%02d'), ' standardized accumulated costs for karma policies']);
+        if ~exist('K_ne', 'var')
+            title = sgtitle(['$k_{max}$ = ', num2str(param.k_max, '%02d'), ' $k_{avg}$ = ', num2str(param.k_ave, '%02d'), ' standardized accumulated costs for karma policies']);
+        else
+            title = sgtitle(['$k_{avg}$ = ', num2str(param.k_ave, '%02d'), ' standardized accumulated costs for karma policies']);
+        end
         title.Interpreter = 'latex';
         title.FontSize = 16;
     end
@@ -734,6 +846,8 @@ if control.compute_a_acorr && param.plot_a_acorr
     if control.karma_heuristic_policies
         plot(acorr_tau, a_bid_1_acorr, '-.');
         plot(acorr_tau, a_bid_1_u_acorr, '-.');
+        plot(acorr_tau, a_bid_all_acorr, '-.');
+        plot(acorr_tau, a_bid_all_u_acorr, '-.');
         plot(acorr_tau, a_bid_rand_acorr, '-.');
         plot(acorr_tau, a_bid_rand_u_acorr, '-.');
     end
@@ -751,7 +865,11 @@ if control.compute_a_acorr && param.plot_a_acorr
     stem(0, a_rand_acorr(acorr_tau == 0));
     ylim(axes, yl);
     axes.Title.Interpreter = 'latex';
-    axes.Title.String = ['$k_{max}$ = ', num2str(param.k_max, '%02d'), ' $k_{avg}$ = ', num2str(param.k_ave, '%02d'), ' autocorrelation of accumulated costs'];
+    if ~exist('K_ne', 'var')
+        axes.Title.String = ['$k_{max}$ = ', num2str(param.k_max, '%02d'), ' $k_{avg}$ = ', num2str(param.k_ave, '%02d'), ' autocorrelation of accumulated costs'];
+    else
+        axes.Title.String = ['$k_{avg}$ = ', num2str(param.k_ave, '%02d'), ' autocorrelation of accumulated costs'];
+    end
     axes.Title.FontSize = 16;
     axes.XAxis.TickLabelInterpreter = 'latex';
     axes.XAxis.FontSize = 10;

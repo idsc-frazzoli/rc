@@ -246,7 +246,7 @@ for i_k_ave = 1 : length(ne_param.k_ave)
         d_k_0(end) = 1;
     else
         d_k_0 = 1 / ne_param.num_K * ones(ne_param.num_K, 1);
-        K_small = ne_param.k_min : k_ave - 1;
+        K_small = 0 : k_ave - 1;
         K_big = k_ave + 1 : ne_param.k_max;
         num_K_small = length(K_small);
         num_K_big = length(K_big);

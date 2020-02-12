@@ -20,9 +20,6 @@ ne_param.K = param.K;
 % Number of karma values
 ne_param.num_K = param.num_K;
 
-% Minimum karma
-ne_param.k_min = param.k_min;
-
 % Maximum karma
 ne_param.k_max = param.k_max;
 
@@ -54,7 +51,7 @@ ne_param.alpha = param.alpha;
 ne_param.num_alpha = param.num_alpha;
 
 % Tolerance for convergence of stationary distribution
-ne_param.d_tol = 1e-3;
+ne_param.d_tol = 1e-6;
 
 % Maximum number of iterations for convergence of stationary distribution
 ne_param.d_max_iter = 1000;
@@ -66,7 +63,7 @@ ne_param.d_mom = 1.0;
 ne_param.v_tol = 1e-10;
 
 % Maximum number of iterations for convergence of v
-ne_param.v_max_iter = 1000;
+ne_param.v_max_iter = 100000;
 
 % Tolerance for best response deviation on v
 ne_param.br_v_tol = 1e-4;
@@ -104,6 +101,6 @@ ne_param.beta_s = 0.5;
 ne_param.plot = false;
 
 % Save results
-ne_param.save = true;
+ne_param.save = false;
 
 end

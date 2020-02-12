@@ -7,7 +7,7 @@ Nu = 2;
 K = 0 : 12;
 Nk = length(K);
 Nx = Nu * Nk;
-k_ave = 3;
+k_ave = 10;
 Nk_small = length(0 : k_ave - 1);
 Nk_big = length(k_ave + 1 : K(end));
 delta_constant = sum(0 : k_ave - 1) / Nk_small - sum(k_ave + 1 : K(end)) / Nk_big;
@@ -20,7 +20,7 @@ p_U = [p_U; 1 - p_U];
 
 %% Load sample 
 %load('T_down_ui_ki_uj_kj_up_uin_kin.mat');
-load('karma_nash_equilibrium/results/k_max_12_k_ave_06/alpha_0.75.mat');
+load('karma_nash_equilibrium/results/k_max_12_k_ave_10/alpha_0.80.mat');
 T_down_xi_xj_up_xin = zeros(Nx, Nx, Nx);
 for i_ui = 1 : Nu
     base_i_ui = (i_ui - 1) * Nk;
@@ -35,7 +35,7 @@ for i_ui = 1 : Nu
                     for i_kin = 1 :Nk
                         i_xin = base_i_uin + i_kin;
                         T_down_xi_xj_up_xin(i_xi,i_xj,i_xin) =...
-                            T_down_ui_ki_uj_kj_up_uin_kin(i_ui, i_ki, i_uj, i_kj, i_uin, i_kin);
+                            sigma_down_u_k_uj_kj_up_un_kn(i_ui, i_ki, i_uj, i_kj, i_uin, i_kin);
                     end
                 end
             end
@@ -68,7 +68,7 @@ for i_x = 1 : Nx
     D_next(i_x) = D_curr.' * T_down_xi_xj_up_xin(:,:,i_x) * D_curr;
 end
 D_next = D_next / sum(D_next);
-while(norm(D_next - D_curr, inf) > 1e-5)
+while(norm(D_next - D_curr, inf) > 1e-6)
     D_curr = D_next;
     for i_x = 1 : Nx
         D_next(i_x) = D_curr.' * T_down_xi_xj_up_xin(:,:,i_x) * D_curr;
@@ -95,7 +95,7 @@ for i_small = 1 : i_kave - 1
             D_next(i_x) = D_curr.' * T_down_xi_xj_up_xin(:,:,i_x) * D_curr;
         end
         D_next = D_next / sum(D_next);
-        while(norm(D_next - D_curr, inf) > 1e-5)
+        while(norm(D_next - D_curr, inf) > 1e-6)
             D_curr = D_next;
             for i_x = 1 : Nx
                 D_next(i_x) = D_curr.' * T_down_xi_xj_up_xin(:,:,i_x) * D_curr;
@@ -136,7 +136,7 @@ for i_trial = i_trivial_trials : num_trials
         D_next(i_x) = D_curr.' * T_down_xi_xj_up_xin(:,:,i_x) * D_curr;
     end
     D_next = D_next / sum(D_next);
-    while(norm(D_next - D_curr, inf) > 1e-5)
+    while(norm(D_next - D_curr, inf) > 1e-6)
         D_curr = D_next;
         for i_x = 1 : Nx
             D_next(i_x) = D_curr.' * T_down_xi_xj_up_xin(:,:,i_x) * D_curr;
@@ -154,6 +154,8 @@ sensitivity_k_ave_init = max(k_ave_init) - min(k_ave_init)
 sensitivity_k_ave_out = max(k_ave_out) - min(k_ave_out)
 
 fprintf('DONE ITERATIVE\n\n');
+
+plot(D);
 
 % %% QCQP solution
 % D_opt = sdpvar(Nx, 1);
@@ -173,15 +175,15 @@ fprintf('DONE ITERATIVE\n\n');
 % 
 % fprintf('DONE QCQP\n\n');
 
-%% Some more testing for uniqueness
-T_down_ui_ki_uj_kj_up_kin = squeeze(sum(T_down_ui_ki_uj_kj_up_uin_kin, 5));
-T_down_ui_ki_kj_up_kin = squeeze(p_U(1) * T_down_ui_ki_uj_kj_up_kin(:,:,1,:,:) + p_U(2) * T_down_ui_ki_uj_kj_up_kin(:,:,2,:,:));
-T_down_ki_kj_up_kin = squeeze(p_U(1) * T_down_ui_ki_kj_up_kin(1,:,:,:) + p_U(2) * T_down_ui_ki_kj_up_kin(2,:,:,:));
-K_T = zeros(Nk);
-for i_k = 1 : Nk
-    K_T = K_T + K(i_k) * T_down_ki_kj_up_kin(:,:,i_k);
-end
-D_up_k = D_curr(1:Nk) + D_curr(Nk+1:end);
-D_up_k.' * K_T * D_up_k;
-
-fprintf('DONE\n\n');
+% %% Some more testing for uniqueness
+% T_down_ui_ki_uj_kj_up_kin = squeeze(sum(T_down_ui_ki_uj_kj_up_uin_kin, 5));
+% T_down_ui_ki_kj_up_kin = squeeze(p_U(1) * T_down_ui_ki_uj_kj_up_kin(:,:,1,:,:) + p_U(2) * T_down_ui_ki_uj_kj_up_kin(:,:,2,:,:));
+% T_down_ki_kj_up_kin = squeeze(p_U(1) * T_down_ui_ki_kj_up_kin(1,:,:,:) + p_U(2) * T_down_ui_ki_kj_up_kin(2,:,:,:));
+% K_T = zeros(Nk);
+% for i_k = 1 : Nk
+%     K_T = K_T + K(i_k) * T_down_ki_kj_up_kin(:,:,i_k);
+% end
+% D_up_k = D_curr(1:Nk) + D_curr(Nk+1:end);
+% D_up_k.' * K_T * D_up_k;
+% 
+% fprintf('DONE\n\n');

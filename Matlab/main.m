@@ -84,8 +84,8 @@ if control.karma_heuristic_policies || (control.karma_ne_policies || control.kar
     if param.karma_initialization == 0
         init_k = param.k_ave * ones(1, param.N);
     else
-        d_k_uniform = func.get_d_k_uniform(param);
-        init_k = func.get_init_k(d_k_uniform, param);
+        s_up_k_uniform = func.get_s_up_k_uniform(param);
+        init_k = func.get_init_k(s_up_k_uniform, param.K, param);
     end
 end
     
@@ -118,9 +118,9 @@ if control.karma_ne_policies
             % Initialize karma as per stationary distribution predicted by NE
             % algorithm
             load([file_str, num2str(param.alpha(i_alpha), '%.2f'), '.mat'], 'ne_d_up_u_k');
-            k_ne{i_alpha}(1,:) = func.get_init_k(sum(ne_d_up_u_k), param);
+            k_ne{i_alpha}(1,:) = func.get_init_k(sum(ne_d_up_u_k), param.K, param);
 %             load([file_str, num2str(param.alpha(i_alpha), '%.2f'), '.mat'], 'D_up_u_k');
-%             k_ne{i_alpha}(1,:) = func.get_init_k(sum(D_up_u_k), param);
+%             k_ne{i_alpha}(1,:) = func.get_init_k(sum(D_up_u_k), param.K, param);
         else
             k_ne{i_alpha}(1,:) = init_k;
         end
@@ -135,7 +135,7 @@ if control.karma_sw_policy
         % Initialize karma as per stationary distribution predicted by SW
         % algorithm
         load(['karma_nash_equilibrium/results/sw_k_max_', num2str(param.k_max, '%02d'), '/k_ave_', num2str(param.k_ave, '%02d'), '.mat'], 'sw_d_up_u_k');
-        k_sw(1,:) = func.get_init_k(sum(sw_d_up_u_k), param);
+        k_sw(1,:) = func.get_init_k(sum(sw_d_up_u_k), param.K, param);
     else
         k_sw(1,:) = init_k;
     end
@@ -325,7 +325,7 @@ for day = 1 : param.num_days
         if control.karma_heuristic_policies
             %% Bid 1 always policy
             % Agents simply bid 1, if they have it
-            m = min([ones(1, param.I_size); k_bid_1(t,I) - param.k_min]);
+            m = min([ones(1, param.I_size); k_bid_1(t,I)]);
 
             % Agent bidding max karma passes and pays karma bidded
             [m_win, i_win] = max(m);
@@ -348,7 +348,7 @@ for day = 1 : param.num_days
 
             %% Bid 1 if urgent policy
             % Agents bid 1, if they have it and they are urgent
-            m = min([ones(1, param.I_size); k_bid_1_u(t,I) - param.k_min]);
+            m = min([ones(1, param.I_size); k_bid_1_u(t,I)]);
             m(u == 0) = 0;
 
             % Agent bidding max karma passes and pays karma bidded
@@ -375,7 +375,7 @@ for day = 1 : param.num_days
             k = k_bid_rand(t,I);
             m = zeros(1, param.I_size);
             for i_agent = 1 : param.I_size
-                m(i_agent) = datasample(karma_stream, param.k_min : k(i_agent), 1);
+                m(i_agent) = datasample(karma_stream, 0 : k(i_agent), 1);
             end
 
             % Agent bidding max karma passes and pays karma bidded

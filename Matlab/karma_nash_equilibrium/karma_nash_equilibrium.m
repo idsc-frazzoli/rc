@@ -146,7 +146,7 @@ for i_alpha = 1 : ne_param.num_alpha
     if ne_param.plot
         ne_pi_plot_fg = 1;
         ne_pi_plot_pos = [0, default_height, default_width, default_height];
-        ne_func.plot_ne_pi(ne_pi_plot_fg, ne_pi_plot_pos, RedColormap, ne_pi_down_u_k_up_m, ne_param.U, ne_param.K, ne_param.M, alpha);
+        ne_func.plot_ne_pi(ne_pi_plot_fg, ne_pi_plot_pos, RedColormap, ne_pi_down_u_k_up_m, ne_param.U, ne_param.K, ne_param.M, ne_param.k_ave, alpha);
     end
 
     %% Step 2
@@ -165,7 +165,7 @@ for i_alpha = 1 : ne_param.num_alpha
         D_up_k_init(end) = 1;
     else
         D_up_k_init = 1 / ne_param.num_K * ones(ne_param.num_K, 1);
-        K_small = ne_param.k_min : ne_param.k_ave - 1;
+        K_small = 0 : ne_param.k_ave - 1;
         K_big = ne_param.k_ave + 1 : ne_param.k_max;
         num_K_small = length(K_small);
         num_K_big = length(K_big);
@@ -201,7 +201,7 @@ for i_alpha = 1 : ne_param.num_alpha
     if ne_param.plot
         ne_d_plot_fg = 2;
         ne_d_plot_pos = [0, 0, default_width, default_height];
-        ne_func.plot_ne_d(ne_d_plot_fg, ne_d_plot_pos, ne_d_up_u_k, ne_param.U, ne_param.K, alpha);
+        ne_func.plot_ne_d(ne_d_plot_fg, ne_d_plot_pos, ne_d_up_u_k, ne_param.U, ne_param.K, ne_param.k_ave, alpha);
     end
 
     %% Step 3
@@ -305,7 +305,7 @@ for i_alpha = 1 : ne_param.num_alpha
     if ne_param.plot
         br_pi_plot_fg = 3;
         br_pi_plot_pos = [default_width, default_height, default_width, default_height];
-        ne_func.plot_br_pi(br_pi_plot_fg, br_pi_plot_pos, RedColormap, br_pi_down_u_k_up_m, ne_param.U, ne_param.K, ne_param.M, alpha);
+        ne_func.plot_br_pi(br_pi_plot_fg, br_pi_plot_pos, RedColormap, br_pi_down_u_k_up_m, ne_param.U, ne_param.K, ne_param.M, ne_param.k_ave, alpha);
         drawnow;
     end
 
@@ -318,7 +318,7 @@ for i_alpha = 1 : ne_param.num_alpha
 
     % Plot
     if ne_param.plot
-        ne_func.plot_ne_pi(ne_pi_plot_fg, ne_pi_plot_pos, RedColormap, ne_pi_down_u_k_up_m, ne_param.U, ne_param.K, ne_param.M, alpha);
+        ne_func.plot_ne_pi(ne_pi_plot_fg, ne_pi_plot_pos, RedColormap, ne_pi_down_u_k_up_m, ne_param.U, ne_param.K, ne_param.M, ne_param.k_ave, alpha);
     end
     % Display status and store history of policies
     fprintf('Iteration %d policy error %f\n', num_ne_pi_iter, ne_pi_error);
@@ -371,7 +371,7 @@ for i_alpha = 1 : ne_param.num_alpha
 
         % Plot
         if ne_param.plot
-            ne_func.plot_ne_d(ne_d_plot_fg, ne_d_plot_pos, ne_d_up_u_k, ne_param.U, ne_param.K, alpha);
+            ne_func.plot_ne_d(ne_d_plot_fg, ne_d_plot_pos, ne_d_up_u_k, ne_param.U, ne_param.K, ne_param.k_ave, alpha);
         end
 
         %% Step 5.3
@@ -472,7 +472,7 @@ for i_alpha = 1 : ne_param.num_alpha
 
         % Plot
         if ne_param.plot
-            ne_func.plot_br_pi(br_pi_plot_fg, br_pi_plot_pos, RedColormap, br_pi_down_u_k_up_m, ne_param.U, ne_param.K, ne_param.M, alpha);
+            ne_func.plot_br_pi(br_pi_plot_fg, br_pi_plot_pos, RedColormap, br_pi_down_u_k_up_m, ne_param.U, ne_param.K, ne_param.M, ne_param.k_ave, alpha);
             drawnow;
         end
 
@@ -485,7 +485,7 @@ for i_alpha = 1 : ne_param.num_alpha
 
         % Plot
         if ne_param.plot
-            ne_func.plot_ne_pi(ne_pi_plot_fg, ne_pi_plot_pos, RedColormap, ne_pi_down_u_k_up_m, ne_param.U, ne_param.K, ne_param.M, alpha);
+            ne_func.plot_ne_pi(ne_pi_plot_fg, ne_pi_plot_pos, RedColormap, ne_pi_down_u_k_up_m, ne_param.U, ne_param.K, ne_param.M, ne_param.k_ave, alpha);
         end
 
         % Display status and store history of policies
@@ -533,22 +533,22 @@ for i_alpha = 1 : ne_param.num_alpha
         % NE expected utility plot
         ne_v_plot_fg = 4;
         ne_v_plot_pos = [0, 0, default_width, default_height];
-        ne_func.plot_ne_v(ne_v_plot_fg, ne_v_plot_pos, ne_v_down_u_k, ne_param.U, ne_param.K, alpha);
+        ne_func.plot_ne_v(ne_v_plot_fg, ne_v_plot_pos, ne_v_down_u_k, ne_param.U, ne_param.K, ne_param.k_ave, alpha);
 
         % NE expected utiliy per message plot
         ne_rho_plot_fg = 5;
         ne_rho_plot_pos = [default_width, 0, default_width, default_height];
-        ne_func.plot_ne_rho(ne_rho_plot_fg, ne_rho_plot_pos, parula, ne_rho_down_u_k_m, ne_param.U, ne_param.K, ne_param.M, alpha);
+        ne_func.plot_ne_rho(ne_rho_plot_fg, ne_rho_plot_pos, parula, ne_rho_down_u_k_m, ne_param.U, ne_param.K, ne_param.M, ne_param.k_ave, alpha);
         
         % NE state transitions plot
         ne_t_plot_fg = 6;
         ne_t_plot_pos = [0, 0, screenwidth, screenheight];
-        ne_func.plot_ne_t(ne_t_plot_fg, ne_t_plot_pos, RedColormap, ne_t_down_u_k_up_un_kn, ne_param.U, ne_param.K, alpha);
+        ne_func.plot_ne_t(ne_t_plot_fg, ne_t_plot_pos, RedColormap, ne_t_down_u_k_up_un_kn, ne_param.U, ne_param.K, ne_param.k_ave, alpha);
         
         % NE policy error plot
         ne_pi_error_plot_fg = 7;
         ne_pi_error_plot_pos = [default_width, 0, default_width, default_height];
-        ne_func.plot_ne_pi_error(ne_pi_error_plot_fg, ne_pi_error_plot_pos, ne_pi_error_hist, alpha);
+        ne_func.plot_ne_pi_error(ne_pi_error_plot_fg, ne_pi_error_plot_pos, ne_pi_error_hist, ne_param.k_ave, alpha);
     end
     
     % Store end results
@@ -562,37 +562,37 @@ if ~ne_param.plot
     % NE policy plot
     ne_pi_plot_fg = 1;
     ne_pi_plot_pos = [0, default_height, default_width, default_height];
-    ne_func.plot_ne_pi(ne_pi_plot_fg, ne_pi_plot_pos, RedColormap, ne_pi_down_u_k_up_m, ne_param.U, ne_param.K, ne_param.M, alpha);
+    ne_func.plot_ne_pi(ne_pi_plot_fg, ne_pi_plot_pos, RedColormap, ne_pi_down_u_k_up_m, ne_param.U, ne_param.K, ne_param.M, ne_param.k_ave, alpha);
     
     % NE stationary distribution plot
     ne_d_plot_fg = 2;
     ne_d_plot_pos = [0, 0, default_width, default_height];
-    ne_func.plot_ne_d(ne_d_plot_fg, ne_d_plot_pos, ne_d_up_u_k, ne_param.U, ne_param.K, alpha);
+    ne_func.plot_ne_d(ne_d_plot_fg, ne_d_plot_pos, ne_d_up_u_k, ne_param.U, ne_param.K, ne_param.k_ave, alpha);
     
     % Agent i best response policy plot
     br_pi_plot_fg = 3;
     br_pi_plot_pos = [default_width, default_height, default_width, default_height];
-    ne_func.plot_br_pi(br_pi_plot_fg, br_pi_plot_pos, RedColormap, br_pi_down_u_k_up_m, ne_param.U, ne_param.K, ne_param.M, alpha);
+    ne_func.plot_br_pi(br_pi_plot_fg, br_pi_plot_pos, RedColormap, br_pi_down_u_k_up_m, ne_param.U, ne_param.K, ne_param.M, ne_param.k_ave, alpha);
 
     % NE expected utility plot
     ne_v_plot_fg = 4;
     ne_v_plot_pos = [0, 0, default_width, default_height];
-    ne_func.plot_ne_v(ne_v_plot_fg, ne_v_plot_pos, ne_v_down_u_k, ne_param.U, ne_param.K, alpha);
+    ne_func.plot_ne_v(ne_v_plot_fg, ne_v_plot_pos, ne_v_down_u_k, ne_param.U, ne_param.K, ne_param.k_ave, alpha);
 
     % NE expected utiliy per message plot
     ne_rho_plot_fg = 5;
     ne_rho_plot_pos = [default_width, 0, default_width, default_height];
-    ne_func.plot_ne_rho(ne_rho_plot_fg, ne_rho_plot_pos, parula, ne_rho_down_u_k_m, ne_param.U, ne_param.K, ne_param.M, alpha);
+    ne_func.plot_ne_rho(ne_rho_plot_fg, ne_rho_plot_pos, parula, ne_rho_down_u_k_m, ne_param.U, ne_param.K, ne_param.M, ne_param.k_ave, alpha);
 
     % NE state transitions plot
     ne_t_plot_fg = 6;
     ne_t_plot_pos = [0, 0, screenwidth, screenheight];
-    ne_func.plot_ne_t(ne_t_plot_fg, ne_t_plot_pos, RedColormap, ne_t_down_u_k_up_un_kn, ne_param.U, ne_param.K, alpha);
+    ne_func.plot_ne_t(ne_t_plot_fg, ne_t_plot_pos, RedColormap, ne_t_down_u_k_up_un_kn, ne_param.U, ne_param.K, ne_param.k_ave, alpha);
 
     % NE policy error plot
     ne_pi_error_plot_fg = 7;
     ne_pi_error_plot_pos = [default_width, 0, default_width, default_height];
-    ne_func.plot_ne_pi_error(ne_pi_error_plot_fg, ne_pi_error_plot_pos, ne_pi_error_hist, alpha);
+    ne_func.plot_ne_pi_error(ne_pi_error_plot_fg, ne_pi_error_plot_pos, ne_pi_error_hist, ne_param.k_ave, alpha);
 end
 
 %% Inform user when done
