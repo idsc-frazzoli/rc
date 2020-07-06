@@ -18,8 +18,9 @@ from .types import Probability
 
 # constant = DiscreteDistribution(((UrgencyValue(4), Probability(1)),))
 
-highlow = DiscreteDistribution(((UrgencyValue(0), Probability(0.5)),
-                                (UrgencyValue(3), Probability(0.5))))
+highlow = DiscreteDistribution(
+    ((UrgencyValue(0), Probability(0.5)), (UrgencyValue(3), Probability(0.5)))
+)
 
 # highlowmean = DiscreteDistribution(((UrgencyValue(0), Probability(0.3)),
 #                                     (UrgencyValue(1.5), Probability(0.4)),
@@ -31,90 +32,112 @@ average_encounters_per_day_per_agent = 0.1
 
 initial_karma = RandomKarma(0, Globals.max_carma)  # lower, upper
 
-common = dict(num_agents=num_agents,
-              num_days=num_days,
-              average_encounters_per_day_per_agent=average_encounters_per_day_per_agent,
-              initial_karma_scenario=initial_karma, cost_update_policy=PayUrgency(),
-              karma_update_policy=BoundedKarma(Globals.max_carma),
-              urgency_distribution_scenario=ConstantUrgencyDistribution(highlow))
+common = dict(
+    num_agents=num_agents,
+    num_days=num_days,
+    average_encounters_per_day_per_agent=average_encounters_per_day_per_agent,
+    initial_karma_scenario=initial_karma,
+    cost_update_policy=PayUrgency(),
+    karma_update_policy=BoundedKarma(Globals.max_carma),
+    urgency_distribution_scenario=ConstantUrgencyDistribution(highlow),
+)
 
 for alpha in equilibria:
-    name = 'equilibrium%.2f' % alpha
-    experiments[name] = Experiment(desc="Mixed equilibrium for alpha = %.2f" % alpha,
-                                   agent_policy_scenario=FixedPolicy(ComputedEquilibrium(alpha)),
-                                   who_goes=MaxGoesIfHasKarma(),
-                                   **common
-                                   )
+    name = "equilibrium%.2f" % alpha
+    experiments[name] = Experiment(
+        desc="Mixed equilibrium for alpha = %.2f" % alpha,
+        agent_policy_scenario=FixedPolicy(ComputedEquilibrium(alpha)),
+        who_goes=MaxGoesIfHasKarma(),
+        **common,
+    )
 
 for alpha in equilibria_pure:
-    name = 'pure%.2f' % alpha
-    experiments[name] = Experiment(desc="Pure equilibrium for alpha = %.2f" % alpha,
-                                   agent_policy_scenario=FixedPolicy(ComputedEquilibriumPure(alpha)),
-                                   who_goes=MaxGoesIfHasKarma(),
-                                   **common
-                                   )
+    name = "pure%.2f" % alpha
+    experiments[name] = Experiment(
+        desc="Pure equilibrium for alpha = %.2f" % alpha,
+        agent_policy_scenario=FixedPolicy(ComputedEquilibriumPure(alpha)),
+        who_goes=MaxGoesIfHasKarma(),
+        **common,
+    )
 
-experiments['centralized-urgency'] = Experiment(desc="Centralized controller chooses the one with highest urgency.",
-                                                agent_policy_scenario=FixedPolicy(RandomAgentPolicy()),
-                                                who_goes=MaxUrgencyGoes(),
-                                                **common)
+experiments["centralized-urgency"] = Experiment(
+    desc="Centralized controller chooses the one with highest urgency.",
+    agent_policy_scenario=FixedPolicy(RandomAgentPolicy()),
+    who_goes=MaxUrgencyGoes(),
+    **common,
+)
 
-experiments['centralized-urgency-then-cost'] = Experiment(
-        desc="Centralized controller chooses the one with highest urgency and if ties the one with the maximum cost.",
-        agent_policy_scenario=FixedPolicy(RandomAgentPolicy()),
-        who_goes=MaxUrgencyThenCost(),
-        **common)
+experiments["centralized-urgency-then-cost"] = Experiment(
+    desc="Centralized controller chooses the one with highest urgency and if ties the one with the maximum cost.",
+    agent_policy_scenario=FixedPolicy(RandomAgentPolicy()),
+    who_goes=MaxUrgencyThenCost(),
+    **common,
+)
 
-experiments['baseline-random'] = Experiment(desc="Random choice of who goes",
-                                            agent_policy_scenario=FixedPolicy(RandomAgentPolicy()),
-                                            who_goes=RandomWhoGoes(), **common)
+experiments["baseline-random"] = Experiment(
+    desc="Random choice of who goes",
+    agent_policy_scenario=FixedPolicy(RandomAgentPolicy()),
+    who_goes=RandomWhoGoes(),
+    **common,
+)
 
-experiments['bid1-always'] = Experiment(desc="The agents always bid 1",
-                                        agent_policy_scenario=FixedPolicy(Bid1()),
-                                        who_goes=MaxGoesIfHasKarma(),
-                                        **common)
-experiments['bid1-if-urgent'] = Experiment(desc="The agents bid 1 if they are urgent",
-                                           agent_policy_scenario=FixedPolicy(Bid1IfUrgent()),
-                                           who_goes=MaxGoesIfHasKarma(),
-                                           **common)
-experiments['bid-urgency'] = Experiment(desc="The agents bid their urgency",
-                                        agent_policy_scenario=FixedPolicy(BidUrgency()),
-                                        who_goes=MaxGoesIfHasKarma(), **common)
+experiments["bid1-always"] = Experiment(
+    desc="The agents always bid 1",
+    agent_policy_scenario=FixedPolicy(Bid1()),
+    who_goes=MaxGoesIfHasKarma(),
+    **common,
+)
+experiments["bid1-if-urgent"] = Experiment(
+    desc="The agents bid 1 if they are urgent",
+    agent_policy_scenario=FixedPolicy(Bid1IfUrgent()),
+    who_goes=MaxGoesIfHasKarma(),
+    **common,
+)
+experiments["bid-urgency"] = Experiment(
+    desc="The agents bid their urgency",
+    agent_policy_scenario=FixedPolicy(BidUrgency()),
+    who_goes=MaxGoesIfHasKarma(),
+    **common,
+)
 
-experiments['centralized-cost'] = Experiment(
-        desc="Centralized controller chooses the agent with the highest accumulated cost.",
-        agent_policy_scenario=FixedPolicy(BidUrgency()),
-        who_goes=MaxCostGoes(),
-        **common)
+experiments["centralized-cost"] = Experiment(
+    desc="Centralized controller chooses the agent with the highest accumulated cost.",
+    agent_policy_scenario=FixedPolicy(BidUrgency()),
+    who_goes=MaxCostGoes(),
+    **common,
+)
 
-experiments['guess1'] = Experiment(desc="A guess about optimal strategy.",
-                                   agent_policy_scenario=FixedPolicy(GoodGuees()),
-                                   who_goes=MaxGoesIfHasKarma(), **common)
+experiments["guess1"] = Experiment(
+    desc="A guess about optimal strategy.",
+    agent_policy_scenario=FixedPolicy(GoodGuees()),
+    who_goes=MaxGoesIfHasKarma(),
+    **common,
+)
 
 prec = 5
 
 
 def stats_avg_cum_cost(exp, history):
     """ Final cumulative cost. """
-    last = history[-1, :]['cost']
+    last = history[-1, :]["cost"]
     return Decimal(np.mean(last)).__round__(prec)
 
 
 def stats_avg_cum_cost_avg(exp, history):
     """ Final cost / number of encounters each """
-    last = history[-1, :]['cost_average']
+    last = history[-1, :]["cost_average"]
     return Decimal(np.mean(last)).__round__(prec)
 
 
 def stats_avg_cum_cost_std(exp, history):
     """ stddev """
-    last = history[-1, :]['cost_average']
+    last = history[-1, :]["cost_average"]
     return Decimal(np.std(last)).__round__(prec)
 
 
 def stats_std_final_karma(exp, history):
     """ STD of final karma distribution. """
-    last = history[-1, :]['karma']
+    last = history[-1, :]["karma"]
     return Decimal(np.std(last)).__round__(prec)
 
 
@@ -124,7 +147,7 @@ statistics = [
     stats_avg_cum_cost_avg,
     stats_avg_cum_cost_std,
     # stats_std_final_cost_avg,
-    stats_std_final_karma
+    stats_std_final_karma,
 ]
 
 import argparse
@@ -132,15 +155,15 @@ import argparse
 
 def carma1_main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--no-reports', action='store_true', default=False)
-    parser.add_argument('--experiment', type=str, default=None)
+    parser.add_argument("--no-reports", action="store_true", default=False)
+    parser.add_argument("--experiment", type=str, default=None)
     parsed = parser.parse_args()
 
     do_reports = not parsed.no_reports
 
-    od = './out-experiments'
-    fn0 = os.path.join(od, 'summary.html')
-    r0 = Report('all-experiments')
+    od = "./out-experiments"
+    fn0 = os.path.join(od, "summary.html")
+    r0 = Report("all-experiments")
     rows = []
     data = []
     cols = [x.__doc__ for x in statistics]
@@ -148,13 +171,13 @@ def carma1_main():
     if parsed.experiment is None:
         todo = list(experiments)
     else:
-        todo = parsed.experiment.split(',')
+        todo = parsed.experiment.split(",")
 
     for exp_name in todo:
         exp = experiments[exp_name]
 
     for exp_name in todo:
-        print(f'running experiment {exp_name}')
+        print(f"running experiment {exp_name}")
         exp = experiments[exp_name]
         rows.append(exp_name)
 
@@ -170,23 +193,23 @@ def carma1_main():
             datae.append(val)
         data.append(datae)
 
-        print('Creating reports...')
+        print("Creating reports...")
         if do_reports:
             r = make_figures(exp_name, exp, history)
         else:
             r = Report()
-        r.table('stats', data=data, cols=cols, rows=rows)
+        r.table("stats", data=data, cols=cols, rows=rows)
 
         r.nid = exp_name
-        fn = os.path.join(dn, 'partial.html')
+        fn = os.path.join(dn, "partial.html")
         r.to_html(fn)
-        print(f'Report written to {fn}')
+        print(f"Report written to {fn}")
 
         r0.add_child(r)
         r0.to_html(fn0)
 
-    r0.table('stats', data=data, cols=cols, rows=rows)
-    print(f'Complete report written to {fn0}')
+    r0.table("stats", data=data, cols=cols, rows=rows)
+    print(f"Complete report written to {fn0}")
     r0.to_html(fn0)
 
 
@@ -195,25 +218,26 @@ import os
 
 def compute_transitions_matrix_and_policy_for_urgency_nonzero(history):
     NK = Globals.max_carma + 1
-    urgencies = set(history['urgency'].flatten())
+    urgencies = set(history["urgency"].flatten())
     print(urgencies)
 
     P = np.zeros((NK, NK))
     policy = np.zeros((NK, NK))
 
-    ntimes, nagents = history['karma'].shape
+    ntimes, nagents = history["karma"].shape
     for i in range(nagents):
-        yes = np.logical_and(history[:, i]['urgency'] > 0,
-                             history[:, i]['participated'])
+        yes = np.logical_and(
+            history[:, i]["urgency"] > 0, history[:, i]["participated"]
+        )
         yes = yes.flatten()
         # print(yes)
         # print (np.argwhere(yes).flatten())
         interesting = np.argwhere(yes).flatten()
         for t in interesting[1:]:
-            k1 = history[t - 1, i]['karma']
-            k2 = history[t, i]['karma']
+            k1 = history[t - 1, i]["karma"]
+            k2 = history[t, i]["karma"]
             # part = history[t, i]['participated']
-            message = history[t, i]['message']
+            message = history[t, i]["message"]
 
             # assert 0 <= message <= NK, history[t, i]
             P[k1, k2] += 1.0
@@ -259,14 +283,14 @@ def make_figures(name: str, exp: Experiment, history) -> Report:
     data = ""
     for k in exp.__annotations__:
         v = getattr(exp, k)
-        if hasattr(v, '__desc__'):
-            data += f'{k}:: {v.__desc__}'
+        if hasattr(v, "__desc__"):
+            data += f"{k}:: {v.__desc__}"
         else:
-            data += f'\n{k}: {v}\n'
+            data += f"\n{k}: {v}\n"
 
-    r.text('description', str(data))
+    r.text("description", str(data))
 
-    matplotlib.use('cairo')
+    matplotlib.use("cairo")
     # RepRepDefaults.default_image_format = MIME_SVG
     # RepRepDefaults.save_extra_png = False
 
@@ -293,18 +317,18 @@ def make_figures(name: str, exp: Experiment, history) -> Report:
     #     pylab.xlabel('time')
 
     if False:
-        caption = 'Cumulative cost'
-        with f.plot('cost_cumulative', caption=caption) as pylab:
-            cost = history[sub, :]['cost']
+        caption = "Cumulative cost"
+        with f.plot("cost_cumulative", caption=caption) as pylab:
+            cost = history[sub, :]["cost"]
             pylab.plot(time[sub], cost, **style)
-            pylab.title('cost')
-            pylab.ylabel('cost')
-            pylab.xlabel('time')
+            pylab.title("cost")
+            pylab.ylabel("cost")
+            pylab.xlabel("time")
 
-        caption = 'Average cost (cumulative divided by time). Shown for the latter part of trajectory'
-        with f.plot('cost_average', caption=caption) as pylab:
-            cost = history[sub, :]['cost_average']
-            last = history[-1, :]['cost_average']
+        caption = "Average cost (cumulative divided by time). Shown for the latter part of trajectory"
+        with f.plot("cost_average", caption=caption) as pylab:
+            cost = history[sub, :]["cost_average"]
+            last = history[-1, :]["cost_average"]
             m = np.median(last)
 
             # m1, m2 = np.percentile(one, q=[3,97])
@@ -312,136 +336,139 @@ def make_figures(name: str, exp: Experiment, history) -> Report:
             pylab.plot(time[sub], cost, **style)
 
             y_axis_set(pylab, m / 2, m * 2)
-            pylab.title('average cost')
-            pylab.ylabel('average cost')
-            pylab.xlabel('time')
+            pylab.title("average cost")
+            pylab.ylabel("average cost")
+            pylab.xlabel("time")
     from .simulation import compute_karma_distribution2
-    cdf = compute_karma_distribution(history[:, :]['karma'])
+
+    cdf = compute_karma_distribution(history[:, :]["karma"])
     INTERVAL_STAT = 200
-    karma_first = compute_karma_distribution2(history[0, :]['karma'])
-    karma_last = compute_karma_distribution2(history[-1, :]['karma'])
+    karma_first = compute_karma_distribution2(history[0, :]["karma"])
+    karma_last = compute_karma_distribution2(history[-1, :]["karma"])
 
     karma_stationary = np.mean(cdf[-INTERVAL_STAT:, :], axis=0)
 
-    transitions, policy = compute_transitions_matrix_and_policy_for_urgency_nonzero(history)
+    transitions, policy = compute_transitions_matrix_and_policy_for_urgency_nonzero(
+        history
+    )
 
-    with f.plot('policy', caption='Policy for high urgency') as pylab:
+    with f.plot("policy", caption="Policy for high urgency") as pylab:
         plot_transitions(pylab, policy)
 
-    with f.plot('transitions', caption='Transitions for high urgency') as pylab:
+    with f.plot("transitions", caption="Transitions for high urgency") as pylab:
         plot_transitions(pylab, transitions)
 
-    with f.plot('num_encounters', caption='Number of encounters') as pylab:
-        pylab.hist(history[-1, :]['encounters'], density='True')
-        pylab.xlabel('num encounters')
+    with f.plot("num_encounters", caption="Number of encounters") as pylab:
+        pylab.hist(history[-1, :]["encounters"], density="True")
+        pylab.xlabel("num encounters")
 
-    mean_karma = np.mean(history['karma'], axis=1)
-    std_karma = np.std(history['karma'], axis=1)
+    mean_karma = np.mean(history["karma"], axis=1)
+    std_karma = np.std(history["karma"], axis=1)
 
-    with f.plot('total_karma') as pylab:
-        pylab.plot(mean_karma, 'b-', **style)
-    with f.plot('std_karma') as pylab:
+    with f.plot("total_karma") as pylab:
+        pylab.plot(mean_karma, "b-", **style)
+    with f.plot("std_karma") as pylab:
 
-        pylab.plot(std_karma, 'b-', **style)
+        pylab.plot(std_karma, "b-", **style)
 
         pylab.gca().set_ylim(bottom=0)
 
-    with f.plot('karma_vs_total') as pylab:
-        orders = np.argsort(history['cost'], axis=1)
+    with f.plot("karma_vs_total") as pylab:
+        orders = np.argsort(history["cost"], axis=1)
         orders_f = orders.flatten()
-        karma_f = history['karma'].flatten()
+        karma_f = history["karma"].flatten()
         bins = np.linspace(-0.5, Globals.max_carma + 0.5, Globals.max_carma + 2)
         H, xe, ye = np.histogram2d(orders_f, karma_f, bins=(32, bins), density=True)
 
         pylab.imshow(H.T)
-        pylab.xlabel('rank in cost')
-        pylab.ylabel('karma')
+        pylab.xlabel("rank in cost")
+        pylab.ylabel("karma")
         # pylab.plot(orders_f, karma_f, '.', **style)
 
-    with f.plot('karma_vs_avg_cost') as pylab:
+    with f.plot("karma_vs_avg_cost") as pylab:
         # orders = np.argsort(history['cost_average'], axis=1)
         # orders_f = orders.flatten()
-        cost_average_mean = np.mean(history['cost_average'], axis=1)
+        cost_average_mean = np.mean(history["cost_average"], axis=1)
         N = history.shape[1]
-        dcost = history['cost_average'] - (cost_average_mean * np.ones((N, 1))).T
+        dcost = history["cost_average"] - (cost_average_mean * np.ones((N, 1))).T
         dcost = dcost.flatten()
-        karma_f = history['karma'].flatten()
+        karma_f = history["karma"].flatten()
         H, xe, ye = np.histogram2d(dcost, karma_f, bins=(32, 13), density=True)
         # pylab.pcolormesh(xe, ye, H)
         pylab.imshow(H.T)
-        pylab.xlabel('rank in cost')
-        pylab.ylabel('karma')
+        pylab.xlabel("rank in cost")
+        pylab.ylabel("karma")
         # pylab.plot(orders_f, karma_f, '.', **style)
 
-    with f.plot('karma') as pylab:
+    with f.plot("karma") as pylab:
 
         cdf_plot = np.kron(cdf, np.ones((1, 40)))
 
         pylab.imshow(cdf_plot.T)
 
         # pylab.plot(time[sub], karma, '.', **style)
-        pylab.title('karma')
-        pylab.xlabel('time')
-        pylab.ylabel('karma')
+        pylab.title("karma")
+        pylab.xlabel("time")
+        pylab.ylabel("karma")
         pylab.gca().invert_yaxis()
         # TODO: turn off y axis
 
-    f = r.figure('karma-dist', caption='Karma distribution')
-    with f.plot('karma_initial') as pylab:
+    f = r.figure("karma-dist", caption="Karma distribution")
+    with f.plot("karma_initial") as pylab:
         # n = 10
         # for t in range(-n, -1):
         #     k = cdf[t, :]
         pylab.bar(Globals.valid_karma_values, karma_first)
-        pylab.title('karma at time 0')
-        pylab.xlabel('karma')
-        pylab.ylabel('p(karma)')
+        pylab.title("karma at time 0")
+        pylab.xlabel("karma")
+        pylab.ylabel("p(karma)")
 
-    with f.plot('karma_last') as pylab:
+    with f.plot("karma_last") as pylab:
         # n = 10
         # for t in range(-n, -1):
         #     k = cdf[t, :]
         pylab.bar(Globals.valid_karma_values, karma_last)
-        pylab.title('final karma')
-        pylab.xlabel('karma')
-        pylab.ylabel('p(karma)')
+        pylab.title("final karma")
+        pylab.xlabel("karma")
+        pylab.ylabel("p(karma)")
 
-    with f.plot('karma_stat') as pylab:
+    with f.plot("karma_stat") as pylab:
         # n = 10
         # for t in range(-n, -1):
         #     k = cdf[t, :]
         pylab.bar(Globals.valid_karma_values, karma_stationary)
-        pylab.title('karma stationary')
-        pylab.xlabel('karma')
-        pylab.ylabel('p(karma)')
+        pylab.title("karma stationary")
+        pylab.xlabel("karma")
+        pylab.ylabel("p(karma)")
 
     if False:
         sub = time > (len(time) / 4)
         caption = """ Cost vs karma phase space. """
-        with f.plot('cost-karma', caption=caption) as pylab:
+        with f.plot("cost-karma", caption=caption) as pylab:
             for i in range(nagents):
-                cost_i = history[sub, i]['cost']
-                karma_i = history[sub, i]['karma']
-                pylab.plot(cost_i, karma_i, '.', **style)
+                cost_i = history[sub, i]["cost"]
+                karma_i = history[sub, i]["karma"]
+                pylab.plot(cost_i, karma_i, ".", **style)
 
-            pylab.title('cost/karma')
+            pylab.title("cost/karma")
 
-            pylab.xlabel('cost')
-            pylab.ylabel('karma')
+            pylab.xlabel("cost")
+            pylab.ylabel("karma")
 
         caption = """ Agerage cost vs karma phase space. """
-        with f.plot('cost_average-karma', caption=caption) as pylab:
+        with f.plot("cost_average-karma", caption=caption) as pylab:
             for i in range(nagents):
-                cost_i = history[sub, i]['cost_average']
-                karma_i = history[sub, i]['karma']
-                pylab.plot(cost_i, karma_i, '.', **style)
+                cost_i = history[sub, i]["cost_average"]
+                karma_i = history[sub, i]["karma"]
+                pylab.plot(cost_i, karma_i, ".", **style)
 
-            pylab.title('cost_average/karma')
+            pylab.title("cost_average/karma")
 
-            pylab.xlabel('cost_average')
-            pylab.ylabel('karma')
+            pylab.xlabel("cost_average")
+            pylab.ylabel("karma")
 
     return r
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     carma1_main()

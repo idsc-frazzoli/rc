@@ -20,4 +20,3 @@ class Experiment:
     who_goes: WhoGoes
     cost_update_policy: CostUpdatePolicy
     karma_update_policy: KarmaUpdatePolicy
-

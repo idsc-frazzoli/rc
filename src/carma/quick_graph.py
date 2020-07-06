@@ -51,7 +51,7 @@ bid1-if-urgent	202.93500	0.40579	0.04772	3.70618
 bid-urgency	229.26000	0.45838	0.04988	4.02191
 centralized-cost	372.76500	0.74673	0.02982	4.55475
 """
-results ="""
+results = """
 guess1	233.52000	0.46694	0.05840	2.32718
 equilibrium0.00	258.01500	0.51576	0.05561	5.49052
 equilibrium0.80	192.70500	0.38530	0.04100	3.29329
@@ -91,7 +91,7 @@ bid-urgency	229.26000	0.45838	0.04988	4.02191
 centralized-cost	372.76500	0.74673	0.02982	4.55475
 """
 
-results="""
+results = """
 baseline-random	26.22300	0.74988	0.21747	4.72777
 bid-urgency	15.29550	0.43669	0.17924	4.15160
 bid1-always	26.24850	0.75051	0.20704	3.62419
@@ -130,62 +130,76 @@ pure0.85	13.32450	0.38064	0.15594	2.94088
 pure0.90	13.78500	0.39298	0.16864	2.59380
 pure0.98	14.09550	0.40246	0.17375	3.01808
 """
-dtype = [('name', '<S32'), ('cumulative', float), ('mean_cost', float), ('std_cost', float)]
-lines = [_ for _ in results.strip().split('\n') if not _.startswith('#')]
+dtype = [
+    ("name", "<S32"),
+    ("cumulative", float),
+    ("mean_cost", float),
+    ("std_cost", float),
+]
+lines = [_ for _ in results.strip().split("\n") if not _.startswith("#")]
 lines = sorted(lines)
 n = len(lines)
 
-matplotlib.use('agg')
+matplotlib.use("agg")
 RepRepDefaults.default_image_format = MIME_SVG
 RepRepDefaults.save_extra_png = True
 RepRepDefaults.save_extra_pdf = True
 data = np.zeros(shape=n, dtype=dtype)
 for i, x in enumerate(lines):
     tokens = x.split()
-    data[i]['name'] = tokens[0]
-    data[i]['cumulative'] = float(tokens[1])
-    data[i]['mean_cost'] = float(tokens[2])
-    data[i]['std_cost'] = float(tokens[3])
+    data[i]["name"] = tokens[0]
+    data[i]["cumulative"] = float(tokens[1])
+    data[i]["mean_cost"] = float(tokens[2])
+    data[i]["std_cost"] = float(tokens[3])
 
 # print(data)
 
+
 def color_for_alpha(alpha):
-    return alpha, np.sin(alpha*np.pi) ,0.5
+    return alpha, np.sin(alpha * np.pi), 0.5
+
 
 r = Report()
-with r.plot('plot') as pylab:
-    x, y = data[0]['mean_cost'], data[0]['std_cost']
-    pylab.plot(x, y, '*')
+with r.plot("plot") as pylab:
+    x, y = data[0]["mean_cost"], data[0]["std_cost"]
+    pylab.plot(x, y, "*")
 
     fig, ax = pylab.subplots()
     for i in range(n):
-        name = data[i]['name'].decode('utf-8')
-        x, y = data[i]['mean_cost'], data[i]['std_cost']
-        ise = 'eq' in name
-        ispure = 'pure' in name
+        name = data[i]["name"].decode("utf-8")
+        x, y = data[i]["mean_cost"], data[i]["std_cost"]
+        ise = "eq" in name
+        ispure = "pure" in name
         if ispure:
-            marker = 's'
-            alpha = float(name.replace('pure', ''))
+            marker = "s"
+            alpha = float(name.replace("pure", ""))
             color = color_for_alpha(alpha)
-            label = ' α = %.2f (pure)' % alpha
-            pylab.plot(x, y, marker, label=label, color=color,
-                       markeredgecolor=(0,0,0), markersize=4)
+            label = " α = %.2f (pure)" % alpha
+            pylab.plot(
+                x,
+                y,
+                marker,
+                label=label,
+                color=color,
+                markeredgecolor=(0, 0, 0),
+                markersize=4,
+            )
         elif ise:
-            marker = 'o'
-            alpha = float(name.replace('equilibrium',''))
+            marker = "o"
+            alpha = float(name.replace("equilibrium", ""))
             color = color_for_alpha(alpha)
-            label = ' α = %.2f (mixed)' % alpha
+            label = " α = %.2f (mixed)" % alpha
             pylab.plot(x, y, marker, label=label, color=color)
         else:
-            marker = '*'
+            marker = "*"
             pylab.plot(x, y, marker, label=name)
 
-            ax.annotate(name, (x + 0.01, y), ha='left', va='bottom', rotation=0, size=6)
+            ax.annotate(name, (x + 0.01, y), ha="left", va="bottom", rotation=0, size=6)
 
     # ax.annotate('most efficient\nmost fair', (0.35, 0.18))
 
-    pylab.xlabel('inefficiency (mean of cost)')
-    pylab.ylabel('unfairness (std-dev of cost)')
+    pylab.xlabel("inefficiency (mean of cost)")
+    pylab.ylabel("unfairness (std-dev of cost)")
     pylab.legend(loc=9, bbox_to_anchor=(0.5, -0.1), ncol=2)
 
     # pylab.axis((0.3, 0.5, 0.32, 0.37))
@@ -212,15 +226,15 @@ with r.plot('plot') as pylab:
 #      0.15: [0.0, 1.0, 2.0, 2.0, 3.0, 4.0, 4.9, 5.9, 6.9, 7.9, 8.9, 9.8, 11.7],
 #      0.55: [0.0, 1.0, 1.0, 2.0, 2.8, 3.5, 4.0, 4.6, 5.3, 5.7, 6.7, 7.9, 10.6]}
 
-with r.plot('equilibria') as pylab:
+with r.plot("equilibria") as pylab:
     for alpha in sorted(equilibria):
         policy = equilibria[alpha]
         color = color_for_alpha(alpha)
-        pylab.plot(policy, '-*', label=' α = %.2f (mixed)' % alpha, color=color)
+        pylab.plot(policy, "-*", label=" α = %.2f (mixed)" % alpha, color=color)
 
-    pylab.xlabel('karma')
-    pylab.ylabel('expected value of message ')
-    pylab.title('Visualization of Nash Equilibria (mixed strategies)')
+    pylab.xlabel("karma")
+    pylab.ylabel("expected value of message ")
+    pylab.title("Visualization of Nash Equilibria (mixed strategies)")
     pylab.legend(loc=9, bbox_to_anchor=(0.5, -0.1), ncol=4)
 
 #
@@ -246,18 +260,19 @@ with r.plot('equilibria') as pylab:
 #      0.15: [0.0, 1.0, 2.0, 2.0, 3.0, 4.0, 4.9, 5.9, 6.9, 7.9, 8.9, 9.8, 11.7],
 #      0.55: [0.0, 1.0, 1.0, 2.0, 2.8, 3.5, 4.0, 4.6, 5.3, 5.7, 6.7, 7.9, 10.6]}
 
-with r.plot('equilibria_pure') as pylab:
+with r.plot("equilibria_pure") as pylab:
     from .policy_agent import equilibria_pure
+
     for alpha in sorted(equilibria_pure):
         policy = equilibria_pure[alpha]
         color = color_for_alpha(alpha)
-        pylab.plot(policy, '-*', label=' α = %.2f (pure)' % alpha, color=color)
+        pylab.plot(policy, "-*", label=" α = %.2f (pure)" % alpha, color=color)
 
-    pylab.xlabel('karma')
-    pylab.ylabel('expected value of message ')
-    pylab.title('Visualization of Nash Equilibria (mixed strategies)')
+    pylab.xlabel("karma")
+    pylab.ylabel("expected value of message ")
+    pylab.title("Visualization of Nash Equilibria (mixed strategies)")
     pylab.legend(loc=9, bbox_to_anchor=(0.5, -0.1), ncol=4)
 
-fn = 'quick.html'
+fn = "quick.html"
 r.to_html(fn)
-print(f'written to {fn}')
+print(f"written to {fn}")

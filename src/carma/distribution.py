@@ -6,12 +6,13 @@ from numpy.testing import assert_allclose
 
 from .types import Probability, RNG
 
-X = TypeVar('X')
+X = TypeVar("X")
 
 
 @dataclass
 class DiscreteDistribution(Generic[X]):
     """ A discrete distribution over values of type X. """
+
     prob2value: Tuple[Tuple[X, Probability], ...]
 
     def __post_init__(self):
@@ -28,7 +29,14 @@ class DiscreteDistribution(Generic[X]):
         return np.average(self.values, weights=self.probabilities)
 
     def __repr__(self):
-        return '{' + ', '.join(f'{x} with probability {p}' for x, p in zip(self.values, self.probabilities)) + '}'
+        return (
+            "{"
+            + ", ".join(
+                f"{x} with probability {p}"
+                for x, p in zip(self.values, self.probabilities)
+            )
+            + "}"
+        )
 
     @staticmethod
     def uniform(values):

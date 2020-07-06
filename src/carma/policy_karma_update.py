@@ -5,14 +5,16 @@ from .types import KarmaValue, MessageValue, RNG
 
 
 class KarmaUpdatePolicy(metaclass=ABCMeta):
-
     @abstractmethod
-    def update(self,
-               karma: Tuple[KarmaValue],
-               messages: Tuple[MessageValue],
-               who_goes: int,
-               rng: RNG) ->  Tuple[KarmaValue]:
+    def update(
+        self,
+        karma: Tuple[KarmaValue],
+        messages: Tuple[MessageValue],
+        who_goes: int,
+        rng: RNG,
+    ) -> Tuple[KarmaValue]:
         pass
+
 
 #
 # class SimpleKarmaUpdatePolicy(KarmaUpdatePolicy):
@@ -61,22 +63,24 @@ class KarmaUpdatePolicy(metaclass=ABCMeta):
 
 import numpy as np
 
-class BoundedKarma(KarmaUpdatePolicy):
 
+class BoundedKarma(KarmaUpdatePolicy):
     def __init__(self, max_carma):
         self.max_carma = max_carma
 
-    def update(self,
-               karma: Tuple[KarmaValue],
-               messages: Tuple[MessageValue],
-               who_goes: int,
-               rng: RNG) ->  Tuple[KarmaValue]:
+    def update(
+        self,
+        karma: Tuple[KarmaValue],
+        messages: Tuple[MessageValue],
+        who_goes: int,
+        rng: RNG,
+    ) -> Tuple[KarmaValue]:
 
         # cannot bid more than the karma
         messages = np.minimum(messages, karma)
         assert len(messages) == 2
 
-        new_carma = np.array(karma, dtype='int')
+        new_carma = np.array(karma, dtype="int")
 
         # for each agent
         for i in range(len(karma)):
@@ -98,6 +102,5 @@ class BoundedKarma(KarmaUpdatePolicy):
         assert np.sum(karma) == np.sum(new_carma), (karma, new_carma)
         return tuple(list(new_carma))
 
-
     def __repr__(self):
-        return f'{type(self).__name__}: max_carma = {self.max_carma} '
+        return f"{type(self).__name__}: max_carma = {self.max_carma} "
