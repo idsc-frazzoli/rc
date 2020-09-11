@@ -25,9 +25,12 @@ OPTI Toolbox v2.28 - https://inverseproblem.co.nz/OPTI/
 
 ## Running a simulation
 
-1. Select parameters in load_parameters.m.
-1.1. Multiple alpha values can be specified as a vector
-1.2. Only one k_ave value can be specified
+1. Select parameters in load_parameters.m
+
+	1.1. Multiple alpha values can be specified as a vector
+	
+	1.2. Only one k_ave value can be specified
+	
 2. Run main.m
 
 Note: main.m uses Nash equilibrium and/or social welfare computation results stored in karma_nash_equilibrium/results folder. An error might occur if a parameter set is used for which NE and/or SW computation has not been performed
@@ -36,8 +39,11 @@ Note: main.m uses Nash equilibrium and/or social welfare computation results sto
 
 1. Add karma_nash_equilibrium folder to Matlab path
 2. Select high level parameters in load_parameters.m
+
 	2.1. Multiple alpha values can be specified as a vector. It is recommended to specify in descending order
+	
 	2.2. Only one k_ave value can be specified
+	
 3. Select NE computation parameters in load_ne_parameters.m
 4. Run karma_nash_equilibrium.m
 5. Once computation is complete, move newly generated .mat file in karma_nash_equilibrium/results to correct subfolder
@@ -46,8 +52,11 @@ Note: main.m uses Nash equilibrium and/or social welfare computation results sto
 
 1. Add karma_nash_equilibrium folder to Matlab path
 2. Select high level parameters in load_parameters.m
+
 	2.1 alpha is irrelevant
+	
 	2.2 Multiple k_ave values can be specified as a vector. It is recommended to specify in ascending order
+	
 3. Select SW computation parameters in load_ne_parameters.m
 4. Run karma_social_welfare.m
 5. Once computation is complete, move newly generated .mat file in karma_nash_equilibrium/results to correct subfolder
