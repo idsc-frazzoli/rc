@@ -5,3 +5,9 @@ incremental.html
 incremental.html_resources
 out-iterative
 quick.html*
+*.asv
+*.idea/
+*__pycache__*
+*.m~
+Matlab/results/*/
+Matlab/results/*.mat
