@@ -1,13 +1,6 @@
 classdef func
     % Functions used in scripts
     methods(Static)
-        % Allocates cost matrix
-        % Values are initialized with -1 to tell when agents did not
-        % participate in an interaction
-        function c = allocate_cost(param)
-            c = nan(param.max_num_inter_per_agent, param.N);
-        end
-        
         % Gets stationary distribution of transition matrix T
         % This essentially solves d = T.'*d. The solution is the left eigenvector
         % corresponding to eigenvalue 1, or the kernel of (I - T.')
@@ -20,6 +13,130 @@ classdef func
             else
                 d = 1 / n * ones(n, 1);
             end
+        end
+        
+        % Allocates cost matrix
+        % Values are initialized with nan to tell when agents did not
+        % participate in an interaction
+        function c = allocate_cost(param)
+            c = nan(param.max_T_i, param.n_a);
+        end
+        
+        % Gets uniform distribution over karma adjusted to have correct
+        % average karma k_bar for an infinite population
+        function [sigma_up_k_uniform, K_uniform] = get_sigma_up_k_uniform(k_bar)
+            K_uniform = (0 : k_bar * 2).';
+            n_k = length(K_uniform);
+            sigma_up_k_uniform = 1 / n_k * ones(n_k, 1);
+        end
+        
+        % Gets a karma initialization for finite n_a agents that is close
+        % in distribution to specified infinite distribution and has the
+        % correct k_bar/k_tot
+        function init_k = get_init_k(sigma_up_k_inf, K, param)
+            % Get finite n_a distribution close to infinite distribution
+            % and with correct k_bar/k_tot
+            sigma_up_k_n_a = round(param.n_a * sigma_up_k_inf);
+            sigma_up_k_n_a = reshape(sigma_up_k_n_a, 1, []);
+            missing_agents = param.n_a - sum(sigma_up_k_n_a);
+            missing_karma = param.k_tot - sigma_up_k_n_a * K;
+            while missing_agents ~= 0 || missing_karma ~= 0
+                if missing_agents ~= 0
+                    % Need to adjust agent count (and possibly karma)
+                    karma_to_adjust = min([floor(missing_karma / missing_agents), K(end)]);
+                    if karma_to_adjust >= 0
+                        % Need to either add both agents and karma or
+                        % remove both agents and karma
+                        i_karma_to_adjust = find(K == karma_to_adjust);
+                        agents_to_adjust = missing_agents - rem(missing_karma, missing_agents);
+                        if agents_to_adjust < 0 && sigma_up_k_n_a(i_karma_to_adjust) == 0
+                            % Need to remove agents from a karma that
+                            % doesn't have agents. Find closest karma with
+                            % agents
+                            karma_with_agents = K(sigma_up_k_n_a > 0);
+                            [~, i_closest_karma_with_agents] = min(abs(karma_with_agents - K(i_karma_to_adjust)));
+                            i_karma_to_adjust = find(K == karma_with_agents(i_closest_karma_with_agents));
+                        end
+                        sigma_up_k_n_a(i_karma_to_adjust) = max([sigma_up_k_n_a(i_karma_to_adjust) + agents_to_adjust, 0]);
+                    else
+                        if missing_agents > 0
+                            % Need to add agents and remove karma
+                            % First remove one agent with the closest
+                            % amount of karma to what needs to be removed
+                            i_karma_to_remove = find(K == min([abs(missing_karma), K(end)]));
+                            if sigma_up_k_n_a(i_karma_to_remove) == 0
+                                karma_with_agents = K(sigma_up_k_n_a > 0);
+                                [~, i_closest_karma_with_agents] = min(abs(karma_with_agents - K(i_karma_to_remove)));
+                                i_karma_to_remove = find(K == karma_with_agents(i_closest_karma_with_agents));
+                            end
+                            sigma_up_k_n_a(i_karma_to_remove) = sigma_up_k_n_a(i_karma_to_remove) - 1;
+                            % Now add the required amount of agents with
+                            % zero karma to not change karma count
+                            sigma_up_k_n_a(1) = sigma_up_k_n_a(1) + missing_agents + 1;
+                        else
+                            % Need to remove agents and add karma
+                            % First remove agents with least amount of
+                            % karma, and keep track of amount of karma
+                            % removed in the process. Remove one extra
+                            % agent because one will be added with the
+                            % required amount of karma
+                            agents_to_remove = abs(missing_agents) + 1;
+                            agents_removed = 0;
+                            karma_removed = 0;
+                            i_karma_to_remove = 1;
+                            while agents_removed < agents_to_remove && i_karma_to_remove <= length(K)
+                                agents_can_remove = min(agents_to_remove - agents_removed, sigma_up_k_n_a(i_karma_to_remove));
+                                sigma_up_k_n_a(i_karma_to_remove) = sigma_up_k_n_a(i_karma_to_remove)- agents_can_remove;
+                                agents_removed = agents_removed + agents_can_remove;
+                                karma_removed = karma_removed + agents_can_remove * K(i_karma_to_remove);
+                                i_karma_to_remove = i_karma_to_remove + 1;
+                            end
+                            % Now add one agent with the required amount of
+                            % karma
+                            i_karma_to_add = find(K == min([missing_karma + karma_removed, K(end)]));
+                            sigma_up_k_n_a(i_karma_to_add) = sigma_up_k_n_a(i_karma_to_add) + 1;
+                        end
+                    end
+                else
+                    if missing_karma > 0
+                        % Need to add karma only
+                        % Remove one agent with least karma and add one
+                        % with the required amount of karma
+                        karma_with_agents = K(sigma_up_k_n_a > 0);
+                        i_karma_to_remove = find(K == karma_with_agents(1));
+                        sigma_up_k_n_a(i_karma_to_remove) = sigma_up_k_n_a(i_karma_to_remove) - 1;
+                        i_karma_to_add = find(K == min([missing_karma + K(i_karma_to_remove), K(end)]));
+                        sigma_up_k_n_a(i_karma_to_add) = sigma_up_k_n_a(i_karma_to_add) + 1;
+                    else
+                        % Need to remove karma only
+                        % Remove one agent with the closest amount of karma
+                        % to what needs to be removed and add one agent
+                        % with zero karma
+                        i_karma_to_remove = find(K == min([abs(missing_karma), K(end)]));
+                        if sigma_up_k_n_a(i_karma_to_remove) == 0
+                            karma_with_agents = K(sigma_up_k_n_a > 0);
+                            [~, i_closest_karma_with_agents] = min(abs(karma_with_agents - K(i_karma_to_remove)));
+                            i_karma_to_remove = find(K == karma_with_agents(i_closest_karma_with_agents));
+                        end
+                        sigma_up_k_n_a(i_karma_to_remove) = sigma_up_k_n_a(i_karma_to_remove) - 1;
+                        sigma_up_k_n_a(1) = sigma_up_k_n_a(1) + 1;
+                    end
+                end
+                missing_agents = param.n_a - sum(sigma_up_k_n_a);
+                missing_karma = param.k_tot - sigma_up_k_n_a * K;
+            end
+            
+            % Initialize karma for N agents as per finite n_a distribution
+            init_k = zeros(1, param.n_a);
+            start_i = 0;
+            for i_k = 1 : length(K)
+                num_agents = sigma_up_k_n_a(i_k);
+                init_k(start_i+1:start_i+num_agents) = K(i_k);
+                start_i = start_i + num_agents;
+            end
+            
+%             % Shuffle initial karma in the end because why not
+%             init_k = init_k(randperm(param.N));
         end
         
         % Returns all maximizers (if there are multiple)
@@ -44,123 +161,6 @@ classdef func
             if num_max > 1
                 i_max = datasample(i_max, 1);
             end
-        end
-        
-        % Gets uniform distribution over karma adjusted to have correct
-        % average karma k_ave for infinite population N
-        function [s_up_k_uniform, K_uniform] = get_s_up_k_uniform(k_ave)
-            K_uniform = (0 : k_ave * 2).';
-            num_K = length(K_uniform);
-            s_up_k_uniform = 1 / num_K * ones(num_K, 1);
-        end
-        
-        % Gets a karma initialization for finite N agents that is close in
-        % distribution to specified infinite N distribution and has the
-        % correct k_ave/k_tot
-        function init_k = get_init_k(s_up_k_inf, K, param)
-            % Get finite N distribution close to infinite N distribution
-            % and with correct k_ave/k_tot
-            s_up_k_N = round(param.N * s_up_k_inf);
-            s_up_k_N = reshape(s_up_k_N, 1, []);
-            missing_agents = param.N - sum(s_up_k_N);
-            missing_karma = param.k_tot - s_up_k_N * K;
-            while missing_agents ~= 0 || missing_karma ~= 0
-                if missing_agents ~= 0
-                    % Need to adjust agent count (and possibly karma)
-                    karma_to_adjust = min([floor(missing_karma / missing_agents), K(end)]);
-                    if karma_to_adjust >= 0
-                        % Need to either add both agents and karma or
-                        % remove both agents and karma
-                        i_karma_to_adjust = find(K == karma_to_adjust);
-                        agents_to_adjust = missing_agents - rem(missing_karma, missing_agents);
-                        if agents_to_adjust < 0 && s_up_k_N(i_karma_to_adjust) == 0
-                            % Need to remove agents from a karma that
-                            % doesn't have agents. Find closest karma with
-                            % agents
-                            karma_with_agents = K(s_up_k_N > 0);
-                            [~, i_closest_karma_with_agents] = min(abs(karma_with_agents - K(i_karma_to_adjust)));
-                            i_karma_to_adjust = find(K == karma_with_agents(i_closest_karma_with_agents));
-                        end
-                        s_up_k_N(i_karma_to_adjust) = max([s_up_k_N(i_karma_to_adjust) + agents_to_adjust, 0]);
-                    else
-                        if missing_agents > 0
-                            % Need to add agents and remove karma
-                            % First remove one agent with the closest
-                            % amount of karma to what needs to be removed
-                            i_karma_to_remove = find(K == min([abs(missing_karma), K(end)]));
-                            if s_up_k_N(i_karma_to_remove) == 0
-                                karma_with_agents = K(s_up_k_N > 0);
-                                [~, i_closest_karma_with_agents] = min(abs(karma_with_agents - K(i_karma_to_remove)));
-                                i_karma_to_remove = find(K == karma_with_agents(i_closest_karma_with_agents));
-                            end
-                            s_up_k_N(i_karma_to_remove) = s_up_k_N(i_karma_to_remove) - 1;
-                            % Now add the required amount of agents with
-                            % zero karma to not change karma count
-                            s_up_k_N(1) = s_up_k_N(1) + missing_agents + 1;
-                        else
-                            % Need to remove agents and add karma
-                            % First remove agents with least amount of
-                            % karma, and keep track of amount of karma
-                            % removed in the process. Remove one extra
-                            % agent because one will be added with the
-                            % required amount of karma
-                            agents_to_remove = abs(missing_agents) + 1;
-                            agents_removed = 0;
-                            karma_removed = 0;
-                            i_karma_to_remove = 1;
-                            while agents_removed < agents_to_remove && i_karma_to_remove <= length(K)
-                                agents_can_remove = min(agents_to_remove - agents_removed, s_up_k_N(i_karma_to_remove));
-                                s_up_k_N(i_karma_to_remove) = s_up_k_N(i_karma_to_remove)- agents_can_remove;
-                                agents_removed = agents_removed + agents_can_remove;
-                                karma_removed = karma_removed + agents_can_remove * K(i_karma_to_remove);
-                                i_karma_to_remove = i_karma_to_remove + 1;
-                            end
-                            % Now add one agent with the required amount of
-                            % karma
-                            i_karma_to_add = find(K == min([missing_karma + karma_removed, K(end)]));
-                            s_up_k_N(i_karma_to_add) = s_up_k_N(i_karma_to_add) + 1;
-                        end
-                    end
-                else
-                    if missing_karma > 0
-                        % Need to add karma only
-                        % Remove one agent with least karma and add one
-                        % with the required amount of karma
-                        karma_with_agents = K(s_up_k_N > 0);
-                        i_karma_to_remove = find(K == karma_with_agents(1));
-                        s_up_k_N(i_karma_to_remove) = s_up_k_N(i_karma_to_remove) - 1;
-                        i_karma_to_add = find(K == min([missing_karma + K(i_karma_to_remove), K(end)]));
-                        s_up_k_N(i_karma_to_add) = s_up_k_N(i_karma_to_add) + 1;
-                    else
-                        % Need to remove karma only
-                        % Remove one agent with the closest amount of karma
-                        % to what needs to be removed and add one agent
-                        % with zero karma
-                        i_karma_to_remove = find(K == min([abs(missing_karma), K(end)]));
-                        if s_up_k_N(i_karma_to_remove) == 0
-                            karma_with_agents = K(s_up_k_N > 0);
-                            [~, i_closest_karma_with_agents] = min(abs(karma_with_agents - K(i_karma_to_remove)));
-                            i_karma_to_remove = find(K == karma_with_agents(i_closest_karma_with_agents));
-                        end
-                        s_up_k_N(i_karma_to_remove) = s_up_k_N(i_karma_to_remove) - 1;
-                        s_up_k_N(1) = s_up_k_N(1) + 1;
-                    end
-                end
-                missing_agents = param.N - sum(s_up_k_N);
-                missing_karma = param.k_tot - s_up_k_N * K;
-            end
-            
-            % Initialize karma for N agents as per finite N distribution
-            init_k = zeros(1, param.N);
-            start_i = 0;
-            for i_k = 1 : length(K)
-                num_agents = s_up_k_N(i_k);
-                init_k(start_i+1:start_i+num_agents) = K(i_k);
-                start_i = start_i + num_agents;
-            end
-            
-%             % Shuffle initial karma in the end because why not
-%             init_k = init_k(randperm(param.N));
         end
         
         % Allocates karma matrix and sets the initial karma as per init_k

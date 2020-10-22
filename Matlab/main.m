@@ -7,11 +7,8 @@ rng(0);
 [u_stream, agent_stream, karma_stream] = RandStream.create('mrg32k3a', 'NumStreams', 3);
 
 %% Code control bits
-% Flag to simulate centralized limited memory policies
-control.lim_mem_policies = false;
-
-% Flag to simulate heuristic karma policies
-control.karma_heuristic_policies = false;
+% Flag to simulate fairness horizon policies
+control.fairness_horizon_policies = false;
 
 % Flag to simulate karma Nash equilibrium policies
 control.karma_ne_policies = true;
@@ -19,139 +16,102 @@ control.karma_ne_policies = true;
 % Flag to simulate karma social welfare policy
 control.karma_sw_policy = true;
 
-% Flag to compute entropy of limited memory policies & karma
+% Flag to compute entropy of fairness policies & karma
 control.compute_entropy = false;
-
-% Autocorrelation takes long time to compute
-control.compute_a_acorr = false;
 
 %% Parameters
 param = load_parameters();
 
 %% Simulation initialization
-% Populatin of agent indices to sample from
-population = 1 : param.N;
+% Population of agent indices to sample from
+agents = 1 : param.n_a;
 
 %% Cost matrices for different policies
-% Row => Time step
+% Row => Timestep
 % Col => Agent
 
 % Benchmark policies
-% Cost for baseline policy - random
+% Cost for random
 c_rand = func.allocate_cost(param);
 % Cost for centralized urgency
 c_u = func.allocate_cost(param);
-% Cost for centralized service ratio
-c_sr = func.allocate_cost(param);
-% Cost for centralized urgency then service ratio
-c_u_sr = func.allocate_cost(param);
+% Cost for centralized accumulated cost
+c_a = func.allocate_cost(param);
+% Cost for centralized urgency then accumulated cost
+c_u_a = func.allocate_cost(param);
 
-% Centralized policies with limited memory
-if control.lim_mem_policies
-    c_lim_mem_sr = cell(param.num_lim_mem_steps, 1);
-    c_lim_mem_u_sr = cell(param.num_lim_mem_steps, 1);
-    for i_lim_mem = 1 : param.num_lim_mem_steps
-        c_lim_mem_sr{i_lim_mem} = func.allocate_cost(param);
-        c_lim_mem_u_sr{i_lim_mem} = func.allocate_cost(param);
+% Centralized fairness horizon policies
+if control.fairness_horizon_policies
+    c_fair_hor_a = cell(param.n_fairness_horizon, 1);
+    c_fair_hor_u_a = cell(param.n_fairness_horizon, 1);
+    for i_fair_hor = 1 : param.n_fairness_horizon
+        c_fair_hor_a{i_fair_hor} = func.allocate_cost(param);
+        c_fair_hor_u_a{i_fair_hor} = func.allocate_cost(param);
     end
 end
 
-% Hueristic karma policies
-if control.karma_heuristic_policies
-    % Cost for bid 1 always policy
-    c_bid_1 = func.allocate_cost(param);
-    % Cost for bid urgency policy
-    c_bid_u = func.allocate_cost(param);
-    % Cost for bid all always policy
-    c_bid_all = func.allocate_cost(param);
-    % Cost for bid all if urgent policy
-    c_bid_all_u = func.allocate_cost(param);
-    % Cost for bid random always policy
-    c_bid_rand = func.allocate_cost(param);
-    % Cost for bid random if urgent policy
-    c_bid_rand_u = func.allocate_cost(param);
-end
-
-% Nash equilibrium karma policies
+% Karma Nash equilibrium policies
 if control.karma_ne_policies
-    c_ne = cell(param.num_alpha, 1);
-    for i_alpha = 1 : param.num_alpha
-        c_ne{i_alpha} = func.allocate_cost(param);
+    c_ne = cell(param.n_alpha_comp, 1);
+    for i_alpha_comp = 1 : param.n_alpha_comp
+        c_ne{i_alpha_comp} = func.allocate_cost(param);
     end
 end
 
-% Social welfare karma policy
+% Karma social welfare policy
 if control.karma_sw_policy
     c_sw = func.allocate_cost(param);
 end
 
 %% Karma matrices for different karma policies
 % Initial karma, for cases when it is common amongst multiple policies
-if control.karma_heuristic_policies || (control.karma_ne_policies || control.karma_sw_policy) && param.karma_initialization ~= 2
+if (control.karma_ne_policies || control.karma_sw_policy) && param.karma_initialization ~= 2
     if param.karma_initialization == 0
-        init_k = param.k_ave * ones(1, param.N);
+        init_k = param.k_bar * ones(1, param.n_a);
     else
-        [s_up_k_uniform, K_uniform] = func.get_s_up_k_uniform(param.k_ave);
-        init_k = func.get_init_k(s_up_k_uniform, K_uniform, param);
+        [sigma_up_k_uniform, K_uniform] = func.get_sigma_up_k_uniform(param.k_bar);
+        init_k = func.get_init_k(sigma_up_k_uniform, K_uniform, param);
     end
-end
-    
-% Heuristic karma policies
-if control.karma_heuristic_policies
-    % Karma for bid 1 always policy
-    k_bid_1 = func.allocate_karma(param, init_k);
-    % Karma for bid urgency policy
-    k_bid_u = func.allocate_karma(param, init_k);
-    % Karma for bid all always policy
-    k_bid_all = func.allocate_karma(param, init_k);
-    % Karma for bid all if urgent policy
-    k_bid_all_u = func.allocate_karma(param, init_k);
-    % Karma for bid random always policy
-    k_bid_rand = func.allocate_karma(param, init_k);
-    % Karma for bid random if urgent policy
-    k_bid_rand_u = func.allocate_karma(param, init_k);
 end
 
 % Nash equilibrium karma policies
 if control.karma_ne_policies
-    K_ne = cell(param.num_alpha, 1);
-    k_ne = cell(param.num_alpha, 1);
+    K_ne = cell(param.n_alpha_comp, 1);
+    k_ne = cell(param.n_alpha_comp, 1);
     ne_file_str = 'karma_nash_equilibrium/results/ne_U_';
-    for i_u = 1 : param.num_U
-        ne_file_str = [ne_file_str, num2str(param.U(i_u)), '_'];
+    for i_u = 1 : param.n_u
+        ne_file_str = [ne_file_str, int2str(param.U(i_u)), '_'];
     end
-    ne_file_str = [ne_file_str, 'p_'];
-    if isnan(param.mu_bias)
-        for i_u = 1 : param.num_U
-            for i_un = 1 : param.num_U
-                ne_file_str = [ne_file_str, num2str(param.mu_down_u_up_un(i_u,i_un), '%.2f'), '_'];
+    for i_mu = 1 : param.n_mu
+        ne_file_str = [ne_file_str, 'phi', int2str(i_mu), '_'];
+        for i_u = 1 : param.n_u
+            for i_un = 1 : param.n_u
+                ne_file_str = [ne_file_str, num2str(param.phi_down_mu_u_up_un(i_mu,i_u,i_un), '%.2f'), '_'];
             end
         end
-    else
-        ne_file_str = [ne_file_str, num2str(param.mu_bias, '%.2f'), '_'];
     end
-    ne_file_str = [ne_file_str, 'm_', num2str(param.m_exchange),...
-        '/k_ave_', num2str(param.k_ave, '%02d'),...
+    ne_file_str = [ne_file_str, 'pay_', int2str(param.payment_rule),...
+        '/k_bar_', num2str(param.k_bar, '%02d'),...
         '_alpha_'];
-    for i_alpha = 1 : param.num_alpha
-        alpha = param.alpha(i_alpha);
+    for i_alpha_comp = 1 : param.num_alpha
+        alpha = param.alpha(i_alpha_comp);
         if alpha > 0.99 && alpha < 1
             ne_file = [ne_file_str, num2str(alpha, '%.3f'), '.mat'];
         else
             ne_file = [ne_file_str, num2str(alpha, '%.2f'), '.mat'];
         end
         load(ne_file, 'ne_param');
-        K_ne{i_alpha} = ne_param.K;
+        K_ne{i_alpha_comp} = ne_param.K;
         
         if param.karma_initialization == 2
             % Initialize karma as per stationary distribution predicted by NE
             % algorithm
             load(ne_file, 'ne_s_up_k');
-            ne_init_k = func.get_init_k(ne_s_up_k, K_ne{i_alpha}, param);
+            ne_init_k = func.get_init_k(ne_s_up_k, K_ne{i_alpha_comp}, param);
         else
             ne_init_k = init_k;
         end
-        k_ne{i_alpha} = func.allocate_karma(param, ne_init_k);
+        k_ne{i_alpha_comp} = func.allocate_karma(param, ne_init_k);
     end
 end
 
@@ -192,16 +152,16 @@ end
 if control.karma_ne_policies
     pi_ne = cell(param.num_alpha, 1);
     pi_ne_pure = cell(param.num_alpha, 1);
-    for i_alpha = 1 : param.num_alpha
-        alpha = param.alpha(i_alpha);
+    for i_alpha_comp = 1 : param.num_alpha
+        alpha = param.alpha(i_alpha_comp);
         if alpha > 0.99 && alpha < 1
             ne_file = [ne_file_str, num2str(alpha, '%.3f'), '.mat'];
         else
             ne_file = [ne_file_str, num2str(alpha, '%.2f'), '.mat'];
         end
         load(ne_file, 'ne_pi_down_u_k_up_m');
-        pi_ne{i_alpha} = ne_pi_down_u_k_up_m;
-        pi_ne_pure{i_alpha} = func.get_pure_policy(pi_ne{i_alpha}, K_ne{i_alpha}, param);
+        pi_ne{i_alpha_comp} = ne_pi_down_u_k_up_m;
+        pi_ne_pure{i_alpha_comp} = func.get_pure_policy(pi_ne{i_alpha_comp}, K_ne{i_alpha_comp}, param);
     end
 end
 
@@ -240,12 +200,12 @@ for day = 1 : param.num_days
         % Reset cost matrices
         c_rand = func.allocate_cost(param);
         c_u = func.allocate_cost(param);
-        c_sr = func.allocate_cost(param);
-        c_u_sr = func.allocate_cost(param);
+        c_a = func.allocate_cost(param);
+        c_u_a = func.allocate_cost(param);
         if control.lim_mem_policies
-            for i_lim_mem = 1 : param.num_lim_mem_steps
-                c_lim_mem_sr{i_lim_mem} = func.allocate_cost(param);
-                c_lim_mem_u_sr{i_lim_mem} = func.allocate_cost(param);
+            for i_fair_hor = 1 : param.num_lim_mem_steps
+                c_fair_hor_a{i_fair_hor} = func.allocate_cost(param);
+                c_fair_hor_u_a{i_fair_hor} = func.allocate_cost(param);
             end
         end
         if control.karma_heuristic_policies
@@ -257,8 +217,8 @@ for day = 1 : param.num_days
             c_bid_rand_u = func.allocate_cost(param);
         end
         if control.karma_ne_policies
-            for i_alpha = 1 : param.num_alpha
-                c_ne{i_alpha} = func.allocate_cost(param);
+            for i_alpha_comp = 1 : param.num_alpha
+                c_ne{i_alpha_comp} = func.allocate_cost(param);
             end
         end
         if control.karma_sw_policy
@@ -282,9 +242,9 @@ for day = 1 : param.num_days
             k_bid_rand_u = func.allocate_karma(param, warm_up_k);
         end
         if control.karma_ne_policies
-            for i_alpha = 1 : param.num_alpha
-                warm_up_k = func.get_end_karma(k_ne{i_alpha}, num_inter, param);
-                k_ne{i_alpha} = func.allocate_karma(param, warm_up_k);
+            for i_alpha_comp = 1 : param.num_alpha
+                warm_up_k = func.get_end_karma(k_ne{i_alpha_comp}, num_inter, param);
+                k_ne{i_alpha_comp} = func.allocate_karma(param, warm_up_k);
             end
         end
         if control.karma_sw_policy
@@ -318,17 +278,17 @@ for day = 1 : param.num_days
         
         if ~param.same_num_inter
             % Sample agents i & j uniformly at random
-            agents_id = datasample(agent_stream, population, param.I_size, 'Replace', false);
+            agents_id = datasample(agent_stream, agents, param.I_size, 'Replace', false);
         else
             % If all population has been sampled, re-fill population
-            if isempty(population)
-                population = 1 : param.N;
+            if isempty(agents)
+                agents = 1 : param.N;
             end
             % Sample agents i & j uniformly at random and remove them from
             % population
-            agents_id = datasample(agent_stream, population, param.I_size, 'Replace', false);
+            agents_id = datasample(agent_stream, agents, param.I_size, 'Replace', false);
             for i_agent = 1 : param.I_size
-                population(population == agents_id(i_agent)) = [];
+                agents(agents == agents_id(i_agent)) = [];
             end
         end
 
@@ -404,7 +364,7 @@ for day = 1 : param.num_days
         %% Centralized service ratio policy
         % Agent with maximum relative cost (counting current urgency)
         % passes. Coin flip on tie
-        r = func.relative_cost(c_sr, agents_id, u_hist, num_inter, inf);
+        r = func.relative_cost(c_a, agents_id, u_hist, num_inter, inf);
         
         [~, i_win] = max(r);
         win_id = agents_id(i_win);
@@ -414,9 +374,9 @@ for day = 1 : param.num_days
         for i_agent = 1 : param.I_size
             id = agents_id(i_agent);
             if id == win_id
-                c_sr(num_inter(id),id) = 0;
+                c_a(num_inter(id),id) = 0;
             else
-                c_sr(num_inter(id),id) = u(i_agent);
+                c_a(num_inter(id),id) = u(i_agent);
             end
         end
 
@@ -426,7 +386,7 @@ for day = 1 : param.num_days
         % If there are multiple agents with max urgency, pick one based on
         % relative cost like in centralized relative cost policy
         if num_max_u > 1
-            r = func.relative_cost(c_u_sr, win_max_u, u_hist, num_inter, inf);
+            r = func.relative_cost(c_u_a, win_max_u, u_hist, num_inter, inf);
             [~, i_win] = max(r);
             win_id = win_max_u(i_win);
         else
@@ -438,20 +398,20 @@ for day = 1 : param.num_days
         for i_agent = 1 : param.I_size
             id = agents_id(i_agent);
             if id == win_id
-                c_u_sr(num_inter(id),id) = 0;
+                c_u_a(num_inter(id),id) = 0;
             else
-                c_u_sr(num_inter(id),id) = u(i_agent);
+                c_u_a(num_inter(id),id) = u(i_agent);
             end
         end
 
         %% Centralized policies with limited memroy
         if control.lim_mem_policies
-            for i_lim_mem = 1 : param.num_lim_mem_steps
+            for i_fair_hor = 1 : param.num_lim_mem_steps
                 %% Centralized accumulated cost with limited memory
                 % Agent with maximum accumulated cost up to limited number
                 % of interactions (counting current urgency) passes
                 % Coin flip on tie
-                r = func.relative_cost(c_sr, agents_id, u_hist, num_inter, param.lim_mem_steps(i_lim_mem));
+                r = func.relative_cost(c_a, agents_id, u_hist, num_inter, param.lim_mem_steps(i_fair_hor));
                 [~, i_win] = max(r);
                 win_id = agents_id(i_win);
 
@@ -460,9 +420,9 @@ for day = 1 : param.num_days
                 for i_agent = 1 : param.I_size
                     id = agents_id(i_agent);
                     if id == win_id
-                        c_lim_mem_sr{i_lim_mem}(num_inter(id),id) = 0;
+                        c_fair_hor_a{i_fair_hor}(num_inter(id),id) = 0;
                     else
-                        c_lim_mem_sr{i_lim_mem}(num_inter(id),id) = u(i_agent);
+                        c_fair_hor_a{i_fair_hor}(num_inter(id),id) = u(i_agent);
                     end
                 end
                 
@@ -473,7 +433,7 @@ for day = 1 : param.num_days
                 % accumulated cost up to limited number of interactions per
                 % agent
                 if num_max_u > 1
-                    r = func.relative_cost(c_u_sr, win_max_u, u_hist, num_inter, param.lim_mem_steps(i_lim_mem));
+                    r = func.relative_cost(c_u_a, win_max_u, u_hist, num_inter, param.lim_mem_steps(i_fair_hor));
                     [~, i_win] = max(r);
                     win_id = win_max_u(i_win);
                 else
@@ -485,9 +445,9 @@ for day = 1 : param.num_days
                 for i_agent = 1 : param.I_size
                     id = agents_id(i_agent);
                     if id == win_id
-                        c_lim_mem_u_sr{i_lim_mem}(num_inter(id),id) = 0;
+                        c_fair_hor_u_a{i_fair_hor}(num_inter(id),id) = 0;
                     else
-                        c_lim_mem_u_sr{i_lim_mem}(num_inter(id),id) = u(i_agent);
+                        c_fair_hor_u_a{i_fair_hor}(num_inter(id),id) = u(i_agent);
                     end
                 end
             end
@@ -744,18 +704,18 @@ for day = 1 : param.num_days
         
         %% Nash equilibrium karma policies
         if control.karma_ne_policies
-            for i_alpha = 1 : param.num_alpha
+            for i_alpha_comp = 1 : param.num_alpha
                 % Get agents' bids from their policies
                 karma_stream.State = karma_stream_state;
                 m = zeros(1, param.I_size);
                 for i_agent = 1 : param.I_size
                     id = agents_id(i_agent);
-                    k = k_ne{i_alpha}(num_inter(id),id);
+                    k = k_ne{i_alpha_comp}(num_inter(id),id);
                     i_u = find(param.U == u(i_agent));
-                    i_k = min([k + 1, length(K_ne{i_alpha})]); % Uses policy of k_max if it is exceeded
-                    m(i_agent) = pi_ne_pure{i_alpha}(i_u,i_k);
+                    i_k = min([k + 1, length(K_ne{i_alpha_comp})]); % Uses policy of k_max if it is exceeded
+                    m(i_agent) = pi_ne_pure{i_alpha_comp}(i_u,i_k);
                     if isnan(m(i_agent))
-                        m(i_agent) = datasample(karma_stream, K_ne{i_alpha}, 1, 'Weights', squeeze(pi_ne{i_alpha}(i_u,i_k,:)));
+                        m(i_agent) = datasample(karma_stream, K_ne{i_alpha_comp}, 1, 'Weights', squeeze(pi_ne{i_alpha_comp}(i_u,i_k,:)));
                     end
                 end
                 
@@ -768,9 +728,9 @@ for day = 1 : param.num_days
                 for i_agent = 1 : param.I_size
                     id = agents_id(i_agent);
                     if id == win_id
-                        c_ne{i_alpha}(num_inter(id),id) = 0;
+                        c_ne{i_alpha_comp}(num_inter(id),id) = 0;
                     else
-                        c_ne{i_alpha}(num_inter(id),id) = u(i_agent);
+                        c_ne{i_alpha_comp}(num_inter(id),id) = u(i_agent);
                     end
                 end
 
@@ -784,9 +744,9 @@ for day = 1 : param.num_days
                 for i_agent = 1 : param.I_size
                     id = agents_id(i_agent);
                     if id == win_id
-                        k_ne{i_alpha}(num_inter(id)+1,id) = k_ne{i_alpha}(num_inter(id),id) - p;
+                        k_ne{i_alpha_comp}(num_inter(id)+1,id) = k_ne{i_alpha_comp}(num_inter(id),id) - p;
                     else
-                        k_ne{i_alpha}(num_inter(id)+1,id) = k_ne{i_alpha}(num_inter(id),id) + p;
+                        k_ne{i_alpha_comp}(num_inter(id)+1,id) = k_ne{i_alpha_comp}(num_inter(id),id) + p;
                     end
                 end
             end
@@ -849,14 +809,14 @@ fprintf('Computing performance measures\n');
 fprintf('Computing accumulated costs\n');
 a_rand = func.get_accumulated_cost(c_rand, num_inter, param);
 a_u = func.get_accumulated_cost(c_u, num_inter, param);
-a_sr = func.get_accumulated_cost(c_sr, num_inter, param);
-a_u_sr = func.get_accumulated_cost(c_u_sr, num_inter, param);
+a_sr = func.get_accumulated_cost(c_a, num_inter, param);
+a_u_sr = func.get_accumulated_cost(c_u_a, num_inter, param);
 if control.lim_mem_policies
     a_lim_mem_sr = cell(param.num_lim_mem_steps, 1);
     a_lim_mem_u_sr = cell(param.num_lim_mem_steps, 1);
-    for i_lim_mem = 1 : param.num_lim_mem_steps
-        a_lim_mem_sr{i_lim_mem} = func.get_accumulated_cost(c_lim_mem_sr{i_lim_mem}, num_inter, param);
-        a_lim_mem_u_sr{i_lim_mem} = func.get_accumulated_cost(c_lim_mem_u_sr{i_lim_mem}, num_inter, param);
+    for i_fair_hor = 1 : param.num_lim_mem_steps
+        a_lim_mem_sr{i_fair_hor} = func.get_accumulated_cost(c_fair_hor_a{i_fair_hor}, num_inter, param);
+        a_lim_mem_u_sr{i_fair_hor} = func.get_accumulated_cost(c_fair_hor_u_a{i_fair_hor}, num_inter, param);
     end
 end
 if control.karma_heuristic_policies
@@ -869,8 +829,8 @@ if control.karma_heuristic_policies
 end
 if control.karma_ne_policies
     a_ne = cell(param.num_alpha, 1);
-    for i_alpha = 1 : param.num_alpha
-        a_ne{i_alpha} = func.get_accumulated_cost(c_ne{i_alpha}, num_inter, param);
+    for i_alpha_comp = 1 : param.num_alpha
+        a_ne{i_alpha_comp} = func.get_accumulated_cost(c_ne{i_alpha_comp}, num_inter, param);
     end
 end
 if control.karma_sw_policy
@@ -881,14 +841,14 @@ end
 fprintf('Computing relative costs\n');
 r_rand = func.get_relative_cost(c_rand, u_hist, num_inter, param);
 r_u = func.get_relative_cost(c_u, u_hist, num_inter, param);
-r_a = func.get_relative_cost(c_sr, u_hist, num_inter, param);
-r_u_a = func.get_relative_cost(c_u_sr, u_hist, num_inter, param);
+r_a = func.get_relative_cost(c_a, u_hist, num_inter, param);
+r_u_a = func.get_relative_cost(c_u_a, u_hist, num_inter, param);
 if control.lim_mem_policies
     r_lim_mem_a = cell(param.num_lim_mem_steps, 1);
     r_lim_mem_u_a = cell(param.num_lim_mem_steps, 1);
-    for i_lim_mem = 1 : param.num_lim_mem_steps
-        r_lim_mem_a{i_lim_mem} = func.get_relative_cost(c_lim_mem_sr{i_lim_mem}, u_hist, num_inter, param);
-        r_lim_mem_u_a{i_lim_mem} = func.get_relative_cost(c_lim_mem_u_sr{i_lim_mem}, u_hist, num_inter, param);
+    for i_fair_hor = 1 : param.num_lim_mem_steps
+        r_lim_mem_a{i_fair_hor} = func.get_relative_cost(c_fair_hor_a{i_fair_hor}, u_hist, num_inter, param);
+        r_lim_mem_u_a{i_fair_hor} = func.get_relative_cost(c_fair_hor_u_a{i_fair_hor}, u_hist, num_inter, param);
     end
 end
 if control.karma_heuristic_policies
@@ -901,8 +861,8 @@ if control.karma_heuristic_policies
 end
 if control.karma_ne_policies
     r_ne = cell(param.num_alpha, 1);
-    for i_alpha = 1 : param.num_alpha
-        r_ne{i_alpha} = func.get_relative_cost(c_ne{i_alpha}, u_hist, num_inter, param);
+    for i_alpha_comp = 1 : param.num_alpha
+        r_ne{i_alpha_comp} = func.get_relative_cost(c_ne{i_alpha_comp}, u_hist, num_inter, param);
     end
 end
 if control.karma_sw_policy
@@ -918,9 +878,9 @@ IE_u_a = mean(a_u_sr, 2);
 if control.lim_mem_policies
     IE_lim_mem_a = cell(param.num_lim_mem_steps, 1);
     IE_lim_mem_u_a = cell(param.num_lim_mem_steps, 1);
-    for i_lim_mem = 1 : param.num_lim_mem_steps
-        IE_lim_mem_a{i_lim_mem} = mean(a_lim_mem_sr{i_lim_mem}, 2);
-        IE_lim_mem_u_a{i_lim_mem} = mean(a_lim_mem_u_sr{i_lim_mem}, 2);
+    for i_fair_hor = 1 : param.num_lim_mem_steps
+        IE_lim_mem_a{i_fair_hor} = mean(a_lim_mem_sr{i_fair_hor}, 2);
+        IE_lim_mem_u_a{i_fair_hor} = mean(a_lim_mem_u_sr{i_fair_hor}, 2);
     end
 end
 if control.karma_heuristic_policies
@@ -933,8 +893,8 @@ if control.karma_heuristic_policies
 end
 if control.karma_ne_policies
     IE_ne = cell(param.num_alpha, 1);
-    for i_alpha = 1 : param.num_alpha
-        IE_ne{i_alpha} = mean(a_ne{i_alpha}, 2);
+    for i_alpha_comp = 1 : param.num_alpha
+        IE_ne{i_alpha_comp} = mean(a_ne{i_alpha_comp}, 2);
     end
 end
 if control.karma_sw_policy
@@ -950,9 +910,9 @@ UF_u_a = var(r_u_a, [], 2);
 if control.lim_mem_policies
     UF_lim_mem_a = cell(param.num_lim_mem_steps, 1);
     UF_lim_mem_u_a = cell(param.num_lim_mem_steps, 1);
-    for i_lim_mem = 1 : param.num_lim_mem_steps
-        UF_lim_mem_a{i_lim_mem} = var(r_lim_mem_a{i_lim_mem}, [], 2);
-        UF_lim_mem_u_a{i_lim_mem} = var(r_lim_mem_u_a{i_lim_mem}, [], 2);
+    for i_fair_hor = 1 : param.num_lim_mem_steps
+        UF_lim_mem_a{i_fair_hor} = var(r_lim_mem_a{i_fair_hor}, [], 2);
+        UF_lim_mem_u_a{i_fair_hor} = var(r_lim_mem_u_a{i_fair_hor}, [], 2);
     end
 end
 if control.karma_heuristic_policies
@@ -965,8 +925,8 @@ if control.karma_heuristic_policies
 end
 if control.karma_ne_policies
     UF_ne = cell(param.num_alpha, 1);
-    for i_alpha = 1 : param.num_alpha
-        UF_ne{i_alpha} = var(r_ne{i_alpha}, [], 2);
+    for i_alpha_comp = 1 : param.num_alpha
+        UF_ne{i_alpha_comp} = var(r_ne{i_alpha_comp}, [], 2);
     end
 end
 if control.karma_sw_policy
@@ -985,8 +945,8 @@ end
 if control.karma_ne_policies
     k_ne_dist = cell(param.num_alpha, 1);
     k_ne_dist_agents = cell(param.num_alpha, 1);
-    for i_alpha = 1 : param.num_alpha
-        [k_ne_dist{i_alpha}, k_ne_dist_agents{i_alpha}] = func.get_karma_dist(k_ne{i_alpha}, param);
+    for i_alpha_comp = 1 : param.num_alpha
+        [k_ne_dist{i_alpha_comp}, k_ne_dist_agents{i_alpha_comp}] = func.get_karma_dist(k_ne{i_alpha_comp}, param);
     end
 end
 if control.karma_sw_policy
@@ -1001,11 +961,11 @@ if control.compute_entropy
         ent_lim_mem_u = zeros(param.num_lim_mem_steps, 1);
         ent_lim_mem_a = zeros(param.num_lim_mem_steps, 1);
         ent_lim_mem_u_a = zeros(param.num_lim_mem_steps, 1);
-        for i_lim_mem = 1 : param.num_lim_mem_steps
-            ent_lim_mem_rand(i_lim_mem) = func.get_entropy_lim_mem(c_rand, num_inter, param.lim_mem_steps(i_lim_mem), param);
-            ent_lim_mem_u(i_lim_mem) = func.get_entropy_lim_mem(c_u, num_inter, param.lim_mem_steps(i_lim_mem), param);
-            ent_lim_mem_a(i_lim_mem) = func.get_entropy_lim_mem(c_lim_mem_sr{i_lim_mem}, num_inter, param.lim_mem_steps(i_lim_mem), param);
-            ent_lim_mem_u_a(i_lim_mem) = func.get_entropy_lim_mem(c_lim_mem_u_sr{i_lim_mem}, num_inter, param.lim_mem_steps(i_lim_mem), param);
+        for i_fair_hor = 1 : param.num_lim_mem_steps
+            ent_lim_mem_rand(i_fair_hor) = func.get_entropy_lim_mem(c_rand, num_inter, param.lim_mem_steps(i_fair_hor), param);
+            ent_lim_mem_u(i_fair_hor) = func.get_entropy_lim_mem(c_u, num_inter, param.lim_mem_steps(i_fair_hor), param);
+            ent_lim_mem_a(i_fair_hor) = func.get_entropy_lim_mem(c_fair_hor_a{i_fair_hor}, num_inter, param.lim_mem_steps(i_fair_hor), param);
+            ent_lim_mem_u_a(i_fair_hor) = func.get_entropy_lim_mem(c_fair_hor_u_a{i_fair_hor}, num_inter, param.lim_mem_steps(i_fair_hor), param);
         end
     end
     
@@ -1020,8 +980,8 @@ if control.compute_entropy
     end
     if control.karma_ne_policies
         ent_ne = zeros(param.num_alpha, 1);
-        for i_alpha = 1 : param.num_alpha
-            ent_ne(i_alpha) = func.get_entropy(k_ne_dist{i_alpha});
+        for i_alpha_comp = 1 : param.num_alpha
+            ent_ne(i_alpha_comp) = func.get_entropy(k_ne_dist{i_alpha_comp});
         end
     end
     if control.karma_sw_policy
@@ -1043,9 +1003,9 @@ if control.compute_a_acorr
     if control.lim_mem_policies
         a_lim_mem_sr_std = cell(param.num_lim_mem_steps, 1);
         a_lim_mem_u_sr_std = cell(param.num_lim_mem_steps, 1);
-        for i_lim_mem = 1 : param.num_lim_mem_steps
-            a_lim_mem_sr_std{i_lim_mem} = func.get_standardized_cost(a_lim_mem_sr{i_lim_mem}, IE_lim_mem_a{i_lim_mem}, UF_lim_mem_a{i_lim_mem}, param);
-            a_lim_mem_u_sr_std{i_lim_mem} = func.get_standardized_cost(a_lim_mem_u_sr{i_lim_mem}, IE_lim_mem_u_a{i_lim_mem}, UF_lim_mem_u_a{i_lim_mem}, param);
+        for i_fair_hor = 1 : param.num_lim_mem_steps
+            a_lim_mem_sr_std{i_fair_hor} = func.get_standardized_cost(a_lim_mem_sr{i_fair_hor}, IE_lim_mem_a{i_fair_hor}, UF_lim_mem_a{i_fair_hor}, param);
+            a_lim_mem_u_sr_std{i_fair_hor} = func.get_standardized_cost(a_lim_mem_u_sr{i_fair_hor}, IE_lim_mem_u_a{i_fair_hor}, UF_lim_mem_u_a{i_fair_hor}, param);
         end
     end
     if control.karma_heuristic_policies
@@ -1058,8 +1018,8 @@ if control.compute_a_acorr
     end
     if control.karma_ne_policies
         a_ne_std = cell(param.num_alpha, 1);
-        for i_alpha = 1 : param.num_alpha
-            a_ne_std{i_alpha} = func.get_standardized_cost(a_ne{i_alpha}, IE_ne{i_alpha}, UF_ne{i_alpha}, param);
+        for i_alpha_comp = 1 : param.num_alpha
+            a_ne_std{i_alpha_comp} = func.get_standardized_cost(a_ne{i_alpha_comp}, IE_ne{i_alpha_comp}, UF_ne{i_alpha_comp}, param);
         end
     end
     if control.karma_sw_policy
@@ -1080,14 +1040,14 @@ if control.compute_a_acorr
     a_u_sr_acorr = func.autocorrelation(a_u_sr_std);
     if control.lim_mem_policies
         a_lim_mem_sr_acorr = cell(param.num_lim_mem_steps, 1);
-        for i_lim_mem = 1 : param.num_lim_mem_steps
-            fprintf('Computing autocorrelation for centralized-SR-mem-%d\n', param.lim_mem_steps(i_lim_mem));
-            a_lim_mem_sr_acorr{i_lim_mem} = func.autocorrelation(a_lim_mem_sr_std{i_lim_mem});
+        for i_fair_hor = 1 : param.num_lim_mem_steps
+            fprintf('Computing autocorrelation for centralized-SR-mem-%d\n', param.lim_mem_steps(i_fair_hor));
+            a_lim_mem_sr_acorr{i_fair_hor} = func.autocorrelation(a_lim_mem_sr_std{i_fair_hor});
         end
         a_lim_mem_u_sr_acorr = cell(param.num_lim_mem_steps, 1);
-        for i_lim_mem = 1 : param.num_lim_mem_steps
-            fprintf('Computing autocorrelation for centralized-urgency-then-SR-mem-%d\n', param.lim_mem_steps(i_lim_mem));
-            a_lim_mem_u_sr_acorr{i_lim_mem} = func.autocorrelation(a_lim_mem_u_sr_std{i_lim_mem});
+        for i_fair_hor = 1 : param.num_lim_mem_steps
+            fprintf('Computing autocorrelation for centralized-urgency-then-SR-mem-%d\n', param.lim_mem_steps(i_fair_hor));
+            a_lim_mem_u_sr_acorr{i_fair_hor} = func.autocorrelation(a_lim_mem_u_sr_std{i_fair_hor});
         end
     end
     if control.karma_heuristic_policies
@@ -1106,9 +1066,9 @@ if control.compute_a_acorr
     end
     if control.karma_ne_policies
         a_ne_acorr = cell(param.num_alpha, 1);
-        for i_alpha = 1 : param.num_alpha
-            fprintf('Computing autocorrelation for alpha-%f\n', param.alpha(i_alpha));
-            a_ne_acorr{i_alpha} = func.autocorrelation(a_ne_std{i_alpha});
+        for i_alpha_comp = 1 : param.num_alpha
+            fprintf('Computing autocorrelation for alpha-%f\n', param.alpha(i_alpha_comp));
+            a_ne_acorr{i_alpha_comp} = func.autocorrelation(a_ne_std{i_alpha_comp});
         end
     end
     if control.karma_sw_policy
