@@ -11,3 +11,4 @@ quick.html*
 *.m~
 Matlab/results/*/
 Matlab/results/*.mat
+*.bat
