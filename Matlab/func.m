@@ -139,6 +139,14 @@ classdef func
 %             init_k = init_k(randperm(param.N));
         end
         
+        % Allocates karma matrix and sets the initial karma as per init_k
+        % Values are initialized with -1 to tell when agents did not
+        % participate in an interaction
+        function k = allocate_karma(param, init_k)
+            k = nan(param.max_T_i, param.n_a);
+            k(1,:) = init_k;
+        end
+        
         % Returns all maximizers (if there are multiple)
         function [v_max, i_max] = multi_maxes(input)
             [v_max, i_max] = max(input);
@@ -161,14 +169,6 @@ classdef func
             if num_max > 1
                 i_max = datasample(i_max, 1);
             end
-        end
-        
-        % Allocates karma matrix and sets the initial karma as per init_k
-        % Values are initialized with -1 to tell when agents did not
-        % participate in an interaction
-        function k = allocate_karma(param, init_k)
-            k = nan(param.max_num_inter_per_agent, param.N);
-            k(1,:) = init_k;
         end
         
         % Gets pure policy from mixed policy using a threshold

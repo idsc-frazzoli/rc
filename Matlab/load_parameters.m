@@ -98,7 +98,7 @@ param.n_fairness_horizon = length(param.fairness_horizon);
 % 0 => All agents have average karma k_bar
 % 1 => Uniform distribution over [0 : 2 * k_bar]
 % 2 => Stationary distribution predicted by NE/SW computation
-param.karma_initialization = 1;
+param.karma_initialization = 2;
 
 % Tolerance to consider policy 'pure'
 % If ratio between 2nd highest and highest probability is lower,

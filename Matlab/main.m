@@ -93,8 +93,8 @@ if control.karma_ne_policies
     ne_file_str = [ne_file_str, 'pay_', int2str(param.payment_rule),...
         '/k_bar_', num2str(param.k_bar, '%02d'),...
         '_alpha_'];
-    for i_alpha_comp = 1 : param.num_alpha
-        alpha = param.alpha(i_alpha_comp);
+    for i_alpha_comp = 1 : param.n_alpha_comp
+        alpha = param.Alpha(i_alpha_comp);
         if alpha > 0.99 && alpha < 1
             ne_file = [ne_file_str, num2str(alpha, '%.3f'), '.mat'];
         else
@@ -106,8 +106,8 @@ if control.karma_ne_policies
         if param.karma_initialization == 2
             % Initialize karma as per stationary distribution predicted by NE
             % algorithm
-            load(ne_file, 'ne_s_up_k');
-            ne_init_k = func.get_init_k(ne_s_up_k, K_ne{i_alpha_comp}, param);
+            load(ne_file, 'ne_sigma_up_k');
+            ne_init_k = func.get_init_k(ne_sigma_up_k, K_ne{i_alpha_comp}, param);
         else
             ne_init_k = init_k;
         end
@@ -118,29 +118,27 @@ end
 % Social welfare karma policy
 if control.karma_sw_policy
     sw_file = 'karma_nash_equilibrium/results/sw_U_';
-    for i_u = 1 : param.num_U
+    for i_u = 1 : param.n_u
         sw_file = [sw_file, num2str(param.U(i_u)), '_'];
     end
-    sw_file = [sw_file, 'p_'];
-    if isnan(param.mu_bias)
-        for i_u = 1 : param.num_U
-            for i_un = 1 : param.num_U
-                sw_file = [sw_file, num2str(param.mu_down_u_up_un(i_u,i_un), '%.2f'), '_'];
+    for i_mu = 1 : param.n_mu
+    sw_file = [sw_file, 'phi', int2str(i_mu), '_'];
+        for i_u = 1 : param.n_u
+            for i_un = 1 : param.n_u
+                sw_file = [sw_file, num2str(param.phi_down_mu_u_up_un(i_mu,i_u,i_un), '%.2f'), '_'];
             end
         end
-    else
-        sw_file = [sw_file, num2str(param.mu_bias, '%.2f'), '_'];
     end
-    sw_file = [sw_file, 'm_', num2str(param.m_exchange),...
-        '/k_ave_', num2str(param.k_ave, '%02d'), '.mat'];
+    sw_file = [sw_file, 'pay_', int2str(param.payment_rule),...
+        '/k_bar_', num2str(param.k_bar, '%02d'), '.mat'];
     load(sw_file, 'ne_param');
     K_sw = ne_param.K;
     
     if param.karma_initialization == 2
         % Initialize karma as per stationary distribution predicted by SW
         % algorithm
-        load(sw_file, 'sw_s_up_k');
-        sw_init_k = func.get_init_k(sw_s_up_k, K_sw, param);
+        load(sw_file, 'sw_sigma_up_k');
+        sw_init_k = func.get_init_k(sw_sigma_up_k, K_sw, param);
     else
         sw_init_k = init_k;
     end
