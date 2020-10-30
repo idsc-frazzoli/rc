@@ -3,8 +3,8 @@ close all;
 clc;
 
 %% String to replace
-old_string = '_s_';
-new_string = '_sigma_';
+old_string = 'up_m';
+new_string = 'up_b';
 
 %% Do the renaming
 fileList = dir('**/*.mat');

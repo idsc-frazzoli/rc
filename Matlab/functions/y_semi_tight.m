@@ -1,0 +1,10 @@
+% Sets y-axis limit 'scale' above/below min-max values
+function y_semi_tight(ax, scale)
+    axis tight; % Set axis tight
+    yl = ylim(ax); % Get tight axis limits
+    range = yl(2) - yl(1); % Get tight axis range
+    sc_range = scale * range; % Scale range
+    yl(1) = yl(1) - (sc_range - range) / 2; % New ymin
+    yl(2) = yl(1) + sc_range; % New ymax
+    ylim(ax, yl);
+end

@@ -10,10 +10,10 @@ param.k_bar = 10;
 param.n_mu = 1;
 
 % Future awareness types
-param.Alpha = 0.97;
+% param.Alpha = 0.97;
 % Set to row vector to simulate multiple alpha values or perform multiple
 % NE computations in one shot
-% param.Alpha = [1.00 : -0.001 : 0.991, 0.99 : -0.01 : 0.96, 0.95 : -0.05 : 0.10];
+param.Alpha = [1.00 : -0.01 : 0.96, 0.95 : -0.05 : 0.10, 0.00];
 % Set to column vector for multiple future awareness types
 % param.Alpha = [0.30; 0.97];
 valid_Alpha = (size(param.Alpha, 1) == 1 || size(param.Alpha, 2) == 1) ...
@@ -27,10 +27,20 @@ param.n_alpha = size(param.Alpha, 1);
 param.n_alpha_comp = size(param.Alpha, 2);
 
 % Type distribution
-param.g = zeros(param.n_mu, param.n_alpha);
-param.g(1,1) = 1.0;
-valid_g = min(param.g(:)) >= 0 && sum(param.g(:)) == 1;
-assert(valid_g, 'Invalid type distribution');
+% We only consider independant urgency and future awareness type
+% distributions for now
+% Urgency type distribution
+param.w_up_mu = 1.0;
+valid_w = length(param.w_up_mu) == param.n_mu ...
+    && min(param.w_up_mu) >= 0 && sum(param.w_up_mu) == 1;
+assert(valid_w, 'Invalid urgency type distribution');
+% Future awareness type distribution
+param.z_up_alpha = 1.0;
+valid_z = length(param.z_up_alpha) == param.n_alpha ...
+    && min(param.z_up_alpha) >= 0 && sum(param.z_up_alpha) == 1;
+assert(valid_z, 'Invalid future awareness type distribution');
+% Joint type distribution
+param.g_up_mu_alpha = outer(param.w_up_mu, param.z_up_alpha);
 
 % Sorted set of urgency values
 param.U = [1; 10];
@@ -39,10 +49,13 @@ param.U = sort(param.U);
 % Number of urgency values
 param.n_u = length(param.U);
 
+% Index set of urgency values
+param.i_U = 1 : param.n_u;
+
 % Urgency Markov chain
 param.phi_down_mu_u_up_un = zeros(param.n_mu, param.n_u, param.n_u);
-param.phi_down_mu_u_up_un(1,:,:) = [0.50, 0.50;
-                                    0.50, 0.50];
+param.phi_down_mu_u_up_un(1,:,:) = [0.80, 0.20;
+                                    0.80, 0.20];
 valid_phi = true;
 for i_mu = 1 : param.n_mu
     for i_u = 1 : param.n_u
@@ -60,9 +73,20 @@ end
 assert(valid_phi, 'Invalid urgency Markov chain');
 
 % Stationary distribution of urgency Markov chain
+% Also detect if urgency is i.i.d, in which case we can simply sample from
+% stationary distribution. This is the case when all rows of the transition
+% matrix are equal to the stationary distribution
 param.prob_down_mu_up_u = zeros(param.n_mu, param.n_u);
+param.u_iid = true(param.n_mu, 1);
 for i_mu = 1 : param.n_mu
-    param.prob_down_mu_up_u(i_mu,:) = func.stat_dist(squeeze(param.phi_down_mu_u_up_un(i_mu,:,:)));
+    param.prob_down_mu_up_u(i_mu,:) = stat_dist(squeeze(param.phi_down_mu_u_up_un(i_mu,:,:)));
+    
+    for i_u = 1 : param.n_u
+        if norm(param.prob_down_mu_up_u(i_mu,:).' - squeeze(param.phi_down_mu_u_up_un(i_mu,i_u,:)), inf) >= eps
+            param.u_iid(i_mu) = false;
+            break;
+        end
+    end
 end
 
 % Payment rule
@@ -106,6 +130,6 @@ param.karma_initialization = 2;
 param.pure_policy_tol = 5e-2;
 
 % Save results
-param.save = true;
+param.save = false;
 
 end
