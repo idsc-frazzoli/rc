@@ -111,7 +111,7 @@ if (control.karma_ne_policies || control.karma_sw_policy) && param.karma_initial
     if param.karma_initialization == 0
         init_k = param.k_bar * ones(1, param.n_a);
     else
-        [sigma_up_k_uniform, K_uniform] = get_sigma_up_k_uniform(param.k_bar);
+        [sigma_up_k_uniform, K_uniform] = get_sigma_up_k_uniform_inf(param.k_bar);
         init_k = get_init_k(sigma_up_k_uniform, K_uniform, param);
     end
 end
