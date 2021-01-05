@@ -13,7 +13,7 @@ param.n_mu = 1;
 % param.Alpha = 0.97;
 % Set to row vector to simulate multiple alpha values or perform multiple
 % NE computations in one shot
-param.Alpha = [1.00 : -0.01 : 0.96, 0.95 : -0.05 : 0.10, 0.00];
+param.Alpha = [1.00 : -0.001 : 0.991, 0.99 : -0.01 : 0.96, 0.95 : -0.05 : 0.10, 0.00];
 % Set to column vector for multiple future awareness types
 % param.Alpha = [0.30; 0.97];
 valid_Alpha = (size(param.Alpha, 1) == 1 || size(param.Alpha, 2) == 1) ...

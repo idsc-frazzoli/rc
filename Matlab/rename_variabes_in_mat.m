@@ -16,7 +16,7 @@ for i_file = 1 : length(fileList)
     old_names = fieldnames(old_mat);
     new_names = strrep(old_names, old_string, new_string); 
     for i_names = 1:length(old_names)
-        if extend_types && old_names{i_names} == old_string
+        if extend_types && strcmp(old_names{i_names}, old_string)
             old_mat.(old_names{i_names}) = reshape(old_mat.(old_names{i_names}), [1, 1, size(old_mat.(old_names{i_names}))]);
         end
         new_mat.(new_names{i_names}) = old_mat.(old_names{i_names});

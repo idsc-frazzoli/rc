@@ -156,9 +156,13 @@ if control.karma_ne_policies
             % under pay as bid rule
             if alpha == 0 && param.payment_rule == 0
                 K_ne{i_alpha_comp} = (0 : param.k_tot).';
-                pi_ne_pure{i_alpha_comp} = repmat(K_ne{i_alpha_comp}.', param.n_u, 1);
-                k_ne{i_alpha_comp} = allocate_mat(param);
-                k_ne{i_alpha_comp}(1,:) = [zeros(1, param.n_a - 1), param.k_tot];
+                pi_ne_pure{i_alpha_comp} = reshape(repmat(K_ne{i_alpha_comp}.', param.n_mu * param.n_alpha * param.n_u, 1), param.n_mu, param.n_alpha, param.n_u, []);
+                if param.karma_initialization == 2
+                    k_ne{i_alpha_comp} = allocate_mat(param);
+                    k_ne{i_alpha_comp}(1,:) = [zeros(1, param.n_a - 1), param.k_tot];
+                else
+                    k_ne{i_alpha_comp} = allocate_karma(param, init_k);
+                end
                 continue;
             end
             
@@ -614,7 +618,7 @@ end
 if param.save
     fprintf('Saving workspace\n');
     if control.karma_heuristic_policies || control.karma_ne_policies || control.karma_sw_policy
-        if param.num_alpha == 1
+        if param.n_alpha && param.n_alpha_comp == 1
             save(['results/k_ave_', num2str(param.k_ave, '%02d'), '_alpha_', num2str(param.alpha, '%.2f'), '.mat']);
         else
             save(['results/k_ave_', num2str(param.k_ave, '%02d'), '.mat']);
