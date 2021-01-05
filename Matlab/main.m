@@ -17,7 +17,7 @@ control.fairness_horizon_policies = true;
 control.karma_ne_policies = true;
 
 % Flag to simulate karma social welfare policy
-control.karma_sw_policy = true;
+control.karma_sw_policy = false;
 
 % Flag to compute entropy of fairness policies & karma
 control.compute_entropy = false;
@@ -135,10 +135,21 @@ if control.karma_ne_policies
             end
         end
     end
+    if param.n_alpha > 1
+        for i_alpha = 1 : param.n_alpha
+            alpha = param.Alpha(i_alpha);
+            if alpha > 0.99 && alpha < 1
+                alpha_str = num2str(alpha, '%.3f');
+            else
+                alpha_str = num2str(alpha, '%.2f');
+            end
+            ne_file_str = [ne_file_str, 'alpha', int2str(i_alpha), '_', alpha_str, '_', num2str(param.z_up_alpha(i_alpha), '%.2f'), '_'];
+        end
+    end
     ne_file_str = [ne_file_str, 'pay_', int2str(param.payment_rule),...
-        '/k_bar_', num2str(param.k_bar, '%02d'),...
-        '_alpha'];
+        '/k_bar_', num2str(param.k_bar, '%02d')];
     if param.n_alpha == 1
+        ne_file_str = [ne_file_str, '_alpha'];
         for i_alpha_comp = 1 : param.n_alpha_comp
             alpha = param.Alpha(i_alpha_comp);
             % alpha = 0 yields bid all and all of the karma with one agent
@@ -152,14 +163,15 @@ if control.karma_ne_policies
             end
             
             if alpha > 0.99 && alpha < 1
-                ne_file = [ne_file_str, '_', num2str(alpha, '%.3f'), '.mat'];
+                alpha_str = num2str(alpha, '%.3f');
             else
-                ne_file = [ne_file_str, '_', num2str(alpha, '%.2f'), '.mat'];
+                alpha_str = num2str(alpha, '%.2f');
             end
+            ne_file = [ne_file_str, '_', alpha_str, '.mat'];
             
-            load(ne_file, 'ne_param', 'ne_pi_down_u_k_up_b');
+            load(ne_file, 'ne_param', 'ne_pi_down_mu_alpha_u_k_up_b');
             K_ne{i_alpha_comp} = ne_param.K;
-            pi_ne{i_alpha_comp} = ne_pi_down_u_k_up_b;
+            pi_ne{i_alpha_comp} = ne_pi_down_mu_alpha_u_k_up_b;
             pi_ne_pure{i_alpha_comp} = get_pure_policy(pi_ne{i_alpha_comp}, K_ne{i_alpha_comp}, param);
 
             if param.karma_initialization == 2
@@ -173,19 +185,11 @@ if control.karma_ne_policies
             k_ne{i_alpha_comp} = allocate_karma(param, ne_init_k);
         end
     else
-        for i_alpha = 1 : param.n_alpha
-            alpha = param.Alpha(i_alpha);
-            if alpha > 0.99 && alpha < 1
-                ne_file_str = [ne_file_str, '_', num2str(alpha, '%.3f')];
-            else
-                ne_file_str = [ne_file_str, '_', num2str(alpha, '%.2f')];
-            end
-        end
         ne_file = [ne_file_str, '.mat'];
         
-        load(ne_file, 'ne_param', 'ne_pi_down_u_k_up_b');
+        load(ne_file, 'ne_param', 'ne_pi_down_mu_alpha_u_k_up_b');
         K_ne{1} = ne_param.K;
-        pi_ne{1} = ne_pi_down_u_k_up_b;
+        pi_ne{1} = ne_pi_down_mu_alpha_u_k_up_b;
         pi_ne_pure{1} = get_pure_policy(pi_ne{1}, K_ne{1}, param);
 
         if param.karma_initialization == 2
@@ -261,19 +265,22 @@ for t = 1 : param.T
         'One agent was picked too many times. Increase maximum allowed number of interactions per agent.');
 
     % Urgency of sampled agents
-    mu = agent_types(1,this_agents);
+    this_mu = agent_types(1,this_agents);
     this_i_u_last = i_u_last(this_agents);
     % See if we can sample urgency of both agents from same prob
     % distribution. This is faster than sampling per agent
-    if mu(1) == mu(2) && (param.u_iid(mu(1)) || this_i_u_last(1) == this_i_u_last(2))
-        this_i_u = datasample(u_stream, param.i_U, 2, 'Weights', squeeze(param.phi_down_mu_u_up_un(mu(1),this_i_u_last(1),:)));
+    if this_mu(1) == this_mu(2) && (param.u_iid(this_mu(1)) || this_i_u_last(1) == this_i_u_last(2))
+        this_i_u = datasample(u_stream, param.i_U, 2, 'Weights', squeeze(param.phi_down_mu_u_up_un(this_mu(1),this_i_u_last(1),:)));
     else
         for i_agent = 1 : 2
-            this_i_u(i_agent) = datasample(u_stream, param.i_U, 1, 'Weights', squeeze(param.phi_down_mu_u_up_un(mu(i_agent),this_i_u_last(i_agent),:)));
+            this_i_u(i_agent) = datasample(u_stream, param.i_U, 1, 'Weights', squeeze(param.phi_down_mu_u_up_un(this_mu(i_agent),this_i_u_last(i_agent),:)));
         end
     end
     i_u_last(this_agents) = this_i_u;
-
+    
+    % Future awareness of sampled agents
+    this_i_alpha = agent_types(2,this_agents);
+    
     % Update history of urgency
     for i_agent = 1 : 2
         this_u(i_agent) = param.U(this_i_u(i_agent));
@@ -412,10 +419,10 @@ for t = 1 : param.T
             for i_agent = 1 : 2
                 this_k(i_agent) = k_ne{i_alpha_comp}(this_t_i(i_agent),this_agents(i_agent));
                 i_k = min([this_k(i_agent) + 1, length(K_ne{i_alpha_comp})]); % Uses policy of k_max if it is exceeded
-                this_b(i_agent) = pi_ne_pure{i_alpha_comp}(this_i_u(i_agent),i_k);
+                this_b(i_agent) = pi_ne_pure{i_alpha_comp}(this_mu(i_agent),this_i_alpha(i_agent),this_i_u(i_agent),i_k);
                 if isnan(this_b(i_agent))
                     karma_stream.State = karma_stream_state; % Reset karma stream to current state for consitency across policies
-                    this_b(i_agent) = datasample(karma_stream, K_ne{i_alpha_comp}, 1, 'Weights', squeeze(pi_ne{i_alpha_comp}(this_i_u(i_agent),i_k,:)));
+                    this_b(i_agent) = datasample(karma_stream, K_ne{i_alpha_comp}, 1, 'Weights', squeeze(pi_ne{i_alpha_comp}(this_mu(i_agent),this_i_alpha(i_agent),this_i_u(i_agent),i_k,:)));
                 end
             end
 

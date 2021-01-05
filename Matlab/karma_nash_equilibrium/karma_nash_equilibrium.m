@@ -241,7 +241,7 @@ while i_alpha_comp <= param.n_alpha_comp
     prob_up_k_u = dot2(prob_up_k_u_alpha, ones(param.n_alpha, 1), 3, 1);
     sigma_up_k = dot2(prob_up_k_u, ones(param.n_u, 1), 2, 1);
     ne_upsilon_up_u = dot2(prob_up_k_u, ones(ne_param.n_k, 1), 1, 1).';
-    ne_s_up_k = dot2(prob_up_k_u, ones(param.n_u, 1), 2, 1);
+    ne_sigma_up_k = dot2(prob_up_k_u, ones(param.n_u, 1), 2, 1);
     
     if alpha == 1
         num_J_iter = 1;
