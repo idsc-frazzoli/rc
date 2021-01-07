@@ -13,7 +13,9 @@ function plot_br_pi(fg, position, colormap, br_pi_down_mu_alpha_u_k_up_b, param,
             for i_alpha = 1 : param.n_alpha
                 for i_u = 1 : param.n_u
                     pi_mat = squeeze(br_pi_down_mu_alpha_u_k_up_b(i_mu,i_alpha,i_u,:,:));
-                    pi_mat(pi_mat <= eps) = nan;
+                    for i_k = 1 : ne_param.n_k - 1
+                        pi_mat(i_k,i_k+1:ne_param.n_k) = nan;
+                    end
                     i_subplot = (i_mu - 1) * (param.n_alpha * param.n_u) + (i_alpha - 1) * param.n_u + i_u;
                     subplot(n_rows, n_cols, i_subplot);
                     br_pi_plot{i_mu,i_alpha,i_u} = heatmap(ne_param.K, ne_param.K, pi_mat.', 'ColorbarVisible','off');
@@ -42,7 +44,9 @@ function plot_br_pi(fg, position, colormap, br_pi_down_mu_alpha_u_k_up_b, param,
             for i_alpha = 1 : param.n_alpha
                 for i_u = 1 : param.n_u
                     pi_mat = squeeze(br_pi_down_mu_alpha_u_k_up_b(i_mu,i_alpha,i_u,:,:));
-                    pi_mat(pi_mat <= eps) = nan;
+                    for i_k = 1 : ne_param.n_k - 1
+                        pi_mat(i_k,i_k+1:ne_param.n_k) = nan;
+                    end
                     br_pi_plot{i_mu,i_alpha,i_u}.ColorData = pi_mat.';
                     alpha = param.Alpha(max([i_alpha, i_alpha_comp]));
                     if alpha > 0.99 && alpha < 1

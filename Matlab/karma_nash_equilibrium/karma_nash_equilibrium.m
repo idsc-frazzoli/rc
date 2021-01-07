@@ -237,11 +237,17 @@ while i_alpha_comp <= param.n_alpha_comp
     ne_d_error_hist(num_ne_pi_iter:end) = [];
     
     % Some final results
-    prob_up_k_u_alpha = dot2(permute(ne_d_up_mu_alpha_u_k_next, [4 3 2 1]), ones(param.n_mu, 1), 4, 1);
+    prob_up_k_u_alpha = dot2(permute(ne_d_up_mu_alpha_u_k, [4 3 2 1]), ones(param.n_mu, 1), 4, 1);
     prob_up_k_u = dot2(prob_up_k_u_alpha, ones(param.n_alpha, 1), 3, 1);
-    sigma_up_k = dot2(prob_up_k_u, ones(param.n_u, 1), 2, 1);
     ne_upsilon_up_u = dot2(prob_up_k_u, ones(ne_param.n_k, 1), 1, 1).';
     ne_sigma_up_k = dot2(prob_up_k_u, ones(param.n_u, 1), 2, 1);
+    ne_sigma_down_mu_alpha_up_k = zeros(param.n_mu, param.n_alpha, ne_param.n_k);
+    for i_mu = 1 : param.n_mu
+        for i_alpha = 1 : param.n_alpha
+            ne_sigma_down_mu_alpha_up_k(i_mu,i_alpha,:) = dot2(squeeze(ne_d_up_mu_alpha_u_k_next(i_mu,i_alpha,:,:)), ones(param.n_u, 1), 1, 1);
+            ne_sigma_down_mu_alpha_up_k(i_mu,i_alpha,:) = ne_sigma_down_mu_alpha_up_k(i_mu,i_alpha,:) / sum(ne_sigma_down_mu_alpha_up_k(i_mu,i_alpha,:));
+        end
+    end
     
     if alpha == 1
         num_J_iter = 1;
@@ -265,23 +271,28 @@ while i_alpha_comp <= param.n_alpha_comp
     
     % Plot remaining statistics
     if ne_param.plot
+        % NE karma distribution plot
+        ne_sigma_plot_fg = 4;
+        ne_sigma_plot_pos = [0, 0, screenwidth, screenheight];
+        plot_ne_sigma(ne_sigma_plot_fg, ne_sigma_plot_pos, ne_sigma_down_mu_alpha_up_k, param, ne_param, i_alpha_comp);
+        
         % NE payoffs plot
-        ne_J_plot_fg = 4;
+        ne_J_plot_fg = 5;
         ne_J_plot_pos = [0, 0, screenwidth, screenheight];
         plot_ne_J(ne_J_plot_fg, ne_J_plot_pos, ne_J_down_mu_alpha_u_k, param, ne_param, i_alpha_comp);
 
         % NE payoffs per bid plot
-        ne_F_plot_fg = 5;
+        ne_F_plot_fg = 6;
         ne_F_plot_pos = [0, 0, screenwidth, screenheight];
         plot_ne_F(ne_F_plot_fg, ne_F_plot_pos, parula, ne_F_down_mu_alpha_u_k_b, param, ne_param, i_alpha_comp);
 
         % NE state transitions plot
-        ne_T_plot_fg = 6;
+        ne_T_plot_fg = 7;
         ne_T_plot_pos = [0, 0, screenwidth, screenheight];
         plot_ne_T(ne_T_plot_fg, ne_T_plot_pos, RedColormap, ne_T_down_mu_alpha_u_k_up_un_kn, param, ne_param, i_alpha_comp);
 
         % NE policy error plot
-        ne_pi_error_plot_fg = 7;
+        ne_pi_error_plot_fg = 8;
         ne_pi_error_plot_pos = [0, 0, screenwidth, screenheight];
         plot_ne_pi_error(ne_pi_error_plot_fg, ne_pi_error_plot_pos, ne_pi_error_hist, param, i_alpha_comp);
     end
@@ -297,6 +308,10 @@ while i_alpha_comp <= param.n_alpha_comp
             end
             file_str = [file_str, '_alpha_', alpha_str, '.mat'];
         else
+            file_str = [file_str, '_z'];
+            for i_alpha = 1 : param.n_alpha
+                file_str = [file_str, '_', num2str(param.z_up_alpha(i_alpha), '%.2f')];
+            end
             file_str = [file_str, '.mat'];
         end
         save(file_str);
@@ -323,23 +338,28 @@ if ~ne_param.plot
     br_pi_plot_pos = [0, 0, screenwidth, screenheight];
     plot_br_pi(br_pi_plot_fg, br_pi_plot_pos, RedColormap, br_pi_down_mu_alpha_u_k_up_b, param, ne_param, i_alpha_comp);
 
+    % NE karma distribution plot
+    ne_sigma_plot_fg = 4;
+    ne_sigma_plot_pos = [0, 0, screenwidth, screenheight];
+    plot_ne_sigma(ne_sigma_plot_fg, ne_sigma_plot_pos, ne_sigma_down_mu_alpha_up_k, param, ne_param, i_alpha_comp);
+    
     % NE payoffs plot
-    ne_J_plot_fg = 4;
+    ne_J_plot_fg = 5;
     ne_J_plot_pos = [0, 0, screenwidth, screenheight];
     plot_ne_J(ne_J_plot_fg, ne_J_plot_pos, ne_J_down_mu_alpha_u_k, param, ne_param, i_alpha_comp);
     
     % NE payoffs per bid plot
-    ne_F_plot_fg = 5;
+    ne_F_plot_fg = 6;
     ne_F_plot_pos = [0, 0, screenwidth, screenheight];
     plot_ne_F(ne_F_plot_fg, ne_F_plot_pos, parula, ne_F_down_mu_alpha_u_k_b, param, ne_param, i_alpha_comp);
 
     % NE state transitions plot
-    ne_T_plot_fg = 6;
+    ne_T_plot_fg = 7;
     ne_T_plot_pos = [0, 0, screenwidth, screenheight];
     plot_ne_T(ne_T_plot_fg, ne_T_plot_pos, RedColormap, ne_T_down_mu_alpha_u_k_up_un_kn, param, ne_param, i_alpha_comp);
 
     % NE policy error plot
-    ne_pi_error_plot_fg = 7;
+    ne_pi_error_plot_fg = 8;
     ne_pi_error_plot_pos = [0, 0, screenwidth, screenheight];
     plot_ne_pi_error(ne_pi_error_plot_fg, ne_pi_error_plot_pos, ne_pi_error_hist, param, i_alpha_comp);
 end

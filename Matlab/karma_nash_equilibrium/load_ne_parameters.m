@@ -1,7 +1,7 @@
 function ne_param = load_ne_parameters(param)
 
 % Maximum karma level. Used as a starting point
-ne_param.k_max = 50;
+ne_param.k_max = 80;
 
 % Set of all karma values
 ne_param.K = (0 : ne_param.k_max).';
@@ -66,7 +66,7 @@ ne_param.br_J_tol = 1e-4;
 ne_param.ne_pi_tol = 1e-6;
 
 % Maximum number of Nash equilibrium policy iterations
-ne_param.ne_pi_max_iter = 10000;
+ne_param.ne_pi_max_iter = 1000;
 
 % Momentum on Nash equilibrium policy
 ne_param.ne_pi_mom = 0.05;
