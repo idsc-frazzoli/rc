@@ -1,7 +1,7 @@
 function ne_param = load_ne_parameters(param)
 
 % Maximum karma level. Used as a starting point
-ne_param.k_max = 80;
+ne_param.k_max = 50;
 
 % Set of all karma values
 ne_param.K = (0 : ne_param.k_max).';

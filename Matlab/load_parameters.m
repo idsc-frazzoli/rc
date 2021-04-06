@@ -10,12 +10,12 @@ param.k_bar = 10;
 param.n_mu = 1;
 
 % Future awareness types
-% param.Alpha = 0.97;
+param.Alpha = 0.97;
 % Set to row vector to simulate multiple alpha values or perform multiple
 % NE computations in one shot
 % param.Alpha = [1.00 : -0.001 : 0.991, 0.99 : -0.01 : 0.96, 0.95 : -0.05 : 0.10, 0.00];
 % Set to column vector for multiple future awareness types
-param.Alpha = [0.30; 0.97];
+% param.Alpha = [0.30; 0.97];
 valid_Alpha = (size(param.Alpha, 1) == 1 || size(param.Alpha, 2) == 1) ...
     && min(param.Alpha) >= 0 && max(param.Alpha) <= 1;
 assert(valid_Alpha, 'Invalid future awareness types');
@@ -31,12 +31,13 @@ param.n_alpha_comp = size(param.Alpha, 2);
 % distributions for now
 % Urgency type distribution
 param.w_up_mu = 1.0;
+% param.w_up_mu = [0.0; 1.0];
 valid_w = length(param.w_up_mu) == param.n_mu ...
     && min(param.w_up_mu) >= 0 && sum(param.w_up_mu) == 1;
 assert(valid_w, 'Invalid urgency type distribution');
 % Future awareness type distribution
-% param.z_up_alpha = 1;
-param.z_up_alpha = [1.0; 0.0];
+param.z_up_alpha = 1;
+% param.z_up_alpha = [1.0; 0.0];
 valid_z = length(param.z_up_alpha) == param.n_alpha ...
     && min(param.z_up_alpha) >= 0 && sum(param.z_up_alpha) == 1;
 assert(valid_z, 'Invalid future awareness type distribution');
@@ -44,7 +45,7 @@ assert(valid_z, 'Invalid future awareness type distribution');
 param.g_up_mu_alpha = reshape(outer(param.w_up_mu, param.z_up_alpha), param.n_mu, []);
 
 % Sorted set of urgency values
-param.U = [1; 10];
+param.U = [1; 3];
 param.U = sort(param.U);
 
 % Number of urgency values
@@ -55,8 +56,10 @@ param.i_U = 1 : param.n_u;
 
 % Urgency Markov chain
 param.phi_down_mu_u_up_un = zeros(param.n_mu, param.n_u, param.n_u);
-param.phi_down_mu_u_up_un(1,:,:) = [0.50, 0.50;
-                                    0.50, 0.50];
+param.phi_down_mu_u_up_un(1,:,:) = [0.75, 0.25;
+                                    0.75, 0.25];
+% param.phi_down_mu_u_up_un(2,:,:) = [0.33, 0.67;
+%                                     0.33, 0.67];
 valid_phi = true;
 for i_mu = 1 : param.n_mu
     for i_u = 1 : param.n_u

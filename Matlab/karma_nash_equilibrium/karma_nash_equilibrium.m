@@ -300,20 +300,25 @@ while i_alpha_comp <= param.n_alpha_comp
     % Store end results
     if ne_param.save
         file_str = ['karma_nash_equilibrium/results/k_bar_', num2str(param.k_bar, '%02d')];
-        if param.n_alpha == 1
+        if param.n_mu > 1
+            file_str = [file_str, '_w'];
+            for i_mu = 1 : param.n_mu
+                file_str = [file_str, '_', num2str(param.w_up_mu(i_mu), '%.2f')];
+            end
+        elseif param.n_alpha > 1
+            file_str = [file_str, '_z'];
+            for i_alpha = 1 : param.n_alpha
+                file_str = [file_str, '_', num2str(param.z_up_alpha(i_alpha), '%.2f')];
+            end
+        else
             if alpha > 0.99 && alpha < 1
                 alpha_str = num2str(alpha, '%.3f');
             else
                 alpha_str = num2str(alpha, '%.2f');
             end
-            file_str = [file_str, '_alpha_', alpha_str, '.mat'];
-        else
-            file_str = [file_str, '_z'];
-            for i_alpha = 1 : param.n_alpha
-                file_str = [file_str, '_', num2str(param.z_up_alpha(i_alpha), '%.2f')];
-            end
-            file_str = [file_str, '.mat'];
+            file_str = [file_str, '_alpha_', alpha_str];
         end
+        file_str = [file_str, '.mat'];
         save(file_str);
     end
     

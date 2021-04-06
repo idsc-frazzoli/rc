@@ -13,7 +13,7 @@ function plot_sw_pi(fg, position, colormap, sw_pi_down_u_k_up_m, U, K, M, k_ave)
             subplot(1, num_U, i_u);
             sw_pi_plot{i_u} = heatmap(K, M, pi_mat.', 'ColorbarVisible','off');
             sw_pi_plot{i_u}.YDisplayData = flipud(sw_pi_plot{i_u}.YDisplayData);
-            sw_pi_plot{i_u}.Title = ['k_{avg} = ', num2str(k_ave, '%02d'), ' SW policy for u = ', num2str(U(i_u))];
+            sw_pi_plot{i_u}.Title = ['k_{bar} = ', num2str(k_ave, '%02d'), ' SW policy for u = ', num2str(U(i_u))];
             sw_pi_plot{i_u}.XLabel = 'Karma';
             sw_pi_plot{i_u}.YLabel = 'Message';
             sw_pi_plot{i_u}.FontName = 'Ubuntu';
@@ -29,7 +29,7 @@ function plot_sw_pi(fg, position, colormap, sw_pi_down_u_k_up_m, U, K, M, k_ave)
             pi_mat = squeeze(sw_pi_down_u_k_up_m(i_u,:,:));
             pi_mat(pi_mat <= 1e-6) = nan;
             sw_pi_plot{i_u}.ColorData = pi_mat.';
-            sw_pi_plot{i_u}.Title = ['k_{avg} = ', num2str(k_ave, '%02d'), ' SW policy for u = ', num2str(U(i_u))];
+            sw_pi_plot{i_u}.Title = ['k_{bar} = ', num2str(k_ave, '%02d'), ' SW policy for u = ', num2str(U(i_u))];
         end
     end
 end

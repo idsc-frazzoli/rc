@@ -1,6 +1,10 @@
 clear;
 clc;
 
+%% Add functions folder to path
+addpath('functions');
+addpath('karma_nash_equilibrium/ne_functions');
+
 %% Screen size used to place plots
 screensize = get(groot, 'ScreenSize');
 screenwidth = screensize(3);
@@ -10,7 +14,7 @@ load('karma_nash_equilibrium/RedColormap.mat');
 file_str = 'karma_nash_equilibrium/results/ne_U_1_10_phi1_0.50_0.50_0.50_0.50_alpha1_0.30_alpha2_0.97_pay_0/k_bar_';
 
 % Flag to save plots
-save_plots = true;
+save_plots = false;
 
 %% Select k_bar(s) and alpha(s) to process
 k_bar_vec = input('Enter k_bar(s): ');

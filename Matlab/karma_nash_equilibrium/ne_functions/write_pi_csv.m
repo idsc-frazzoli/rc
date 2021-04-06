@@ -1,23 +1,26 @@
 % Write policy to csv file
-function num_K = write_pi_csv(pi_down_u_k_up_m, s_up_k, U, K, pi_tol, s_tol, fileprefix)
-    num_U = length(U);
-    num_K = length(K);
-
+function n_k = write_pi_csv(pi_down_mu_alpha_u_k_up_m, sigma_up_k, param, ne_param, pi_tol, sigma_tol, fileprefix)
+    n_k = ne_param.n_k;
+    
     % Remove tail of distribution where there are too few agents
-    while s_up_k(num_K) < s_tol
-        num_K = num_K - 1;
+    while sigma_up_k(n_k) < sigma_tol
+        n_k = n_k - 1;
     end
 
     % Remove 'zero' values
-    pi_down_u_k_up_m(pi_down_u_k_up_m < pi_tol) = 0;
-    for i_u = 1 : num_U
-        for i_k = 1 : num_K
-            pi_down_u_k_up_m(i_u,i_k,1:num_K) = pi_down_u_k_up_m(i_u,i_k,1:num_K) / sum(pi_down_u_k_up_m(i_u,i_k,1:num_K));
+    pi_down_mu_alpha_u_k_up_m(pi_down_mu_alpha_u_k_up_m < pi_tol) = 0;
+    for i_mu = 1 : param.n_mu
+        for i_alpha = 1 : param.n_alpha
+            for i_u = 1 : param.n_u
+                for i_k = 1 : n_k
+                    pi_down_mu_alpha_u_k_up_m(i_mu,i_alpha,i_u,i_k,1:n_k) = pi_down_mu_alpha_u_k_up_m(i_mu,i_alpha,i_u,i_k,1:n_k) / sum(pi_down_mu_alpha_u_k_up_m(i_mu,i_alpha,i_u,i_k,1:n_k));
+                end
+            end
         end
     end
 
     % Header
-    header = ["u", "k", "k2", "b", "b2", "P(b)"];
+    header = ["mu", "alpha", "u", "k", "k2", "b", "b2", "P(b)"];
     filename = [fileprefix, '.csv'];
     fout = fopen(filename, 'w');
     for i = 1 : length(header) - 1
@@ -27,7 +30,7 @@ function num_K = write_pi_csv(pi_down_u_k_up_m, s_up_k, U, K, pi_tol, s_tol, fil
     fclose(fout);
 
     % Header for mean of policy
-    header_mean = ["u", "k", "b"];
+    header_mean = ["mu", "alpha", "u", "k", "b"];
     filename_mean = [fileprefix, '_mean.csv'];
     fout = fopen(filename_mean, 'w');
     for i = 1 : length(header_mean) - 1
@@ -37,23 +40,28 @@ function num_K = write_pi_csv(pi_down_u_k_up_m, s_up_k, U, K, pi_tol, s_tol, fil
     fclose(fout);
 
     % Data
-    for i_u = 1 : num_U
-        u = U(i_u);
-        for i_k = 1 : num_K + 1
-            k = i_k - 1;
-            for i_b = 1 : num_K + 1
-                b = i_b - 1;
-                if i_b <= i_k && i_k <= num_K
-                    line = [u, k, k - 0.5, b, b - 0.5, pi_down_u_k_up_m(i_u,i_k,i_b)];
-                else
-                    line = [u, k, k - 0.5, b, b - 0.5, 2];
-                end
-                dlmwrite(filename, line, '-append');
-            end
+    for i_mu = 1 : param.n_mu
+        for i_alpha = 1 : param.n_alpha
+            alpha = param.Alpha(i_alpha);
+            for i_u = 1 : param.n_u
+                u = param.U(i_u);
+                for i_k = 1 : n_k + 1
+                    k = i_k - 1;
+                    for i_b = 1 : n_k + 1
+                        b = i_b - 1;
+                        if i_b <= i_k && i_k <= n_k
+                            line = [i_mu, alpha, u, k, k - 0.5, b, b - 0.5, pi_down_mu_alpha_u_k_up_m(i_mu,i_alpha,i_u,i_k,i_b)];
+                        else
+                            line = [i_mu, alpha, u, k, k - 0.5, b, b - 0.5, 2];
+                        end
+                        dlmwrite(filename, line, '-append');
+                    end
 
-            if i_k <= num_K
-                line_mean = [U(i_u), K(i_k), dot(squeeze(pi_down_u_k_up_m(i_u,i_k,:)), K)];
-                dlmwrite(filename_mean, line_mean, '-append');
+                    if i_k <= n_k
+                        line_mean = [i_mu, alpha, u, k, dot(squeeze(pi_down_mu_alpha_u_k_up_m(i_mu,i_alpha,i_u,i_k,:)), ne_param.K)];
+                        dlmwrite(filename_mean, line_mean, '-append');
+                    end
+                end
             end
         end
     end

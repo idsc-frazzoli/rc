@@ -1,20 +1,19 @@
 % Wrtie stationary distribution to csv file
-function num_K = write_d_csv(d_up_u_k, U, K, s_tol, fileprefix)
-    num_U = length(U);
-    num_K = length(K);
-    s_up_k = sum(d_up_u_k).';
+function n_k = write_d_csv(d_up_mu_alpha_u_k, sigma_up_k, param, ne_param, sigma_tol, fileprefix)
+    n_k = ne_param.n_k;
+    K = ne_param.K;
 
     % Remove tail of distribution where there are too few agents
-    while s_up_k(num_K) < s_tol
-        num_K = num_K - 1;
+    while sigma_up_k(n_k) < sigma_tol
+        n_k = n_k - 1;
     end
-    if num_K == length(K)
-        K = [K; K(end)+1];
-        d_up_u_k = [d_up_u_k, zeros(num_U, 1)];
+    if n_k == length(K)
+        K(end+1) = K(end)+1;
+        d_up_mu_alpha_u_k(:,:,:,end+1) = 0;
     end
 
     % Header
-    header = ["u", "k", "k2", "P(k)"];
+    header = ["mu", "alpha", "u", "k", "k2", "P(k)"];
     filename = [fileprefix, '.csv'];
     fout = fopen(filename, 'w');
     for i = 1 : length(header) - 1
@@ -24,8 +23,14 @@ function num_K = write_d_csv(d_up_u_k, U, K, s_tol, fileprefix)
     fclose(fout);
 
     % Data
-    for i_u = 1 : num_U
-        data = [U(i_u) * ones(num_K + 1, 1), K(1:num_K+1), K(1:num_K+1) - 0.5, d_up_u_k(i_u,1:num_K+1).'];
-        dlmwrite(filename, data, '-append');
+    for i_mu = 1 : param.n_mu
+        MU = i_mu * ones(n_k + 1, 1);
+        for i_alpha = 1 : param.n_alpha
+            ALPHA = param.Alpha(i_alpha) * ones(n_k + 1, 1);
+            for i_u = 1 : param.n_u
+                data = [MU, ALPHA, param.U(i_u) * ones(n_k + 1, 1), K(1:n_k+1), K(1:n_k+1) - 0.5, squeeze(d_up_mu_alpha_u_k(i_mu,i_alpha,i_u,1:n_k+1))];
+                dlmwrite(filename, data, '-append');
+            end
+        end
     end
 end
