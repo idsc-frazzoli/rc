@@ -396,6 +396,7 @@ def iterate(sim: Simulation, it: Iteration, energy_factor: float, it_ef: int, co
                                       utility=it.utility, policy=it.policy, k_i=k_i, m_i=m_i,
                                       consider_self_effect=consider_self_effect)
             expected_cost_today[m_i] = ec
+            #expected_cost_today[m_i] = ec / 2
             expected_utilities[m_i] = eu
 
         # # FIXME: trying to find off-by-one error bu
@@ -944,8 +945,11 @@ def iterative_main():
     #                                        )
     opts['o2-reg-noself'] = Optimization(num_iterations=200,
                                          inertia=0.05,
-                                         energy_factor_schedule=(0.30, 0.45, 0.60, 0.65, 0.7, 0.8, 0.9, 0.95, 1),
-                                         diff_threshold=0.01,
+                                         #inertia=1.0,
+                                         #energy_factor_schedule=(0.30, 0.45, 0.60, 0.65, 0.7, 0.8, 0.9, 0.95, 1),
+                                         energy_factor_schedule=(1, 1, 1, 1, 1, 1, 1, 1, 1),
+                                         #diff_threshold=0.01,
+                                         diff_threshold=0.001,
                                          consider_self_effect=False,
                                          regularize_utility_monotone=True,
                                          regularize_marginal_utility_monotone=True
